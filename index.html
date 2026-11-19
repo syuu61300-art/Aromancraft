@@ -150,6 +150,15 @@
   #dpad.fwd .dp[data-d=fl],#dpad.fwd .dp[data-d=fr]{visibility:visible}
   #dpad .dp[data-d=c]{border-radius:50%;transform:scale(.8)}
   #dpad .dp[data-d=c].on{background:rgba(160,220,110,.5)}
+  /* analog stick (chosen in settings instead of the d-pad) */
+  #stick{position:absolute;left:calc(var(--tb)*0.3);bottom:calc(var(--tb)*0.6);width:calc(var(--tb)*2.8);height:calc(var(--tb)*2.8);border-radius:50%;pointer-events:auto;
+    background:radial-gradient(circle,rgba(40,40,40,.18) 0 55%,rgba(40,40,40,.34) 56%);border:2px solid rgba(255,255,255,.45);box-sizing:border-box;transition:border-color .15s,background .15s}
+  #stick.run{border-color:#d8ffc0;background:radial-gradient(circle,rgba(120,200,90,.18) 0 55%,rgba(120,200,90,.36) 56%)}
+  #stick-knob{position:absolute;left:50%;top:50%;width:calc(var(--tb)*1.15);height:calc(var(--tb)*1.15);margin:calc(var(--tb)*-0.575) 0 0 calc(var(--tb)*-0.575);border-radius:50%;
+    background:rgba(255,255,255,.42);border:2px solid rgba(255,255,255,.85);box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:transform .12s ease-out;pointer-events:none}
+  #stick.active #stick-knob{transition:none;background:rgba(255,255,255,.6)}
+  #t-sneak{position:absolute;right:calc(var(--tb)*1.95);bottom:calc(var(--tb)*2.15);width:var(--tb);height:var(--tb);border-radius:50%;font-size:calc(var(--tb)*0.19)!important;white-space:nowrap;letter-spacing:-1px}
+  #touch #t-sneak.on{background:rgba(160,220,110,.5);border-color:#e4ffd0}
   #t-jump{position:absolute;right:calc(var(--tb)*0.5);bottom:calc(var(--tb)*0.9);width:calc(var(--tb)*1.2);height:calc(var(--tb)*1.2);border-radius:10px}
   #t-sprint{position:absolute;right:calc(var(--tb)*1.95);bottom:calc(var(--tb)*0.95);width:var(--tb);height:var(--tb);border-radius:50%;font-size:calc(var(--tb)*0.3)!important}
   #touch #t-sprint.on{background:rgba(120,200,90,.55);border-color:#d8ffc0}
@@ -192,6 +201,8 @@
     <div class="dp" data-d="l">◀</div><div class="dp" data-d="c">◆</div><div class="dp" data-d="r">▶</div>
     <div class="dp ghost"></div><div class="dp" data-d="b">▼</div><div class="dp ghost"></div>
   </div>
+  <div id="stick" class="hidden"><div id="stick-knob"></div></div>
+  <div id="t-sneak" class="tb hidden">しゃがむ</div>
   <div id="t-sprint" class="tb">走</div>
   <div id="t-jump" class="tb">⤒</div>
   <div id="t-fly-up" class="tb hidden">▲</div>
@@ -278,6 +289,7 @@
     <div class="setrow2"><span>操作キー</span><div><button id="btn-keys" class="small" style="width:100%">キー割り当てを変える…</button></div></div>
     <div class="setrow2"><span>プレイヤーへのダメージ</span><div class="seg"><button id="s-dmg-on" class="small">受ける</button><button id="s-dmg-off" class="small">受けない</button></div></div>
     <div class="setrow2"><span>モンスター</span><div class="seg"><button id="s-peace-off" class="small">出る</button><button id="s-peace-on" class="small">出ない</button></div></div>
+    <div class="setrow2"><span>スマホの移動操作</span><div class="seg"><button id="s-mc-dpad" class="small">ボタン</button><button id="s-mc-stick" class="small">スティック</button></div></div>
     <div class="setrow2"><span>オートダッシュ</span><div class="seg"><button id="s-auto-on" class="small">オン</button><button id="s-auto-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>歩くときの揺れ</span><div class="seg"><button id="s-bob-on" class="small">オン</button><button id="s-bob-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>クリックで全画面</span><div class="seg"><button id="s-fs-on" class="small">オン</button><button id="s-fs-off" class="small">オフ</button></div></div>
@@ -305,7 +317,8 @@
     <p class="note" style="text-align:left">クラフト: 持ち物（E）や作業台を開くと、左に<b>レシピ一覧</b>が出ます。緑のものが今の材料で作れるものです。押すと必要な材料が表示され、「1回作る」「まとめて作る」でクラフトできます（もう一度押しても 1 回作れます）。もちろん自分でマスに並べて作ることもできます。</p>
     <h3>スマホ</h3>
     <div class="keys">
-      <span>左下の十字キー</span><span>移動（中央の ◆ でしゃがむ）</span>
+      <span>左下の十字キー</span><span>移動（中央の ◆ でしゃがむ）※設定で「スティック」に変えられます</span>
+      <span>左下のスティック</span><span>倒した向き・量で移動。輪の外まで前に倒すとダッシュ。しゃがむは 走 の上のボタン</span>
       <span>右下の ⤒</span><span>ジャンプ（クリエイティブは 2 回タップで飛行）</span>
       <span>右下の 走</span><span>ダッシュのオン・オフ（▲ を 2 回タップでもダッシュ）</span>
       <span>画面をタップ</span><span>置く・使う・攻撃</span>
@@ -1526,7 +1539,7 @@ function boxVisible(x0,y0,z0,x1,y1,z1){
 const SAVE_KEY='voxelcraft.save.v2',SAVE_V1='voxelcraft.save.v1',SET_KEY='voxelcraft.settings.v1',MP_KEY='voxelcraft.mp.';
 function store(){try{return window.localStorage;}catch(e){return null;}}
 const isTouch=('ontouchstart' in window)||(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
-const settings={damage:true,autoSprint:false,bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
+const settings={damage:true,autoSprint:false,moveCtl:'dpad',bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
 try{const s=store();const j=s&&s.getItem(SET_KEY);if(j)Object.assign(settings,JSON.parse(j));}catch(e){}
 settings.skin=clamp(settings.skin|0,0,5);
 // ---- key bindings (2 keys per action, editable in Settings) ----
@@ -1626,7 +1639,7 @@ function physStep(e,dt,edgeGuard){
 
 // ---------------------------------------------------------------- player update
 const fwdFlat=[0,0,0],rightV=[0,0,0];
-const touchIn={mx:0,my:0,jump:false,down:false,sneak:false,sprint:false};
+const touchIn={mx:0,my:0,jump:false,down:false,sneak:false,sprint:false,stickRun:false};
 function updatePlayer(dt){
   const p=player;
   const c=world.getChunk(Math.floor(p.pos[0])>>4,Math.floor(p.pos[2])>>4);
@@ -1639,7 +1652,7 @@ function updatePlayer(dt){
   }
   const jump=state==='play'&&(keyDown('jump')||touchIn.jump),down=state==='play'&&(keyDown('sneak')||touchIn.down);
   p.sneak=(down||touchIn.sneak)&&!p.flying&&state==='play';
-  if(state==='play'&&(keyDown('sprint')||settings.autoSprint||touchIn.sprint)&&fwd>0.1&&!p.sneak)p.sprint=true;
+  if(state==='play'&&(keyDown('sprint')||settings.autoSprint||touchIn.sprint||touchIn.stickRun)&&fwd>0.1&&!p.sneak)p.sprint=true;
   if(fwd<=0.1||p.sneak)p.sprint=false;
   if(mode==='survival'&&p.food<=6)p.sprint=false;
   const feet=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+0.3),Math.floor(p.pos[2]));
@@ -2746,6 +2759,9 @@ function syncSettingsUI(){
     $(on).onclick=()=>{settings[key]=true;saveSettings();sync();if(after)after();};$(off).onclick=()=>{settings[key]=false;saveSettings();sync();if(after)after();};};
   seg('s-dmg-on','s-dmg-off','damage',()=>{if(!settings.damage){player.hurtT=0;}});
   seg('s-auto-on','s-auto-off','autoSprint');
+  const mcSync=()=>{$('s-mc-dpad').classList.toggle('on',settings.moveCtl!=='stick');$('s-mc-stick').classList.toggle('on',settings.moveCtl==='stick');};mcSync();
+  $('s-mc-dpad').onclick=()=>{settings.moveCtl='dpad';saveSettings();mcSync();applyMoveCtl();};
+  $('s-mc-stick').onclick=()=>{settings.moveCtl='stick';saveSettings();mcSync();applyMoveCtl();};
   seg('s-peace-on','s-peace-off','peaceful',()=>{if(settings.peaceful)for(let i=mobs.length-1;i>=0;i--)if(mobs[i].type==='walker'){puff(mobs[i].pos[0],mobs[i].pos[1],mobs[i].pos[2],8);mobs.splice(i,1);}});
   const bobSync=()=>{$('s-bob-on').classList.toggle('on',settings.bob);$('s-bob-off').classList.toggle('on',!settings.bob);};bobSync();
   $('s-bob-on').onclick=()=>{settings.bob=true;saveSettings();bobSync();};$('s-bob-off').onclick=()=>{settings.bob=false;saveSettings();bobSync();};
@@ -3030,7 +3046,7 @@ document.addEventListener('pointerlockchange',()=>{if(isLocked()){lockEverWorked
 document.addEventListener('pointerlockerror',onLockError);
 
 // ---------------------------------------------------------------- game flow
-function stopActions(){breakHeld=placeHeld=false;mining.active=false;for(const k in keys)keys[k]=false;touchIn.mx=touchIn.my=0;touchIn.jump=touchIn.down=false;touchAim=null;}
+function stopActions(){breakHeld=placeHeld=false;mining.active=false;for(const k in keys)keys[k]=false;resetMove();touchIn.mx=touchIn.my=0;touchIn.jump=touchIn.down=false;touchAim=null;}
 function enterPlay(){
   state='play';showScreen(null);$('hud').classList.remove('hidden');
   if(isTouch)$('touch').classList.remove('hidden');
@@ -3230,6 +3246,12 @@ window.addEventListener('wheel',e=>{if(state!=='play')return;selectSlot(sel+(e.d
 
 // ---------------------------------------------------------------- touch controls
 let touchAim=null;const looks=new Map();
+// movement control: 'dpad' (buttons) or 'stick' (analog); both write touchIn.mx/my
+let resetMove=()=>{};
+function applyMoveCtl(){
+  const st=settings.moveCtl==='stick';$('dpad').classList.toggle('hidden',st);$('stick').classList.toggle('hidden',!st);resetMove();
+}
+function syncSneakButtons(){const c=document.querySelector('#dpad .dp[data-d=c]');if(c)c.classList.toggle('on',touchIn.sneak);$('t-sneak').classList.toggle('on',touchIn.sneak);}
 function screenRay(x,y,o,d){
   M4.invert(tmpM,vp);const nx=x/cssW*2-1,ny=1-y/cssH*2;
   const un=(z)=>{const m=tmpM,X=m[0]*nx+m[4]*ny+m[8]*z+m[12],Y=m[1]*nx+m[5]*ny+m[9]*z+m[13],Z=m[2]*nx+m[6]*ny+m[10]*z+m[14],W=m[3]*nx+m[7]*ny+m[11]*z+m[15];return[X/W,Y/W,Z/W];};
@@ -3245,12 +3267,28 @@ function setupTouch(){
     touchIn.mx=mx;touchIn.my=my;dpad.classList.toggle('fwd',d==='f'||d==='fl'||d==='fr');};
   dpad.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();if(state!=='play')return;
     for(const t of e.changedTouches){const el=document.elementFromPoint(t.clientX,t.clientY);
-      if(el&&el.dataset&&el.dataset.d==='c'){touchIn.sneak=!touchIn.sneak;el.classList.toggle('on',touchIn.sneak);continue;}
+      if(el&&el.dataset&&el.dataset.d==='c'){touchIn.sneak=!touchIn.sneak;syncSneakButtons();continue;}
       if(dpadId===null){dpadId=t.identifier;const c=cellAt(t.clientX,t.clientY);
         if(c&&c.dataset.d==='f'){const now=performance.now();if(now-lastF<300)player.sprint=true;lastF=now;}setDir(c);}}},{passive:false});
   const dpMove=e=>{for(const t of e.changedTouches)if(t.identifier===dpadId){const c=cellAt(t.clientX,t.clientY);if(c)setDir(c);}};
   const dpEnd=e=>{for(const t of e.changedTouches)if(t.identifier===dpadId){dpadId=null;setDir(null);}};
   document.addEventListener('touchmove',dpMove,{passive:true});document.addEventListener('touchend',dpEnd);document.addEventListener('touchcancel',dpEnd);
+  // analog stick: speed follows how far it is pushed; pushing forward past the rim sprints
+  const stick=$('stick'),knob=$('stick-knob');let stickId=null;
+  const stickSet=t=>{const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,R=r.width*0.4;
+    const dx=t.clientX-cx,dy=t.clientY-cy,d=Math.hypot(dx,dy),k=d>R?R/d:1;
+    knob.style.transform='translate('+(dx*k).toFixed(1)+'px,'+(dy*k).toFixed(1)+'px)';
+    const dead=0.15;let m=Math.min(1,d/R);m=m<dead?0:(m-dead)/(1-dead);
+    touchIn.mx=d?dx/d*m:0;touchIn.my=d?dy/d*m:0;
+    const run=d>R*1.2&&-dy>Math.abs(dx)*1.4;if(run&&!touchIn.stickRun)sfx.tick();touchIn.stickRun=run;stick.classList.toggle('run',run);};
+  resetMove=()=>{stickId=null;dpadId=null;knob.style.transform='';stick.classList.remove('active','run');touchIn.stickRun=false;touchIn.mx=touchIn.my=0;cells.forEach(e=>{if(e.dataset.d!=='c')e.classList.remove('press');});dpad.classList.remove('fwd');};
+  stick.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();if(state!=='play')return;
+    for(const t of e.changedTouches)if(stickId===null){stickId=t.identifier;stick.classList.add('active');stickSet(t);}},{passive:false});
+  document.addEventListener('touchmove',e=>{for(const t of e.changedTouches)if(t.identifier===stickId)stickSet(t);},{passive:true});
+  const stEnd=e=>{for(const t of e.changedTouches)if(t.identifier===stickId)resetMove();};
+  document.addEventListener('touchend',stEnd);document.addEventListener('touchcancel',stEnd);
+  $('t-sneak').addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();if(state!=='play')return;touchIn.sneak=!touchIn.sneak;syncSneakButtons();sfx.tick();},{passive:false});
+  applyMoveCtl();
   const hold=(id,down,up)=>{const el=$(id);el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();el.classList.add('press');if(state==='play'||id==='t-pause')down();},{passive:false});
     const u=e=>{e.preventDefault();el.classList.remove('press');if(up)up();};el.addEventListener('touchend',u,{passive:false});el.addEventListener('touchcancel',u,{passive:false});};
   let lastJump=0;
@@ -3282,7 +3320,7 @@ function setupTouch(){
 }
 function touchTick(){
   if(!isTouch)return;
-  const fly=player.flying;$('t-jump').classList.toggle('hidden',fly);$('t-fly-up').classList.toggle('hidden',!fly);$('t-fly-down').classList.toggle('hidden',!fly);
+  const fly=player.flying;$('t-jump').classList.toggle('hidden',fly);$('t-sneak').classList.toggle('hidden',settings.moveCtl!=='stick'||fly);$('t-fly-up').classList.toggle('hidden',!fly);$('t-fly-down').classList.toggle('hidden',!fly);
   const now=performance.now();
   for(const L of looks.values()){if(!L.moved&&!L.hold&&now-L.th>300&&frameCount-L.f0>=2){L.hold=true;touchAim=[L.x,L.y];updateTarget();
     if(target&&target.ent){attack(target.ent);}else{if(mode==='creative'){creativeBreak();repeatT=0.3;}}breakHeld=true;}}
@@ -3710,7 +3748,7 @@ function frame(now){
       p[1]=Math.max(p[1],y);
       enterPlay();
       if(lookMode==='lock'&&!isLocked()){pauseGame('「ゲームに戻る」を押すと始まります');}
-      else message(isTouch?'左下の十字キーで移動、画面をドラッグで見回し、長押しで壊す、タップで置く':(mode==='survival'?'サバイバル：まずは木を壊して原木を集めよう（E で持ち物）':'ようこそ！ E でブロック一覧が開きます'),5000);
+      else message(isTouch?(settings.moveCtl==='stick'?'左下のスティックで移動（輪の外まで前に倒すとダッシュ）、画面をドラッグで見回し、長押しで壊す、タップで置く':'左下の十字キーで移動、画面をドラッグで見回し、長押しで壊す、タップで置く'):(mode==='survival'?'サバイバル：まずは木を壊して原木を集めよう（E で持ち物）':'ようこそ！ E でブロック一覧が開きます'),5000);
     }
   }else{
     const running=state!=='paused'||MP.active;
