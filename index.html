@@ -344,12 +344,14 @@
 <div id="modscreen" class="screen hidden">
   <div class="dialog modpanel">
     <div class="modhead"><span class="modtag">MOD</span><h2>リアルMod</h2></div>
-    <p class="note" style="text-align:left;margin-top:0">世界全体をリアルにします。太陽と月の影、やわらかい雲と空、波と反射のある水、風で揺れる草木、まぶしい光のにじみ、光の筋、明るさに目が慣れる効果。後ろの景色ですぐに確かめられます。</p>
+    <p class="note" style="text-align:left;margin-top:0">世界全体をリアルにします。太陽と月の影、やわらかい雲と空、透き通る水、深い海の大きなうねりと白波、波に揺られるボート、風で揺れる草木、まぶしい光のにじみ、光の筋、明るさに目が慣れる効果。後ろの景色ですぐに確かめられます。</p>
     <div class="setrow2"><span>リアルMod</span><div class="seg"><button id="m-on" class="small">オン</button><button id="m-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>画質</span><div class="seg"><button id="m-q0" class="small">軽い</button><button id="m-q1" class="small">ふつう</button><button id="m-q2" class="small">きれい</button></div></div>
     <div class="setrow2"><span>影</span><div class="seg"><button id="m-shadow-on" class="small">オン</button><button id="m-shadow-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>揺れる草木</span><div class="seg"><button id="m-wave-on" class="small">オン</button><button id="m-wave-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>水面の波と反射</span><div class="seg"><button id="m-water-on" class="small">オン</button><button id="m-water-off" class="small">オフ</button></div></div>
+    <div class="setrow2"><span>海の大波（オーシャン物理）</span><div class="seg"><button id="m-ocean-on" class="small">オン</button><button id="m-ocean-off" class="small">オフ</button></div></div>
+    <div class="setrow2"><span>海の荒れ具合</span><div class="seg"><button id="m-oh0" class="small">穏やか</button><button id="m-oh1" class="small">ふつう</button><button id="m-oh2" class="small">嵐</button></div></div>
     <div class="setrow2"><span>ブロックの凹凸</span><div class="seg"><button id="m-bump-on" class="small">オン</button><button id="m-bump-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>光のにじみ</span><div class="seg"><button id="m-bloom-on" class="small">オン</button><button id="m-bloom-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>光の筋</span><div class="seg"><button id="m-rays-on" class="small">オン</button><button id="m-rays-off" class="small">オフ</button></div></div>
@@ -2880,6 +2882,7 @@ function useItemSpecial(id){
         for(let dy=-2;dy<=2;dy++)if(world.getBlock(x,t.y+dy,z)===B.GRASS&&!world.getBlock(x,t.y+dy+1,z)){y=t.y+dy+1;const r=Math.random();world.setBlock(x,y,z,r<0.75?B.TALLGRASS:r<0.86?B.FLOWER_Y:r<0.95?B.FLOWER_R:B.OXEYE);break;}}used=true;}
     if(used){consumeHeld(1);startSwing();for(let k=0;k<8;k++)particles.push({x:t.x+Math.random(),y:t.y+1+Math.random()*0.5,z:t.z+Math.random(),vx:0,vy:0.6,vz:0,life:0.8,tile:T.BONE_MEAL||T.SNOW,u:0.4,v:0.4,s:0.05,smoke:false});sfx.grow&&sfx.grow([t.x+0.5,t.y+1,t.z+0.5]);return true;}
     return false;}
+  if(id===I.BUCKET&&!advMode&&((player.riding&&bailBoat(player.riding))||(target&&target.ent&&bailBoat(target.ent))))return true;
   if(id===I.BUCKET&&!advMode){const l=liquidTarget(5);if(!l)return false;world.setBlock(l.x,l.y,l.z,0);sfx.splash&&sfx.splash([l.x+0.5,l.y+0.5,l.z+0.5]);swapHeld(l.id===B.LAVA?I.LAVA_BUCKET:I.WATER_BUCKET);startSwing();return true;}
   if((id===I.WATER_BUCKET||id===I.LAVA_BUCKET||id===I.FISH_BUCKET||id===I.POWDER_SNOW_BUCKET)&&!advMode){
     let x,y,z;if(t){x=t.x+t.nx;y=t.y+t.ny;z=t.z+t.nz;const c=world.getBlock(x,y,z);if(c&&!CROSS[c]&&!LIQUID[c])return false;}else return false;
@@ -3088,6 +3091,7 @@ function holdInfo(){
   if(has('COMPASS')){if(curDim!==0)txt='コンパスがくるくる回っている…';else{const dx=spawnPoint[0]-player.pos[0],dz=spawnPoint[2]-player.pos[2],d=Math.hypot(dx,dz);
     const a=Math.atan2(dx,-dz)-player.yaw,dirs=['↑','↗','→','↘','↓','↙','←','↖'],k=((Math.round(a/(Math.PI/4))%8)+8)%8;txt='スポーン地点 '+dirs[k]+' '+Math.round(d)+'m';}}
   if(has('CLOCK')){const t=(dayTime%1+1)%1,h=Math.floor((t*24+6)%24),mi=Math.floor((t*24*60)%60);txt+=(txt?'　':'')+(curDim!==0?'時計の針が狂っている…':'🕐 '+h+':'+String(mi).padStart(2,'0')+(t<0.5?'（昼）':'（夜）'));}
+  const rb=player.riding;if(rb&&rb.def&&rb.def.boat&&rb.bilge>0.02)txt=(txt?txt+'　':'')+'船内の水 '+Math.round(rb.bilge*100)+'%（バケツでくみ出せます）';
   if(el._v!==txt){el.textContent=txt;el._v=txt;}
   const showMap=has('MAP');
   if(showMap){if(!mp){mp=document.createElement('canvas');mp.id='heldmap';mp.width=mp.height=128;mp.style.cssText='position:absolute;right:12px;top:48px;width:192px;height:192px;image-rendering:pixelated;border:6px solid #c8b88a;border-radius:4px;background:#e2d6aa;pointer-events:none';document.body.appendChild(mp);}
@@ -3139,6 +3143,7 @@ function useBlock5(x,y,z,id){
 }
 function tickItems5(dt){
   tickBrewing(dt);tickPotClouds(dt);tickFishing(dt);tickJukes(dt);holdInfo();spyglassTick();renderArmorBar();
+  if(typeof tickDrops==='function')tickDrops(dt);
   const hd=ARMOR[0];if(hd&&hd.id===I.TURTLE_HELMET&&player.inWater&&!player.headWater)addEffect(player,'water_breathing',0,10);
 }
 
@@ -3871,6 +3876,7 @@ function emitFace(buf,id,f,x,y,z,bx,bz,liquid){
       sk=ss/(n*15);bl=bs/(n*15);sh=liquid?1:AO_CURVE[ao];
     }
     const p=fd.v[v];let py=y+p[1];if(lower&&p[1]===1)py-=lower;
+    if(lower&&p[1]===1&&id===B.WATER)sh=1+0.25*oceanCorner(x+p[0],y,z+p[2]);
     buf.vert(bx+x+p[0],py,bz+z+p[2],tile,QUV[v][0],QUV[v][1],sh,sk,bl);
     LUM[v]=sh*(Math.max(sk,bl)+0.2);void fsh;
   }
@@ -3926,6 +3932,12 @@ function meshChunk(c){
 
 let world=null;
 
+// how much open sea surrounds a corner of the water surface: 0 by the shore or in shallows, 1 over deep water (same for every face sharing the corner)
+function oceanCorner(cx,y,cz){let f=1;
+  for(let dz=-1;dz<=0;dz++)for(let dx=-1;dx<=0;dx++){const X=cx+dx,Z=cz+dz;if(PAD[pidx(X,y,Z)]!==B.WATER)return 0;
+    let d=1;while(d<11&&y-d>=0&&PAD[pidx(X,y-d,Z)]===B.WATER)d++;f=Math.min(f,clamp((d-3)/6,0,1));if(!f)return 0;}
+  return f;}
+
 const $=id=>document.getElementById(id);
 // ---------------------------------------------------------------- WebGL setup
 const canvas=document.getElementById('gl');
@@ -3936,7 +3948,7 @@ function compile(vs,fs){
   const mk=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;};
   const p=gl.createProgram();gl.attachShader(p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);
   if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));
-  const u={};const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const info=gl.getActiveUniform(p,i);u[info.name]=gl.getUniformLocation(p,info.name);}
+  const u={};const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const info=gl.getActiveUniform(p,i);const loc=gl.getUniformLocation(p,info.name);u[info.name]=loc;if(info.name.endsWith('[0]'))u[info.name.slice(0,-3)]=loc;}
   return {p,u};
 }
 const TERRAIN_VS=`#version 300 es
@@ -3971,7 +3983,7 @@ void main(){
   L=max(L,vec3(0.035));
   // eyes getting used to the dark: lifts dim light a lot, bright light hardly at all
   if(uAdapt>0.001){vec3 Lc=min(L,vec3(1.0));L+=Lc/(Lc+(1.0-Lc)*(1.0-0.6*uAdapt))-Lc;}
-  vec3 col=c.rgb*min(vLight.x,1.25)*L;
+  vec3 col=c.rgb*(abs(vTile-uWaterTile)<0.5?1.0:min(vLight.x,1.25))*L;
   col=mix(col,vec3(1.0),clamp(vLight.x-1.5,0.0,0.5)*1.6);
   if(abs(c.a-0.9804)<0.0035)col=c.rgb*1.08;
   float d=length(vPos-uCam);
@@ -5853,7 +5865,7 @@ function updateMobs(dt,sky){
     if(m.tame&&lastAttacker&&lastAttacker.deathT<=0&&Math.hypot(lastAttacker.pos[0]-m.pos[0],lastAttacker.pos[2]-m.pos[2])<20)foe=lastAttacker;
     if(m.tame&&lastHitMob&&lastHitMob!==m&&!lastHitMob.tame&&lastHitMob.deathT<=0&&Math.hypot(lastHitMob.pos[0]-m.pos[0],lastHitMob.pos[2]-m.pos[2])<20)foe=lastHitMob;
     const chasePlayer=angryAtPlayer&&!m.tame&&dist<sight&&Math.abs(dyp)<(d.move==='fly'?24:10)&&(dist<4||canSee(mobEye(m),pe)||m.anger>0);
-    if(m.rider===player){const k=m.ctl||{x:0,z:0,j:false};tx=k.x;tz=k.z;spd=d.ride.spd*Math.hypot(tx,tz)*(d.boat&&!inW?0.12:1);const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;m.yaw=player.yaw;if(k.j&&m.onGround)m.vel[1]=d.ride.jump;}
+    if(m.rider===player){const k=m.ctl||{x:0,z:0,j:false};tx=k.x;tz=k.z;spd=d.ride.spd*Math.hypot(tx,tz)*(d.boat&&!inW&&!m.oceanW?0.12:1)*(d.boat?1-0.6*(m.bilge||0):1);const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;m.yaw=player.yaw;if(k.j&&m.onGround)m.vel[1]=d.ride.jump;}
     else if(chasePlayer){tgt=[player.pos[0],player.pos[1],player.pos[2]];m.target='player';}
     else if(foe){tgt=foe.pos;m.target=foe;}
     else m.target=null;
@@ -6020,6 +6032,8 @@ function interactMob(m){
   if(id===I.NAME_TAG&&s){const nm=prompt('名前をつける',m.name||'');if(nm){m.name=nm.slice(0,24);m.persist=true;if(mode==='survival')consumeHeld(1);toast(d.name+'を「'+m.name+'」と名付けました');}return true;}
   if(id===I.SADDLE&&d.ride&&d.ride.saddle&&!m.saddled&&!m.baby){m.saddled=true;m.persist=true;if(mode==='survival')consumeHeld(1);toast(d.name+'にサドルをつけました');return true;}
   if(id===I.LEAD&&!d.boat&&d.kind!=='hostile'){if(m.leashed){m.leashed=false;spawnItem(m.pos[0],m.pos[1]+0.5,m.pos[2],I.LEAD,1);}else{m.leashed=true;m.persist=true;if(mode==='survival')consumeHeld(1);toast(d.name+'をリードでつなぎました');}return true;}
+  if(d.boat&&id===I.BUCKET&&bailBoat(m))return true;
+  if(d.boat&&(m.sunk||m.sinking)){toast('沈んだボートには乗れません');return true;}
   if(d.ride&&d.ride.saddle&&!m.saddled)return false;
   if(d.ride&&!m.baby&&!player.sneak&&!player.riding){player.riding=m;m.rider=player;m.persist=true;m.tame=true;toast(d.name+'に乗った（しゃがむで降りる）');return true;}
   if(m.type==='villager'){const L=['こんにちは！','いい天気だね','畑を荒らさないでね','夜は外に出ないほうがいいよ','鉄の番人が村を守ってくれるんだ','西の空がきれいだ'];addChat(d.name,L[(Math.random()*L.length)|0]);mobSound(m,'idle');return true;}
@@ -6188,6 +6202,7 @@ function MB(buf,M,x0,y0,z0,x1,y1,z1,t,fl,L){pushBox(buf,M,x0,y0,z0,x1,y1,z1,Arra
 function mobRoot(m,s,noRoll){
   let R=mChain(mT(m.pos[0],m.pos[1],m.pos[2]),mRY(-m.yaw));
   if(m.deathT>0&&!noRoll)R=mMul(R,mRZ(Math.min(1.5,m.deathT*3)));
+  if(m.bPitch||m.bRoll)R=mChain(R,mRX(m.bPitch||0),mRZ(m.bRoll||0));
   return mMul(R,mS(s/16*(m.baby?0.55:1)));
 }
 const headM=(R,m,x,y,z,pitch)=>mChain(R,mT(x,y,z),mRY(-clamp(m.headYaw||0,-0.9,0.9)),mRX((m.headPitch||0)+(pitch||0)));
@@ -6446,7 +6461,11 @@ function drawMob(buf,m,L){
 function drawBoat(buf,m,fl,L){
   const R=mobRoot(m,1),pl=Object.keys(FAMILY).map(Number).find(p=>FAMILY[p].door===B[(m.boatOf||'OAK')+'_DOOR'])||B.PLANKS,t=blockTiles(pl);
   MB(buf,R,-7,0,-13,7,3,13,t,fl,L);MB(buf,R,-8,3,-13,-6,8,13,t,fl,L);MB(buf,R,6,3,-13,8,8,13,t,fl,L);MB(buf,R,-6,3,-14,6,8,-12,t,fl,L);MB(buf,R,-6,3,12,6,8,14,t,fl,L);
-  const ow=Math.sin((m.t||0)*(m.rider?6:0))*0.5;MB(buf,mChain(R,mT(8,7,0),mRX(ow),mRZ(-0.5)),-0.5,-0.5,-9,0.5,0.5,9,blockTiles(B.LOG),fl,L);MB(buf,mChain(R,mT(-8,7,0),mRX(-ow),mRZ(0.5)),-0.5,-0.5,-9,0.5,0.5,9,blockTiles(B.LOG),fl,L);
+  if(m.bilge>0.01){const wt=blockTiles(B.WATER),lv=3+Math.min(1,m.bilge)*4.6;MB(buf,R,-5.9,3,-11.9,5.9,lv,11.9,wt,fl,L);}
+  // oars: sweep fore and aft, blades dip in on the pull and lift out on the return
+  const ph=m.rowP||0,k=m.rowK||0,sweep=Math.sin(ph)*0.6*k,dip=0.28+(Math.cos(ph)<0?0.3:0)*k,ot=blockTiles(B.LOG),bt=t;
+  for(const s of[-1,1]){const M=mChain(R,mT(s*8,7.5,-1),mRY(s*sweep),mRZ(-s*dip));
+    MB(buf,M,s>0?-3:-20,-0.5,-0.5,s>0?20:3,0.5,0.5,ot,fl,L);MB(buf,M,s>0?14:-21,-0.3,-2.4,s>0?21:-14,0.3,2.4,bt,fl,L);}
 }
 
 // ================================================================ dimensions: overworld / the Nether / the End, and the portals between them
@@ -7433,7 +7452,7 @@ function render(){
 // Unlocked from the title screen with the code word. When on, the frame is drawn into an HDR target with
 // sun/moon shadow maps, waving foliage, water with waves/fresnel/sun glints, soft clouds, a brighter sun,
 // aerial fog, eye adaptation, bloom, light shafts, ACES tone mapping and FXAA. Off = the normal renderer.
-const MOD_DEFAULT={unlocked:false,on:true,q:1,shadow:true,wave:true,water:true,bloom:true,rays:true,bump:true};
+const MOD_DEFAULT={unlocked:false,on:true,q:1,shadow:true,wave:true,water:true,bloom:true,rays:true,bump:true,ocean:true,oh:1};
 settings.mod=Object.assign({},MOD_DEFAULT,settings.mod||{});
 if(settings.mod.q===undefined)settings.mod.q=1;
 const MOD_Q=[ // light / normal / beautiful
@@ -7462,10 +7481,17 @@ const RT_VS=`#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos; layout(location=1) in float aTile; layout(location=2) in vec2 aUV; layout(location=3) in vec3 aLight;
 uniform mat4 uVP;${R_WAVE}
-out vec2 vUV; flat out float vTile; out vec3 vLight; out vec3 vPos; flat out int vFlags;
+uniform vec4 uOW[8]; uniform float uOcean;
+out vec2 vUV; flat out float vTile; out vec3 vLight; out vec3 vPos; flat out int vFlags; out vec3 vOcean;
 void main(){
-  int f=tileFlags(aTile); vec3 p=waveP(aPos,f,aUV);
-  if((f&4)!=0&&uWaterOn>0.5&&fract(p.y)>0.5) p.y+=wH(p.xz,uTime)*0.075-0.085;
+  int f=tileFlags(aTile); vec3 p=waveP(aPos,f,aUV);vOcean=vec3(aPos.xz,0.0);
+  if((f&4)!=0&&uWaterOn>0.5&&fract(p.y)>0.5){
+    float of=clamp((aLight.x-1.0)*4.0,0.0,1.0)*uOcean;vOcean.z=of;
+    p.y+=(wH(p.xz,uTime)*0.075-0.085)*(1.0-min(of*2.0,1.0));
+    if(of>0.001){vec3 off=vec3(0.0);
+      for(int i=0;i<5;i++){vec4 w=uOW[i];float s=w.w*of,a=s/w.z,ph=w.z*dot(w.xy,aPos.xz)-sqrt(9.81*w.z)*uTime;off+=vec3(w.x*a*cos(ph),a*sin(ph),w.y*a*cos(ph));}
+      p+=off;}
+  }
   vUV=aUV; vTile=aTile; vLight=aLight; vPos=p; vFlags=f; gl_Position=uVP*vec4(p,1.0);
 }`;
 const RT_FS=`#version 300 es
@@ -7476,7 +7502,8 @@ uniform vec3 uLightDir; uniform vec3 uLightCol; uniform vec3 uAmb; uniform vec3 
 uniform vec3 uFogCol; uniform vec3 uFog; uniform vec3 uSunDir; uniform float uSunVis; uniform vec3 uZenith; uniform vec3 uHorizon;
 uniform mat4 uShadowVP; uniform float uShadowOn; uniform float uShadowTexel; uniform int uTaps;
 uniform float uBump; uniform float uOutScale; uniform float uMinL;
-in vec2 vUV; flat in float vTile; in vec3 vLight; in vec3 vPos; flat in int vFlags;
+in vec2 vUV; flat in float vTile; in vec3 vLight; in vec3 vPos; flat in int vFlags; in vec3 vOcean;
+uniform vec4 uOW[8]; uniform float uOcean;
 out vec4 outColor;
 const vec2 PD[16]=vec2[16](vec2(-0.942,-0.399),vec2(0.946,-0.769),vec2(-0.094,-0.929),vec2(0.345,0.294),
   vec2(-0.916,0.458),vec2(-0.815,-0.879),vec2(-0.383,0.277),vec2(0.975,0.756),vec2(0.443,-0.975),vec2(0.537,-0.474),
@@ -7547,9 +7574,14 @@ void main(){
   if(water&&uWaterOn>0.5){
     vec3 Nw=Ng;bool top=Ng.y>0.5;
     float det=1.0/(1.0+d*0.06);
+    float of=vOcean.z,oJ=1.0,oH=0.0;
     if(top){vec2 p=vPos.xz;float e=0.05;
       float gx=wD(p+vec2(e,0.0),uTime,det)-wD(p-vec2(e,0.0),uTime,det), gz=wD(p+vec2(0.0,e),uTime,det)-wD(p-vec2(0.0,e),uTime,det);
-      Nw=normalize(vec3(-gx/(2.0*e),1.0,-gz/(2.0*e)));}
+      Nw=normalize(vec3(-gx/(2.0*e),1.0,-gz/(2.0*e)));
+      if(of>0.001){vec3 T=vec3(1.0,0.0,0.0),Bn=vec3(0.0,0.0,1.0);float jxx=1.0,jzz=1.0,jxz=0.0;vec2 x0=vOcean.xy;
+        for(int i=0;i<8;i++){vec4 w=uOW[i];float L=6.2831853/w.z,s=w.w*of*(1.0-smoothstep(L*6.0,L*16.0,d));float ph=w.z*dot(w.xy,x0)-sqrt(9.81*w.z)*uTime,c=cos(ph),sn=sin(ph);
+          T+=vec3(-w.x*w.x*s*sn,w.x*s*c,-w.x*w.y*s*sn);Bn+=vec3(-w.x*w.y*s*sn,w.y*s*c,-w.y*w.y*s*sn);jxx-=w.x*w.x*s*sn;jzz-=w.y*w.y*s*sn;jxz-=w.x*w.y*s*sn;if(i<5)oH+=s/w.z*sn;}
+        vec3 Ng2=normalize(cross(Bn,T));Nw=normalize(Ng2+vec3(Nw.x,0.0,Nw.z)*(0.6+0.4*of));oJ=jxx*jzz-jxz*jxz;}}
     vec3 R=reflect(V,Nw);R.y=abs(R.y);
     float cosi=clamp(dot(-V,Nw),0.0,1.0);
     float F=0.02+0.98*pow(1.0-cosi,5.0);
@@ -7577,6 +7609,10 @@ void main(){
       float crest=smoothstep(0.55,0.95,wH(vPos.xz,uTime)*1.1+wR(vPos.xz*0.7,uTime)*0.08);
       float fn=fract(sin(dot(floor(vPos.xz*8.0+vec2(uTime*0.6,uTime*0.3)),vec2(12.9898,78.233)))*43758.5453);
       float foam=(1.0-smoothstep(0.02,0.35,thick))*(0.45+0.55*fn)+crest*0.18*fn*det;
+      if(of>0.001){float amp=0.0;for(int i=0;i<5;i++)amp+=uOW[i].w*of/uOW[i].z;float crestK=clamp(oH/max(amp,0.05)*0.5+0.5,0.0,1.3);
+        vec3 sdir=normalize(uLightDir+Nw*0.6);float sss=pow(clamp(dot(V,sdir),0.0,1.0),3.0)*smoothstep(0.45,1.15,crestK);
+        trans+=vec3(0.02,0.42,0.35)*(uLightCol*sss*1.6*wsh*skyVis+uAmb*0.5*smoothstep(0.15,1.2,crestK))*of;
+        float wc=smoothstep(0.66,0.16,oJ)*(0.45+0.55*fn)+smoothstep(0.95,1.25,crestK)*fn*0.3;foam=max(foam,wc*of);}
       col=mix(trans,refl,F)+uLightCol*spec;
       col=mix(col,(uAmb*1.6+uLightCol*0.55*skyVis*wsh)*0.9,clamp(foam,0.0,1.0)*0.75);
       alpha=1.0;
@@ -7848,6 +7884,7 @@ function renderReal(){
   };
   setWorldU();
   gl.uniform1f(u.uTime,gameTime);gl.uniform1f(u.uWave,M.wave?1:0);gl.uniform1f(u.uWaterOn,M.water?1:0);gl.uniform1f(u.uAlphaMode,0);
+  oceanUpdate();gl.uniform1f(u.uRefr,0);gl.uniform4fv(u.uOW,OCEAN.u);gl.uniform1f(u.uOcean,M.water&&curDim===0?OCEAN.amp:0);
   gl.uniform3fv(u.uLightCol,lightCol);gl.uniform3fv(u.uAmb,amb);gl.uniform3fv(u.uBlkCol,blkCol);gl.uniform3fv(u.uFogCol,fogCol);
   gl.uniform1f(u.uSunVis,useSun?sunUp:moonUp*0.4);gl.uniform3fv(u.uZenith,zen);gl.uniform3fv(u.uHorizon,hor);
   gl.uniformMatrix4fv(u.uShadowVP,false,lightVP);gl.uniform1f(u.uShadowTexel,REAL.shadow?1/REAL.shadow.size:0.001);gl.uniform1i(u.uTaps,Q.taps);
@@ -7938,6 +7975,120 @@ function renderReal(){
   $('lava-overlay').classList.toggle('hidden',!inLava);
   $('hurt-overlay').style.opacity=player.hurtT>0?String(player.hurtT/0.35*0.55):'0';
   if(typeof updateNameplates==='function')updateNameplates();
+}
+
+// ================================================================ ocean physics (part of the Real Mod): Gerstner swell on deep water, boats that ride it
+// the same eight waves drive the GPU surface and the CPU buoyancy. [direction°, wavelength m, steepness share]; only the first five move the mesh
+const OCEAN_WAVES=[[8,46,0.20],[-24,31,0.17],[33,21,0.14],[-50,13.5,0.12],[61,8.8,0.10],[-12,5.9,0.08],[78,3.7,0.06],[-68,2.3,0.05]];
+const OCEAN={u:new Float32Array(32),amp:0,h:0.6};
+const OCEAN_H=[0.32,0.62,1.0];   // calm / normal / storm
+function oceanOn(){return realOn()&&settings.mod.water&&settings.mod.ocean&&curDim===0;}
+function oceanUpdate(){
+  const M=settings.mod,base=OCEAN_H[clamp(M.oh|0,0,2)],storm=(typeof weather!=='undefined')?Math.max(weather.rain*0.25,weather.thunder*0.45):0;
+  const h=Math.min(1,base+storm);OCEAN.h=h;OCEAN.amp=oceanOn()?1:0;
+  OCEAN_WAVES.forEach(([deg,L,s],i)=>{const a=deg*Math.PI/180;OCEAN.u[i*4]=Math.cos(a);OCEAN.u[i*4+1]=Math.sin(a);OCEAN.u[i*4+2]=2*Math.PI/L;OCEAN.u[i*4+3]=s*h*(i<3?1:0.55+0.45*h);});
+}
+// deep-water factor of a world column corner (mirrors oceanCorner in the mesher)
+function oceanCornerW(cx,y,cz){let f=1;
+  for(let dz=-1;dz<=0;dz++)for(let dx=-1;dx<=0;dx++){const X=cx+dx,Z=cz+dz;if(world.getBlock(X,y,Z)!==B.WATER)return 0;
+    let d=1;while(d<11&&y-d>=0&&world.getBlock(X,y-d,Z)===B.WATER)d++;f=Math.min(f,clamp((d-3)/6,0,1));if(!f)return 0;}
+  return f;}
+// the water block whose surface is under (x,z) near height y, or -1
+function surfaceY(x,z,y){const X=Math.floor(x),Z=Math.floor(z);for(let yy=Math.floor(y)+2;yy>=Math.floor(y)-4;yy--){if(world.getBlock(X,yy,Z)===B.WATER&&world.getBlock(X,yy+1,Z)!==B.WATER)return yy;}return-1;}
+function oceanFactor(x,z,sy){const X=Math.floor(x),Z=Math.floor(z),fx=x-X,fz=z-Z;
+  const a=oceanCornerW(X,sy,Z),b=oceanCornerW(X+1,sy,Z),c=oceanCornerW(X,sy,Z+1),d=oceanCornerW(X+1,sy,Z+1);
+  return(a*(1-fx)+b*fx)*(1-fz)+(c*(1-fx)+d*fx)*fz;}
+const _oo=[0,0,0];
+function oceanOffset(x,z,t,of,out){let ox=0,oy=0,oz=0;const u=OCEAN.u;
+  for(let i=0;i<5;i++){const k=u[i*4+2],s=u[i*4+3]*of,a=s/k,ph=k*(u[i*4]*x+u[i*4+1]*z)-Math.sqrt(9.81*k)*t,c=Math.cos(ph);ox+=u[i*4]*a*c;oz+=u[i*4+1]*a*c;oy+=a*Math.sin(ph);}
+  out[0]=ox;out[1]=oy;out[2]=oz;return out;}
+// height of the sea surface at a world point (undo the horizontal push with a few fixed-point steps)
+function oceanHeight(x,z,t,sy,of){let px=x,pz=z;for(let i=0;i<4;i++){oceanOffset(px,pz,t,of,_oo);px=x-_oo[0];pz=z-_oo[2];}oceanOffset(px,pz,t,of,_oo);return sy+0.875+_oo[1];}
+// ---- boats: float on five sample points, spring towards the slope of the swell, row with animated oars
+function oceanBoats(dt){
+  if(!oceanOn())return;const t=gameTime;
+  for(const m of mobs){if(!m.def||!m.def.boat||m.deathT>0)continue;
+    if(m.sunk){m.vel[1]=0;m.vel[0]*=0.9;m.vel[2]*=0.9;if(!SOLID[world.getBlock(Math.floor(m.pos[0]),Math.floor(m.pos[1]-0.05),Math.floor(m.pos[2]))])m.pos[1]-=1.1*dt;m.bPitch=lerp(m.bPitch||0,-0.35,dt);continue;}
+    const sy=surfaceY(m.pos[0],m.pos[2],m.pos[1]);if(sy<0){m.oceanW=false;m.bPitch=(m.bPitch||0)*0.9;m.bRoll=(m.bRoll||0)*0.9;continue;}
+    const of=oceanFactor(m.pos[0],m.pos[2],sy);m.oceanW=true;
+    const fx=Math.sin(m.yaw),fz=-Math.cos(m.yaw),rx=Math.cos(m.yaw),rz=Math.sin(m.yaw);
+    const H=(dx,dz)=>oceanHeight(m.pos[0]+dx,m.pos[2]+dz,t,sy,oceanFactor(m.pos[0]+dx,m.pos[2]+dz,sy));
+    const hb=H(fx*0.85,fz*0.85),hs=H(-fx*0.85,-fz*0.85),hr=H(rx*0.5,rz*0.5),hl=H(-rx*0.5,-rz*0.5),hc=H(0,0);
+    m.bilge=m.bilge||0;const target=(hc*2+hb+hs+hr+hl)/6-0.1-m.bilge*0.3-(m.sinking?m.sinkT*0.9:0);
+    if(m.by===undefined){m.by=m.pos[1];m.bvy=0;m.bPitch=0;m.bvp=0;m.bRoll=0;m.bvr=0;m.lastOff=null;}
+    m.bvy+=((target-m.by)*14-m.bvy*3.0)*dt;m.by+=m.bvy*dt;
+    if(Math.abs(m.by-m.pos[1])>3)m.by=target;
+    m.pos[1]=m.by;m.vel[1]=0;
+    const tp=Math.atan2(hb-hs,1.7)-(m.sinking?Math.min(0.5,m.sinkT*0.4):0),tr=Math.atan2(hr-hl,1.0);
+    // water spills over the rails wherever the sea stands higher than the side of the boat
+    const rail=m.by+0.5,sp=Math.sin(m.bPitch),sr=Math.sin(m.bRoll);
+    const over=Math.max(0,hb-(rail+sp*0.85))+Math.max(0,hs-(rail-sp*0.85))+Math.max(0,hr-(rail+sr*0.45))+Math.max(0,hl-(rail-sr*0.45));
+    const before=m.bilge;m.bilge=Math.min(1,m.bilge+over*0.12*dt+(typeof weather!=='undefined'?weather.rain*0.0015*dt:0));
+    if(over>0.02&&Math.random()<dt*8)oceanSpray(m.pos[0],m.by+0.45,m.pos[2],3,1.2);
+    if(m.rider===player){if(before<0.25&&m.bilge>=0.25)toast('ボートに水が入ってきた！');if(before<0.7&&m.bilge>=0.7)toast('このままだと沈む！ バケツで水をくみ出そう');}
+    if(m.bilge>=1&&!m.sinking){m.sinking=true;m.sinkT=0;if(m.rider===player)toast('ボートが沈んでいく…');sfx.splash&&sfx.splash(true);}
+    if(m.sinking){m.sinkT+=dt;if(m.sinkT>1.2&&m.rider===player)dismount();if(m.sinkT>2.6){m.sunk=true;m.sinking=false;continue;}}
+    m.bvp+=((tp-m.bPitch)*20-m.bvp*4.2)*dt;m.bPitch+=m.bvp*dt;m.bvr+=((tr-m.bRoll)*22-m.bvr*4.6)*dt;m.bRoll+=m.bvr*dt;
+    // the orbit of the water rocks the boat back and forth
+    oceanOffset(m.pos[0],m.pos[2],t,of,_oo);if(m.lastOff){const ddx=(_oo[0]-m.lastOff[0])*0.5,ddz=(_oo[2]-m.lastOff[1])*0.5;
+      if(!SOLID[world.getBlock(Math.floor(m.pos[0]+ddx),Math.floor(m.pos[1]+0.3),Math.floor(m.pos[2]+ddz))]){m.pos[0]+=ddx;m.pos[2]+=ddz;}}
+    m.lastOff=[_oo[0],_oo[2]];
+    // rowing: the stroke runs while the rider is moving; a slam into a wave throws spray off the bow
+    const k=m.ctl&&m.rider===player?Math.hypot(m.ctl.x,m.ctl.z):0;m.rowP=(m.rowP||0)+dt*(k>0.1?5.2:0.0);m.rowK=lerp(m.rowK||0,k>0.1?1:0,1-Math.exp(-4*dt));
+    const inW=Math.cos(m.rowP)<0&&m.rowK>0.5;if(inW&&!m.oarIn){for(const s of[-1,1])oceanSpray(m.pos[0]+rx*s*1.35,hc,m.pos[2]+rz*s*1.35,8,1.4);}m.oarIn=inW;
+    m.slamT=(m.slamT||0)-dt;const bowY=m.by+Math.sin(m.bPitch)*0.85;
+    if(m.slamT<=0&&(m.bvy<-1.4||hb-bowY>0.42)){m.slamT=0.4;m.bilge=Math.min(1,m.bilge+0.006+OCEAN.h*0.012);if(m.rider===player&&camMode===0)waterDrops(0.5+OCEAN.h*0.5);oceanSpray(m.pos[0]+fx*0.95,hb,m.pos[2]+fz*0.95,18+OCEAN.h*26,2.2+OCEAN.h*1.4);}
+  }
+}
+function oceanSpray(x,y,z,n,up){for(let i=0;i<n;i++){if(particles.length>900)particles.shift();
+  particles.push({x:x+(Math.random()-0.5)*0.4,y:y+0.05,z:z+(Math.random()-0.5)*0.4,vx:(Math.random()-0.5)*2.2,vy:up*(0.45+Math.random()*0.7),vz:(Math.random()-0.5)*2.2,life:0.5+Math.random()*0.5,tile:T.SNOW,u:0.5,v:0.5,s:0.035+Math.random()*0.03,smoke:false});}}
+
+// bailing: a bucket takes water out of the boat
+function bailBoat(m){if(!m||!m.def||!m.def.boat||!(m.bilge>0.03)||m.sunk)return false;m.bilge=Math.max(0,m.bilge-0.22);swapHeld(I.WATER_BUCKET);sfx.splash&&sfx.splash(false);
+  oceanSpray(m.pos[0],m.pos[1]+0.6,m.pos[2],10,2);toast('ボートの水をくみ出した（残り '+Math.round(m.bilge*100)+'%）');startSwing();return true;}
+// ---------------------------------------------------------------- first person: water drops on the screen when spray or a wave hits your face
+const DROPS={cv:null,g:null,list:[],film:0,wasUnder:false,wasWet:false,sprayCD:0,s:1};
+function dropsCanvas(){
+  if(!DROPS.cv){const c=document.createElement('canvas');c.id='drops';c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:4';document.body.appendChild(c);DROPS.cv=c;DROPS.g=c.getContext('2d');}
+  const c=DROPS.cv,k=Math.min(1,devicePixelRatio||1),w=Math.round(innerWidth*k),h=Math.round(innerHeight*k);if(c.width!==w||c.height!==h){c.width=w;c.height=h;}DROPS.s=Math.max(w,h)/1280;
+}
+function waterDrops(k){
+  if(camMode!==0)return;dropsCanvas();const W=DROPS.cv.width,H=DROPS.cv.height,s=DROPS.s,n=Math.round(8+k*38);
+  for(let i=0;i<n&&DROPS.list.length<160;i++){const big=Math.random()<0.18+0.25*k,r=(big?9+Math.random()*16:2.5+Math.random()*6)*s*(0.7+0.5*k);
+    DROPS.list.push({x:Math.random()*W,y:Math.random()*H*0.95,r,vy:0,life:2.2+Math.random()*3.5,stick:big?0.15+Math.random()*0.6:99,trail:0,wob:Math.random()*6.28,sq:0.8+Math.random()*0.35,rot:(Math.random()-0.5)*0.8});}
+  DROPS.film=Math.max(DROPS.film,0.35+0.55*k);
+}
+function tickDrops(dt){
+  const p=player;
+  if(state==='play'&&world&&!p.dead){
+    const under=!!p.headWater;if(DROPS.wasUnder&&!under)waterDrops(0.75);DROPS.wasUnder=under;
+    if(oceanOn()&&!under&&camMode===0){const e=eyePos([0,0,0]),sy=surfaceY(e[0],e[2],e[1]-1);
+      if(sy>=0){const h=oceanHeight(e[0],e[2],gameTime,sy,oceanFactor(e[0],e[2],sy)),wet=e[1]<h+0.08;if(wet&&!DROPS.wasWet)waterDrops(1);DROPS.wasWet=wet;if(wet)DROPS.film=Math.max(DROPS.film,0.85);}
+      DROPS.sprayCD-=dt;if(DROPS.sprayCD<=0)for(const q of particles){if(q.tile!==T.SNOW||q.vy<-0.5)continue;const dx=q.x-e[0],dy=q.y-e[1],dz=q.z-e[2];if(dx*dx+dy*dy+dz*dz<0.45){waterDrops(0.22);DROPS.sprayCD=0.35;break;}}}
+  }
+  if(!DROPS.cv)return;const g=DROPS.g,W=DROPS.cv.width,H=DROPS.cv.height,s=DROPS.s;
+  g.clearRect(0,0,W,H);
+  if(camMode!==0||state==='title'){DROPS.list.length=0;DROPS.film=0;return;}
+  if(state!=='play')dt=0;
+  if(DROPS.film>0.005){const a=DROPS.film;const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,`rgba(205,232,240,${a*0.12})`);gr.addColorStop(1,`rgba(150,195,210,${a*0.22})`);g.fillStyle=gr;g.fillRect(0,0,W,H);DROPS.film=Math.max(0,DROPS.film-dt*0.45);}
+  const L=DROPS.list;
+  for(let i=L.length-1;i>=0;i--){const d=L[i];d.life-=dt;
+    // big drops cling for a moment, then run down the glass leaving a thin trail
+    if(d.stick<99){d.stick-=dt;if(d.stick<=0){d.vy+=(70+d.r*9)*s*dt;d.vy*=0.985;d.y+=d.vy*dt;d.x+=Math.sin(d.y*0.05+d.wob)*0.35*s;d.trail=Math.min(d.trail+d.vy*dt,260*s);
+        if(Math.random()<dt*6&&L.length<200)L.push({x:d.x+(Math.random()-0.5)*d.r*0.4,y:d.y-d.r*1.2,r:d.r*(0.18+Math.random()*0.16),vy:0,life:1+Math.random()*1.5,stick:99,trail:0,wob:0});}}
+    const a=Math.min(1,d.life/0.9);if(d.life<=0||d.y-d.trail>H+d.r){L.splice(i,1);continue;}
+    if(d.trail>2){const tw=d.r*0.42;g.fillStyle=`rgba(210,235,245,${0.10*a})`;g.beginPath();g.moveTo(d.x-tw,d.y);g.lineTo(d.x-tw*0.5,d.y-d.trail);g.lineTo(d.x+tw*0.5,d.y-d.trail);g.lineTo(d.x+tw,d.y);g.fill();}
+    // a drop works like a tiny lens: it shows the scene upside down, dark sea on top, bright sky below
+    const rx=d.r*(d.sq||1),ry=d.r*(d.vy>5?1.3:1)/(d.sq||1)*1.05,rot=d.vy>5?0:(d.rot||0);
+    g.save();g.translate(d.x,d.y);g.rotate(rot);
+    const lg=g.createLinearGradient(0,-ry,0,ry);lg.addColorStop(0,`rgba(16,46,58,${0.30*a})`);lg.addColorStop(0.45,`rgba(60,110,125,${0.16*a})`);lg.addColorStop(0.8,`rgba(225,242,248,${0.26*a})`);lg.addColorStop(1,`rgba(240,250,252,${0.12*a})`);
+    g.fillStyle=lg;g.beginPath();g.ellipse(0,0,rx,ry,0,0,6.2832);g.fill();
+    const rg=g.createRadialGradient(0,0,Math.min(rx,ry)*0.55,0,0,Math.max(rx,ry));rg.addColorStop(0,'rgba(10,30,38,0)');rg.addColorStop(0.85,`rgba(10,30,38,${0.18*a})`);rg.addColorStop(1,'rgba(10,30,38,0)');
+    g.fillStyle=rg;g.beginPath();g.ellipse(0,0,rx,ry,0,0,6.2832);g.fill();
+    g.fillStyle=`rgba(255,255,255,${0.75*a})`;g.beginPath();g.ellipse(-rx*0.34,-ry*0.42,Math.max(0.8,rx*0.16),Math.max(0.6,ry*0.1),-0.6,0,6.2832);g.fill();
+    g.fillStyle=`rgba(255,255,255,${0.28*a})`;g.beginPath();g.ellipse(rx*0.1,ry*0.62,rx*0.45,ry*0.16,0,0,6.2832);g.fill();
+    if(d.vy>5){g.fillStyle=`rgba(40,80,95,${0.2*a})`;g.beginPath();g.moveTo(-rx*0.5,-ry*0.7);g.quadraticCurveTo(0,-ry*1.9,rx*0.5,-ry*0.7);g.fill();}
+    g.restore();}
 }
 
 // ---------------------------------------------------------------- icons
@@ -8655,7 +8806,7 @@ function syncModUI(){
   $('btn-pause-mod').classList.toggle('hidden',!M.unlocked);
   const seg=(a,b,v)=>{$(a).classList.toggle('on',!!v);$(b).classList.toggle('on',!v);};
   seg('m-on','m-off',M.on);seg('m-shadow-on','m-shadow-off',M.shadow);seg('m-wave-on','m-wave-off',M.wave);seg('m-water-on','m-water-off',M.water);
-  seg('m-bump-on','m-bump-off',M.bump);seg('m-bloom-on','m-bloom-off',M.bloom);seg('m-rays-on','m-rays-off',M.rays);
+  seg('m-bump-on','m-bump-off',M.bump);seg('m-ocean-on','m-ocean-off',M.ocean!==false);for(let i=0;i<3;i++)$('m-oh'+i).classList.toggle('on',(M.oh===undefined?1:M.oh|0)===i);seg('m-bloom-on','m-bloom-off',M.bloom);seg('m-rays-on','m-rays-off',M.rays);
   for(let i=0;i<3;i++)$('m-q'+i).classList.toggle('on',(M.q|0)===i);
   let info='';
   if(REAL.failed)info='この端末ではリアルModのシェーダーを動かせなかったため、ふつうの表示に戻しています。';
@@ -8688,7 +8839,8 @@ $('mod-pass').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefaul
 {const bind=(id,fn)=>{$(id).onclick=()=>{fn();saveSettings();syncModUI();};};const M=()=>settings.mod;
   bind('m-on',()=>{M().on=true;REAL.failed=false;});bind('m-off',()=>{M().on=false;});
   for(let i=0;i<3;i++)bind('m-q'+i,()=>{M().q=i;});
-  for(const k of['shadow','wave','water','bump','bloom','rays']){bind('m-'+k+'-on',()=>{M()[k]=true;});bind('m-'+k+'-off',()=>{M()[k]=false;});}
+  for(let i=0;i<3;i++)bind('m-oh'+i,()=>{M().oh=i;});
+  for(const k of['shadow','wave','water','bump','bloom','rays','ocean']){bind('m-'+k+'-on',()=>{M()[k]=true;});bind('m-'+k+'-off',()=>{M()[k]=false;});}
   bind('mod-lock',()=>{M().unlocked=false;M().on=false;toast('リアルMod をロックしました');showScreen(modFrom==='pause'?'pause':'title');});
 }
 $('mod-done').onclick=()=>showScreen(modFrom==='pause'?'pause':'title');
@@ -9412,7 +9564,7 @@ function frame(now){
     const running=state!=='paused'||MP.active;
     if(running){
       gameTime+=dt;if(gameRules.doDaylightCycle)dayTime=(dayTime+dt/(settings.day*60))%1;
-      updatePlayer(dt);survivalTick(dt);if(mode!=='survival')tickEffects(player,dt,true);updateEntities(dt);updateProjectiles(dt);updateMobs(dt,sky);updateMobProjs(dt);updateClouds(dt);
+      updatePlayer(dt);survivalTick(dt);if(mode!=='survival')tickEffects(player,dt,true);updateEntities(dt);updateProjectiles(dt);updateMobs(dt,sky);oceanBoats(dt);updateMobProjs(dt);updateClouds(dt);
       trySpawnWalkers(dt,sky);tickSpawners(dt);tickFurnaces(dt);tickSaplings(dt);endTick(dt);dimTick(dt);updateWeather(dt);tickSwitches(dt);tickCommandBlocks(dt);
     }
     if(state==='play'){
