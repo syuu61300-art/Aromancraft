@@ -1612,7 +1612,7 @@ function updatePlayer(dt){
   // view bobbing: phase follows distance walked (one step per half cycle), amplitude eases in/out
   const walking=p.onGround&&!p.flying&&!liquid&&hs>0.3;
   p.bobAmp=lerp(p.bobAmp||0,walking?Math.min(1,hs/4.4):0,1-Math.exp(-(walking?6:9)*dt));
-  if(walking){const prev=bob;bob+=hs*dt*0.55;if(Math.floor(prev)!==Math.floor(bob)){const under=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2]));if(under)sfx.step(under);}}
+  if(walking){const prev=bob;bob+=hs*dt*0.38;if(Math.floor(prev)!==Math.floor(bob)){const under=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2]));if(under)sfx.step(under);}}
   p.eyeH=lerp(p.eyeH||1.62,p.sneak&&p.onGround?1.42:1.62,1-Math.exp(-14*dt));
   if(liquid&&hs>1){p.swimD=(p.swimD||0)+hs*dt;if(p.swimD>1.7){p.swimD=0;if(p.inWater)sfx.swim();}}
   p.invuln=Math.max(0,p.invuln-dt);p.hurtT=Math.max(0,p.hurtT-dt);p.eatCD=Math.max(0,p.eatCD-dt);
@@ -1662,12 +1662,14 @@ function eyePos(out){
   out[0]=p.pos[0];out[1]=p.pos[1]+(p.eyeH||1.62);out[2]=p.pos[2];
   const amp=p.bobAmp||0;
   if(camMode===0&&settings.bob&&amp>0.001){
-    const s=Math.sin(bob*Math.PI),v=(Math.abs(s)-0.5)*0.05*amp,hz=s*0.028*amp;
+    // weight shifts slowly from foot to foot: mostly sideways, a soft dip on each step (sin² has no sharp bounce)
+    const s=Math.sin(bob*Math.PI),v=-(s*s)*0.014*amp,hz=s*0.042*amp;
     out[1]+=v;out[0]+=Math.cos(p.yaw)*hz;out[2]+=Math.sin(p.yaw)*hz;
   }
   if(shake>0){out[0]+=(Math.random()-0.5)*shake*0.5;out[1]+=(Math.random()-0.5)*shake*0.5;out[2]+=(Math.random()-0.5)*shake*0.5;}
   return out;
 }
+function viewRoll(){if(camMode!==0||!settings.bob||state==='title')return 0;return Math.sin(bob*Math.PI)*0.011*(player.bobAmp||0);}
 function dirVectors(yaw,pitch,fw,rt,up){
   const cp=Math.cos(pitch);fw[0]=Math.sin(yaw)*cp;fw[1]=Math.sin(pitch);fw[2]=-Math.cos(yaw)*cp;
   rt[0]=Math.cos(yaw);rt[1]=0;rt[2]=Math.sin(yaw);
@@ -2405,6 +2407,8 @@ function setupCamera(){
     if(camMode===2){camYaw+=Math.PI;camPitch=-camPitch;}
   }
   dirVectors(camYaw,camPitch,fw,rt,up);
+  const roll=viewRoll();
+  if(roll){const c=Math.cos(roll),s=Math.sin(roll);for(let i=0;i<3;i++){const r=rt[i],u=up[i];rt[i]=r*c+u*s;up[i]=u*c-r*s;}}
 }
 function lightAt(x,y,z){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);tmpA[0]=world.skyAt(ix,iy,iz);tmpA[1]=world.blockLightAt(ix,iy,iz);return tmpA;}
 function buildDynamic(){
@@ -2455,7 +2459,7 @@ function buildHand(){
   HAND.reset();
   const id=heldId(),L=lightAt(player.pos[0],player.pos[1]+1.6,player.pos[2]),sk=L[0],hb=L[1];
   const sw=Math.sin(swing*Math.PI),amp=settings.bob?(player.bobAmp||0):0;
-  const bob1=Math.sin(bob*Math.PI)*0.022*amp,bob2=Math.abs(Math.sin(bob*Math.PI))*0.02*amp;
+  const bs=Math.sin(bob*Math.PI),bob1=bs*0.026*amp,bob2=bs*bs*0.012*amp;
   if(!id){
     const st=SKIN_TILES[settings.skin],arm=[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS];
     const M=mChain(mT(0.62+bob1-sw*0.1,-0.8-bob2+sw*0.05,-0.42-sw*0.2),mRY(0.35-sw*0.3),mRX(1.95-sw*0.6),mS(0.06));
