@@ -157,6 +157,46 @@
   #rb-detail .ing img{width:22px;height:22px;image-rendering:pixelated}
   #rb-detail .row button{font-size:14px;padding:7px 6px;min-width:0}
   @media (max-width:700px){.ct-wrap{flex-direction:column;align-items:center;overflow:auto}.rbook,.ct-wrap .inv{width:98vw;max-height:none}#rb-grid{max-height:26vh}}
+  .pk{--ps:min(48px,calc((100vh - 46px)/8.7),calc((100vw - 60px)/18));display:grid;grid-template-columns:calc(var(--ps)*1.2) 1fr 1fr calc(var(--ps)*1.2);grid-template-rows:minmax(0,1fr) auto;
+    width:min(1000px,98vw);height:min(calc(var(--ps)*8.9 + 30px),97vh);background:#3a3a3a;padding:6px;box-shadow:0 0 0 3px #111,inset 0 0 0 2px #555;color:#3a3a3a;user-select:none;-webkit-user-select:none}
+  .pk-ltabs,.pk-rtabs{display:flex;flex-direction:column;gap:5px;padding:2px 0;min-height:0}
+  .pk-tab{width:100%;height:calc(var(--ps)*1.1);flex:none;background:#8f8f8f;border:none;border-radius:0;box-shadow:inset -3px -3px 0 #585858,inset 3px 3px 0 #c9c9c9;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;min-width:0;color:#fff;font-size:calc(var(--ps)*0.5)}
+  .pk-tab:hover{background:#a2a2a2}.pk-tab img{width:64%;height:64%;image-rendering:pixelated;pointer-events:none}
+  .pk-ltabs .pk-tab.on{background:#c6c6c6;box-shadow:inset 3px 3px 0 #fff,inset 0 -3px 0 #888;width:calc(100% + 6px)}
+  .pk-rtabs .pk-tab.on{background:#c6c6c6;box-shadow:inset -3px 3px 0 #fff,inset 0 -3px 0 #888;width:calc(100% + 6px);margin-left:-6px}
+  .pk-tab.pk-sp{visibility:hidden;height:auto}.pk-x{background:#6b6b6b}
+  .pk-left,.pk-right{background:#c6c6c6;box-shadow:inset 3px 3px 0 #fff,inset -3px -3px 0 #777;padding:8px;display:flex;flex-direction:column;min-height:0;min-width:0}
+  .pk-left{margin-right:4px}.pk-right{margin-left:4px}
+  .pk-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:16px;min-height:28px}
+  .pk-head span:first-child{flex:1}
+  .pk-head input{flex:3;min-width:0;font:inherit;font-size:15px;padding:3px 6px;border:2px solid #555;background:#fff}
+  .pk-head button{font-size:12px;padding:4px 7px}
+  .pk-help{width:24px;height:24px;border-radius:50%;background:#8b8b8b;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
+  #pk-lgrid{display:grid;grid-template-columns:repeat(auto-fill,var(--ps));justify-content:center;gap:2px;overflow-y:auto;flex:1;min-height:0;align-content:start;background:#8b8b8b;padding:4px;box-shadow:inset 2px 2px 0 #555}
+  .pk .islot{width:var(--ps);height:var(--ps);aspect-ratio:auto}
+  .pk .islot.big{width:calc(var(--ps)*1.3);height:calc(var(--ps)*1.3)}
+  .pk .rslot{position:relative}
+  .pk-empty{grid-column:1/-1;color:#eee;font-size:13px;padding:8px}
+  #rb-detail{font-size:13px;color:#222;padding:6px 2px 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  #rb-detail .ing{display:flex;flex-wrap:wrap;gap:3px}
+  #rb-detail .ing span{display:flex;align-items:center;gap:2px;background:#aaa;padding:1px 4px 1px 2px}
+  #rb-detail .ing span.miss{background:#d9a0a0;color:#700}
+  #rb-detail .ing img{width:20px;height:20px;image-rendering:pixelated}
+  #rb-detail.hidden{display:none}
+  .pk #ct-name{height:18px;margin:4px 0 0;font-size:13px}
+  .pk-hot{grid-column:2/4;display:flex;justify-content:center;gap:2px;margin-top:6px;padding:4px;background:#c6c6c6;box-shadow:inset 3px 3px 0 #fff,inset -3px -3px 0 #777;justify-self:center}
+  #ct-top{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-start}
+  .pk-gauge{display:flex;justify-content:center;gap:1px;margin:0 0 6px}
+  .pk-gauge span{width:calc(var(--ps)*0.36);height:calc(var(--ps)*0.36);background-size:cover;image-rendering:pixelated}
+  .pk-arm{display:flex;gap:6px;flex:1;min-height:0}
+  .pk-armslots{display:flex;flex-direction:column;gap:2px}
+  .pk-preview{flex:1;background:#000;display:flex;align-items:center;justify-content:center;min-width:0;box-shadow:inset 2px 2px 0 #333}
+  .pk-preview canvas{height:94%;max-width:100%;object-fit:contain;image-rendering:pixelated}
+  .islot.ph img{opacity:.22;filter:grayscale(1)}
+  .pk-note{color:#444;font-size:13px;text-align:center;margin-top:6px}
+  .pk-chest{display:grid;grid-template-columns:repeat(9,var(--ps));gap:2px;justify-content:center}
+  .pk .ct-row{flex-wrap:wrap}
+  @media (max-width:760px){.pk-chest{grid-template-columns:repeat(6,var(--ps))}}
   .cgrid{display:grid;gap:3px}
   .cgrid .islot{width:48px;height:48px}
   .arrow{font-size:30px;color:#555}
@@ -460,19 +500,20 @@
 </div>
 
 <div id="container" class="screen dim hidden">
-  <div class="ct-wrap">
-    <div class="rbook" id="rbook">
-      <div class="inv-head"><h3>レシピ</h3><button id="rb-filter" class="small">作れるものだけ</button></div>
-      <div id="rb-grid"></div>
-      <div id="rb-detail"></div>
-    </div>
-    <div class="inv">
-      <div class="inv-head"><h3 id="ct-title">持ち物</h3><button id="ct-close" class="small">閉じる（E）</button></div>
-      <div id="ct-top"></div>
+  <div class="pk" id="pk">
+    <div class="pk-ltabs" id="pk-ltabs"></div>
+    <div class="pk-left">
+      <div class="pk-head"><span id="ct-title">持ち物</span><input id="pk-search" class="hidden" placeholder="名前で探す" autocomplete="off"><button id="rb-filter" class="small hidden">作れるものだけ</button></div>
+      <div id="pk-lgrid"></div>
+      <div id="rb-detail" class="hidden"></div>
       <div id="ct-name"></div>
-      <div class="grid9" id="ct-main"></div>
-      <div class="grid9 hot" id="ct-hot"></div>
     </div>
+    <div class="pk-right">
+      <div class="pk-head"><span id="pk-rtitle">防具</span><span class="pk-help" id="pk-help">?</span></div>
+      <div id="ct-top"></div>
+    </div>
+    <div class="pk-rtabs" id="pk-rtabs"><button id="ct-close" class="pk-tab pk-x" title="閉じる">✕</button></div>
+    <div class="pk-hot" id="ct-hot"></div>
   </div>
 </div>
 
@@ -1855,6 +1896,8 @@ function buildTex7(){
   DISC_C.forEach((c,i)=>sprite('DISC_'+i,S=>{for(let y=2;y<=13;y++)for(let x=2;x<=13;x++){const d=Math.hypot(x-7.5,y-7.5);if(d<6)S.set(x,y,d<1?[20,20,20]:d<2.4?c:(d>4.8?[50,50,56]:(Math.floor(d*2)%2?[34,34,38]:[44,44,50])));}}));
   sprite('BUNDLE',S=>{shadeFill(S,blobPts(7.5,9.5,5,4,77,0.3),[160,110,60]);for(let x=6;x<=9;x++)S.set(x,5,[120,80,40]);S.set(7,4,[200,180,120]);S.set(8,4,[200,180,120]);});
   sprite('TRIAL_KEY',S=>{for(let i=0;i<8;i++)S.set(5+i,10-i,[200,170,60]);for(let a=0;a<6.28;a+=0.3)S.set(4.5+Math.cos(a)*2.2,11.5+Math.sin(a)*2.2,[220,190,70]);S.set(11,5,[200,170,60]);S.set(10,4,[200,170,60]);});
+  sprite('UI_SEARCH',S=>{for(let a=0;a<6.28;a+=0.12){S.set(6.5+Math.cos(a)*4,6.5+Math.sin(a)*4,[70,70,80]);S.set(6.5+Math.cos(a)*3.3,6.5+Math.sin(a)*3.3,[120,120,130]);}
+    for(let y=4;y<=9;y++)for(let x=4;x<=9;x++)if(Math.hypot(x-6.5,y-6.5)<2.8)S.set(x,y,[170,210,240]);S.set(5,5,[240,250,255]);for(let i=0;i<5;i++){S.set(10+i,10+i,[110,80,50]);S.set(11+i,10+i,[90,64,40]);}});
   sprite('EXP_BOTTLE',S=>{for(let y=5;y<=13;y++)for(let x=4;x<=11;x++){const d=Math.hypot(x-7.5,(y-9.5)*1.1);if(d<4.3)S.set(x,y,d>3.4?[150,220,120]:[180,250,120]);}for(let y=2;y<=4;y++){S.set(7,y,[220,232,240]);S.set(8,y,[220,232,240]);}});
 }
 
@@ -7404,8 +7447,8 @@ function realOn(){return !!(settings.mod&&settings.mod.unlocked&&settings.mod.on
 // ---------------------------------------------------------------- shaders
 const R_WAVE=`
 uniform float uTime; uniform float uWave; uniform float uWaterOn; uniform sampler2D uFlags;
-int tileFlags(float t){int i=int(t+0.5);return int(texelFetch(uFlags,ivec2(i%32,i/32),0).r*255.0+0.5);}
-float wH(vec2 p,float t){return sin(t*1.3+p.x*0.8+p.y*0.35)*0.5+sin(t*1.7-p.y*0.9+p.x*0.25)*0.35+sin(t*2.9+p.x*2.1+p.y*1.7)*0.15;}
+int tileFlags(float t){int i=int(t+0.5);return int(texelFetch(uFlags,ivec2(i%64,i/64),0).r*255.0+0.5);}
+float wH(vec2 p,float t){return sin(t*1.1+p.x*0.42+p.y*0.18)*0.42+sin(t*1.5-p.y*0.55+p.x*0.21)*0.3+sin(t*2.3+p.x*1.1+p.y*0.9)*0.17+sin(t*3.1-p.x*1.9+p.y*1.4)*0.11;}
 vec3 waveP(vec3 p,int f,vec2 uv){
   if(uWave>0.5){
     if((f&1)!=0){float ph=uTime*1.6+p.x*0.7+p.z*0.55+p.y*0.4;
@@ -7422,7 +7465,7 @@ uniform mat4 uVP;${R_WAVE}
 out vec2 vUV; flat out float vTile; out vec3 vLight; out vec3 vPos; flat out int vFlags;
 void main(){
   int f=tileFlags(aTile); vec3 p=waveP(aPos,f,aUV);
-  if((f&4)!=0&&uWaterOn>0.5&&fract(p.y)>0.5) p.y+=wH(p.xz,uTime)*0.03-0.02;
+  if((f&4)!=0&&uWaterOn>0.5&&fract(p.y)>0.5) p.y+=wH(p.xz,uTime)*0.075-0.085;
   vUV=aUV; vTile=aTile; vLight=aLight; vPos=p; vFlags=f; gl_Position=uVP*vec4(p,1.0);
 }`;
 const RT_FS=`#version 300 es
@@ -7438,8 +7481,11 @@ out vec4 outColor;
 const vec2 PD[16]=vec2[16](vec2(-0.942,-0.399),vec2(0.946,-0.769),vec2(-0.094,-0.929),vec2(0.345,0.294),
   vec2(-0.916,0.458),vec2(-0.815,-0.879),vec2(-0.383,0.277),vec2(0.975,0.756),vec2(0.443,-0.975),vec2(0.537,-0.474),
   vec2(-0.265,-0.419),vec2(0.792,0.191),vec2(-0.242,0.997),vec2(-0.814,0.914),vec2(0.2,0.786),vec2(0.144,-0.141));
-float wH(vec2 p,float t){return sin(t*1.3+p.x*0.8+p.y*0.35)*0.5+sin(t*1.7-p.y*0.9+p.x*0.25)*0.35+sin(t*2.9+p.x*2.1+p.y*1.7)*0.15;}
-float wD(vec2 p,float t){return wH(p,t)*0.03+(sin(t*3.1+p.x*4.1-p.y*3.3)+sin(t*3.9-p.x*3.2+p.y*4.6)+sin(t*2.3+p.x*6.7+p.y*5.9)*0.6)*0.006;}
+float wH(vec2 p,float t){return sin(t*1.1+p.x*0.42+p.y*0.18)*0.42+sin(t*1.5-p.y*0.55+p.x*0.21)*0.3+sin(t*2.3+p.x*1.1+p.y*0.9)*0.17+sin(t*3.1-p.x*1.9+p.y*1.4)*0.11;}
+float wR(vec2 p,float t){return sin(t*3.1+p.x*4.1-p.y*3.3)+sin(t*3.9-p.x*3.2+p.y*4.6)*0.8+sin(t*2.3+p.x*6.7+p.y*5.9)*0.5+sin(t*4.7+p.x*9.3-p.y*7.1)*0.3+sin(t*5.3-p.x*12.1-p.y*10.7)*0.2;}
+float wD(vec2 p,float t,float det){return wH(p,t)*0.075+wR(p,t)*0.011*det;}
+uniform sampler2D uScene; uniform sampler2D uDepth; uniform float uRefr; uniform vec2 uScreen;
+float linZ(float z){const float n=0.05,f=1200.0;return 2.0*n*f/(f+n-(z*2.0-1.0)*(f-n));}
 float shadowAt(vec3 wp,vec3 N,float ndl){
   vec4 sp=uShadowVP*vec4(wp+N*0.05+uLightDir*0.03,1.0);
   vec3 p=sp.xyz*0.5+0.5;
@@ -7499,18 +7545,46 @@ void main(){
   if(abs(c.a-0.9804)<0.0035)col=max(col,alb*3.6);
   float alpha=uAlphaMode<0.5?1.0:c.a;
   if(water&&uWaterOn>0.5){
-    vec3 Nw=Ng;
-    if(Ng.y>0.5){vec2 p=vPos.xz;float e=0.04;
-      float gx=wD(p+vec2(e,0.0),uTime)-wD(p-vec2(e,0.0),uTime), gz=wD(p+vec2(0.0,e),uTime)-wD(p-vec2(0.0,e),uTime);
+    vec3 Nw=Ng;bool top=Ng.y>0.5;
+    float det=1.0/(1.0+d*0.06);
+    if(top){vec2 p=vPos.xz;float e=0.05;
+      float gx=wD(p+vec2(e,0.0),uTime,det)-wD(p-vec2(e,0.0),uTime,det), gz=wD(p+vec2(0.0,e),uTime,det)-wD(p-vec2(0.0,e),uTime,det);
       Nw=normalize(vec3(-gx/(2.0*e),1.0,-gz/(2.0*e)));}
-    vec3 R=reflect(V,Nw);
-    float F=0.02+0.98*pow(1.0-clamp(dot(-V,Nw),0.0,1.0),5.0);
+    vec3 R=reflect(V,Nw);R.y=abs(R.y);
+    float cosi=clamp(dot(-V,Nw),0.0,1.0);
+    float F=0.02+0.98*pow(1.0-cosi,5.0);
     float wsh=uShadowOn>0.5?shadowAt(vPos,Ng,1.0):1.0;
     vec3 refl=skyCol(R)*(0.12+0.88*skyVis);
-    float spec=pow(max(dot(R,uSunDir),0.0),700.0)*uSunVis*wsh*skyVis;
-    vec3 base=alb*(uAmb*sky*sky*0.7+uLightCol*max(dot(Nw,uLightDir),0.0)*wsh*skyVis*0.45+uBlkCol*bl)*0.75;
-    col=mix(base,refl,F)+uLightCol*spec*14.0;
-    alpha=mix(0.84,0.97,F);
+    float spec=pow(max(dot(R,uSunDir),0.0),900.0)*uSunVis*wsh*skyVis*18.0+pow(max(dot(R,uSunDir),0.0),60.0)*uSunVis*wsh*skyVis*0.35;
+    // light scattered inside the water: the colour of deep sea
+    vec3 lit=uAmb*(0.35+0.65*sky*sky)*1.4+uLightCol*max(uLightDir.y,0.0)*wsh*skyVis*0.5+uBlkCol*bl*0.6;
+    vec3 scat=vec3(0.010,0.055,0.085)*lit;
+    vec3 texTint=mix(vec3(1.0),alb*4.0,0.12);
+    if(top&&uRefr>0.5){
+      vec2 suv=gl_FragCoord.xy/uScreen;float zW=linZ(gl_FragCoord.z);
+      vec2 ruv=suv+Nw.xz*0.09*clamp(2.5/(d+2.0),0.05,1.0);
+      float zS=linZ(texture(uDepth,ruv).r);
+      if(zS<zW-0.02){ruv=suv;zS=linZ(texture(uDepth,suv).r);}
+      float thick=max(zS-zW,0.0)*mix(0.6,1.0,cosi);
+      vec3 under=texture(uScene,ruv).rgb/uOutScale;
+      vec3 absorb=exp(-thick*vec3(0.95,0.27,0.15));
+      // dancing light on the sea floor
+      vec2 pf=vPos.xz+V.xz*thick*0.8;float t2=uTime*0.9;
+      float cs=pow(0.5+0.5*sin(pf.x*2.7+t2*1.7+sin(pf.y*2.1+t2)),10.0)+pow(0.5+0.5*sin(pf.y*3.1-t2*1.3+sin(pf.x*2.5-t2*0.8)),10.0);
+      under*=1.0+cs*0.9*absorb.g*skyVis*wsh*uSunVis*det;
+      vec3 trans=under*absorb*texTint+scat*(1.0-absorb);
+      // foam where the water is shallow and on the crests of the swell
+      float crest=smoothstep(0.55,0.95,wH(vPos.xz,uTime)*1.1+wR(vPos.xz*0.7,uTime)*0.08);
+      float fn=fract(sin(dot(floor(vPos.xz*8.0+vec2(uTime*0.6,uTime*0.3)),vec2(12.9898,78.233)))*43758.5453);
+      float foam=(1.0-smoothstep(0.02,0.35,thick))*(0.45+0.55*fn)+crest*0.18*fn*det;
+      col=mix(trans,refl,F)+uLightCol*spec;
+      col=mix(col,(uAmb*1.6+uLightCol*0.55*skyVis*wsh)*0.9,clamp(foam,0.0,1.0)*0.75);
+      alpha=1.0;
+    }else{
+      vec3 base=vec3(0.03,0.16,0.24)*lit+alb*lit*0.12;
+      col=mix(base*texTint,refl,F)+uLightCol*spec;
+      alpha=top?mix(0.7,0.96,F):0.78;
+    }
   }
   float ff=clamp((d-uFog.x)/max(uFog.y-uFog.x,0.001),0.0,1.0); ff=ff*ff*(3.0-2.0*ff);
   float haze=(1.0-exp(-d*uFog.z))*0.55;
@@ -7625,7 +7699,7 @@ void main(){vec2 uv=vUV;const vec3 W=vec3(0.299,0.587,0.114);
 
 // ---------------------------------------------------------------- setup
 function buildTileFlags(){
-  const F=new Uint8Array(1024);const set=(t,b)=>{if(t>=0&&t<1024)F[t]|=b;};
+  const F=new Uint8Array(4096);const set=(t,b)=>{if(t>=0&&t<4096)F[t]|=b;};
   for(let id=1;id<BLK_MAX;id++){const b=BLOCKS[id];if(!b)continue;
     for(let k=0;k<6;k++){const t=FT[id*6+k];
       if(LEAFY[id])set(t,1);
@@ -7634,7 +7708,7 @@ function buildTileFlags(){
   }
   set(T.WATER,4);set(T.LAVA,8);set(T.TORCH,32);if(T.FURNACE_FRONT_ON!==undefined)set(T.FURNACE_FRONT_ON,32);
   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,32,32,0,gl.RED,gl.UNSIGNED_BYTE,F);gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,64,64,0,gl.RED,gl.UNSIGNED_BYTE,F);gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
   return tex;
 }
@@ -7667,7 +7741,7 @@ function rtMake(w,h,hdr,withDepth){
 function realTargets(Q){
   const w=Math.max(16,Math.round(canvas.width*Q.scale)),h=Math.max(16,Math.round(canvas.height*Q.scale)),g=REAL.tg;
   if(!g.scene||g.scene.w!==w||g.scene.h!==h){
-    for(const k in g)rtFree(g[k]);
+    for(const k in g)rtFree(g[k]);g.copy=null;
     g.scene=rtMake(w,h,true,true);g.ldr=rtMake(w,h,false,false);
     const w4=Math.max(8,w>>2),h4=Math.max(8,h>>2),w8=Math.max(4,w>>3),h8=Math.max(4,h>>3);
     g.b1=rtMake(w4,h4,true,false);g.b1b=rtMake(w4,h4,true,false);g.b2=rtMake(w8,h8,true,false);g.b2b=rtMake(w8,h8,true,false);g.rays=rtMake(w4,h4,false,false);
@@ -7797,6 +7871,18 @@ function renderReal(){
   }
   if(waters.length){
     waters.sort((a,b)=>b[0]-a[0]);
+    let refr=false;
+    if(M.water&&!under&&!REAL.noRefr){try{
+      if(!g.copy||g.copy.w!==SW||g.copy.h!==SH){rtFree(g.copy);g.copy=rtMake(SW,SH,true,true);}
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER,g.scene.fb);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,g.copy.fb);
+      gl.blitFramebuffer(0,0,SW,SH,0,0,SW,SH,gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,gl.NEAREST);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,g.scene.fb);
+      if(!REAL.refrChecked){REAL.refrChecked=true;if(gl.getError()!==gl.NO_ERROR){REAL.noRefr=true;throw new Error('blit');}}
+      gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,g.copy.tex);gl.uniform1i(u.uScene,3);
+      gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,g.copy.depth);gl.uniform1i(u.uDepth,4);gl.activeTexture(gl.TEXTURE0);
+      gl.uniform2f(u.uScreen,SW,SH);refr=true;
+    }catch(e){REAL.noRefr=true;gl.bindFramebuffer(gl.FRAMEBUFFER,g.scene.fb);}}
+    gl.uniform1f(u.uRefr,refr?1:0);
     gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.disable(gl.CULL_FACE);
     gl.uniform1f(u.uAlphaMode,1);
     for(const w of waters){gl.bindVertexArray(w[1].vao);gl.drawElements(gl.TRIANGLES,w[1].count,gl.UNSIGNED_INT,0);}
@@ -8003,8 +8089,7 @@ const ctGrid=()=>ctKind==='craft'?craft3:craft2,ctGW=()=>ctKind==='craft'?3:2;
 const curRecipe=()=>findRecipe(ctGrid(),ctGW());
 function openContainer(kind,tile){
   if(state!=='play')return;
-  if(kind==='inv'&&mode==='creative'){openCreative();return;}
-  ctKind=kind;ctTile=tile||null;state='container';stopActions();rbPick=null;
+  ctKind=kind;ctTile=tile||null;state='container';stopActions();rbPick=null;pkL='inv';pkR=kind==='craft'?'craft':'armor';
   if(isLocked())document.exitPointerLock();
   $('ct-title').textContent={inv:'持ち物',craft:'作業台',furnace:'かまど',chest:'チェスト',brew:'醸造台'}[kind];
   const tp=tile?[tile.x+0.5,tile.y+0.5,tile.z+0.5]:(target&&!target.ent?[target.x+0.5,target.y+0.5,target.z+0.5]:null);
@@ -8135,9 +8220,9 @@ function renderRecipeBook(){
   if(b1)b1.onclick=()=>craftFromBook(r,1);
   if(bm)bm.onclick=()=>craftFromBook(r,craftTimes(r));
 }
-$('rb-filter').onclick=()=>{rbOnlyCan=!rbOnlyCan;$('rb-filter').textContent=rbOnlyCan?'すべて表示':'作れるものだけ';renderRecipeBook();};
+$('rb-filter').onpointerdown=e=>{e.preventDefault();rbOnlyCan=!rbOnlyCan;$('rb-filter').textContent=rbOnlyCan?'すべて表示':'作れるものだけ';renderRecipeBook();};
 function refreshContainer(){
-  if(state!=='container')return;
+  if(state!=='container')return;pkRender();return;
   renderRecipeBook();
   const top=$('ct-top');top.innerHTML='';
   if(ctKind==='inv'||ctKind==='craft'){
@@ -8422,7 +8507,7 @@ function renderHelpKeys(){
     [K('camera'),'視点の切り替え（一人称・後ろ・前）'],[K('fly'),'飛行の切り替え（クリエイティブ）'],[K('debug'),'座標などの表示'],[K('hud'),'画面表示を隠す']];
   $('help-keys').innerHTML=rows.map(r=>`<span>${r[0]}</span><span>${r[1]}</span>`).join('');
   $('hint').textContent=`画面クリックで全画面 ／ ${kLab('forward')}＋${kLab('sprint')} でダッシュ ／ ${kLab('sneak')} でしゃがむ ／ ${kLab('inventory')} で持ち物 ／ Esc でメニュー`;
-  $('ct-close').textContent=`閉じる（${kLab('inventory')}）`;$('cr-close').textContent=`閉じる（${kLab('inventory')}）`;
+  $('ct-close').title=`閉じる（${kLab('inventory')}）`;$('cr-close').textContent=`閉じる（${kLab('inventory')}）`;
 }
 $('btn-keys').onclick=()=>{kbCapture=null;$('kb-note').textContent='';renderKeybinds();showScreen('keybinds');};
 $('kb-done').onclick=()=>{kbCapture=null;showScreen('settings');};
@@ -8753,6 +8838,159 @@ function renderWorldList(){
 }
 $('wl-back').onclick=()=>showScreen('title');
 $('wl-new').onclick=()=>openNewWorld();
+
+// ================================================================ the inventory screen: category tabs on the left, armour / crafting on the right, hotbar below
+// left tabs: build, equipment, items, nature, search, and (at the bottom) your inventory
+const TILE_URL={};
+function tileURL(t){if(TILE_URL[t])return TILE_URL[t];const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d');g.imageSmoothingEnabled=false;const[sx,sy]=tileSrc(t);g.drawImage(atlasCanvas,sx,sy,16,16,0,0,32,32);return TILE_URL[t]=c.toDataURL();}
+const PK_LTABS=[['build','建築'],['equip','装備'],['items','アイテム'],['nature','自然'],['search','検索']];
+let pkL='inv',pkR='armor',pkQ='';
+const EQUIP_T=new Set(['pick','axe','shovel','hoe','rod','sword','shield','armor','spear','mace','bow','crossbow','trident','flint','shears']);
+function pkCategory(id){
+  if(isBlockId(id)){const b=BLOCKS[id];if(!b)return'build';const c=b.cat;
+    if(c==='nature')return'nature';if(c==='func'||c==='deco')return'items';return'build';}
+  const it=ITEMS[id];if(!it)return'items';if(it.tool&&EQUIP_T.has(it.tool.type))return'equip';if(id===I.ARROW||id===I.ROCKET||id===I.TOTEM||id===I.WIND_CHARGE)return'equip';
+  if(it.egg)return'nature';return'items';
+}
+const PK_ORDER={build:['build','shape','color'],items:['func','deco']};
+let PK_CATALOG=null;
+function pkCatalog(){
+  if(PK_CATALOG)return PK_CATALOG;const C={build:[],equip:[],items:[],nature:[]};
+  const blocks=BLOCKS.filter(b=>b&&b.inv&&b.id===b.base&&b.id!==B.AIR);
+  for(const k of['build','shape','color'])for(const b of blocks)if(b.cat===k)C.build.push(b.id);
+  for(const b of blocks)if(!['build','shape','color','nature','func','deco'].includes(b.cat))C.build.push(b.id);
+  const TY=['sword','axe','pick','shovel','hoe','spear','mace','bow','crossbow','trident','rod','shears','flint','shield','armor'];
+  ITEMS.filter(it=>it&&it.tool&&EQUIP_T.has(it.tool.type)).sort((a,b)=>TY.indexOf(a.tool.type)-TY.indexOf(b.tool.type)||(a.ord||0)-(b.ord||0)).forEach(it=>C.equip.push(it.id));
+  for(const id of[I.ARROW,I.WIND_CHARGE,I.ROCKET,I.TOTEM])if(ITEMS[id])C.equip.push(id);
+  for(const k of['func','deco'])for(const b of blocks)if(b.cat===k)C.items.push(b.id);
+  for(const it of ITEMS)if(it&&!it.egg&&pkCategory(it.id)==='items')C.items.push(it.id);
+  for(const b of blocks)if(b.cat==='nature')C.nature.push(b.id);
+  for(const it of ITEMS)if(it&&it.egg)C.nature.push(it.id);
+  return PK_CATALOG=C;
+}
+function pkTabBtn(icon,title,on,onclick,cls){const b=document.createElement('button');b.className='pk-tab'+(on?' on':'')+(cls?' '+cls:'');b.title=title;
+  b.innerHTML=typeof icon==='number'?`<img alt="" src="${ICONS[icon]}">`:icon;b.onpointerdown=e=>{e.preventDefault();e.stopPropagation();onclick();};return b;}
+function pkRender(){
+  if(state!=='container')return;
+  const box=ctKind==='inv'||ctKind==='craft';if(!box)pkL='inv';
+  if(ctKind==='craft'&&pkR!=='craft'&&pkR!=='armor')pkR='craft';
+  // ---- left tabs
+  const lt=$('pk-ltabs');lt.innerHTML='';
+  if(box){const ic={build:B.BRICK,equip:I.DIAMOND_SWORD,items:B.BED_RED,nature:B.GRASS,search:null};
+    for(const[k,n]of PK_LTABS)lt.appendChild(pkTabBtn(k==='search'?`<img alt="" src="${tileURL(T.UI_SEARCH)}">`:ic[k],n,pkL===k,()=>{pkL=k;rbPick=null;sfx.slot(true);pkRender();if(k==='search')setTimeout(()=>{const s=$('pk-search');if(s)s.focus();},0);}));}
+  const sp=document.createElement('div');sp.style.flex='1';lt.appendChild(sp);
+  lt.appendChild(pkTabBtn(B.CHEST,'持ち物',pkL==='inv',()=>{pkL='inv';sfx.slot(true);pkRender();}));
+  // ---- left panel
+  const title=$('ct-title'),srch=$('pk-search'),flt=$('rb-filter');
+  const surv=mode==='survival';
+  title.textContent=pkL==='inv'?'持ち物':pkL==='search'?'検索':PK_LTABS.find(t=>t[0]===pkL)[1]+(surv?'のレシピ':'');
+  srch.classList.toggle('hidden',pkL!=='search');flt.classList.toggle('hidden',!(surv&&pkL!=='inv'));
+  const g=$('pk-lgrid');g.innerHTML='';const det=$('rb-detail');det.classList.add('hidden');
+  if(pkL==='inv'){for(let i=9;i<36;i++)g.appendChild(slotEl({arr:inv,i}));}
+  else if(surv){pkRecipes(g,det);}
+  else{const q=pkQ.trim().toLowerCase();let list;
+    if(pkL==='search'){const all=pkCatalog();list=[...all.build,...all.equip,...all.items,...all.nature];if(q)list=list.filter(id=>itemName(id).toLowerCase().includes(q)||pkKey(id).includes(q));}
+    else list=pkCatalog()[pkL];
+    for(const id of list){const d=document.createElement('div');d.className='islot';d.innerHTML=`<img alt="" src="${ICONS[id]}">`;
+      d.addEventListener('pointerenter',()=>{$('ct-name').textContent=itemName(id);});
+      d.addEventListener('pointerdown',e=>{e.preventDefault();
+        if(cursor){cursor=null;updateCursorItem();sfx.slot(false);return;}
+        if(e.shiftKey){addItem(id,maxStack(id));}else{inv[sel]={id,n:e.button===2?maxStack(id):1,d:0};}
+        $('ct-name').textContent=itemName(id)+' を'+(e.shiftKey?'持ち物':'スロット '+(sel+1))+'に入れました';sfx.slot(true);invChanged();});
+      d.addEventListener('contextmenu',e=>e.preventDefault());g.appendChild(d);}
+    if(!list.length)g.innerHTML='<div class="pk-empty">見つかりませんでした</div>';}
+  // ---- right tabs
+  const rt=$('pk-rtabs');[...rt.querySelectorAll('.pk-tab:not(.pk-x)')].forEach(n=>n.remove());
+  const sp2=document.createElement('div');sp2.className='pk-tab pk-sp';
+  if(box){rt.appendChild(sp2);sp2.style.flex='1';
+    rt.appendChild(pkTabBtn(B.CRAFT,ctKind==='craft'?'作業台':'クラフト',pkR==='craft',()=>{pkR='craft';sfx.slot(true);pkRender();}));
+    rt.appendChild(pkTabBtn(I.IRON_CHEST,'防具',pkR==='armor',()=>{pkR='armor';sfx.slot(true);pkRender();}));}
+  // ---- right panel
+  const rtitle=$('pk-rtitle'),help=$('pk-help'),top=$('ct-top');top.innerHTML='';
+  if(box&&pkR==='armor'){rtitle.textContent='防具';help.classList.remove('hidden');pkArmorPanel(top);}
+  else if(box){rtitle.textContent=ctKind==='craft'?'作業台':'クラフト';help.classList.add('hidden');
+    const gw=ctGW(),gr=ctGrid(),row=document.createElement('div');row.className='ct-row';
+    const grid=document.createElement('div');grid.className='cgrid';grid.style.gridTemplateColumns=`repeat(${gw},var(--ps))`;
+    for(let i=0;i<gr.length;i++)grid.appendChild(slotEl({arr:gr,i}));
+    const ar=document.createElement('div');ar.className='arrow';ar.textContent='➜';
+    row.appendChild(grid);row.appendChild(ar);row.appendChild(slotEl({kind:'out'},'big'));top.appendChild(row);
+    const n=document.createElement('div');n.className='pk-note';n.textContent=surv?'材料を並べるか、左のタブからレシピを選んで作れます':'材料を並べると右にできあがります';top.appendChild(n);}
+  else{help.classList.add('hidden');rtitle.textContent={furnace:'かまど',chest:'チェスト',brew:'醸造台'}[ctKind]||'';pkOtherPanel(top);}
+  // ---- hotbar
+  const hot=$('ct-hot');hot.innerHTML='';
+  for(let i=0;i<9;i++){const el=slotEl({arr:inv,i},i===sel?'sel':'');el.addEventListener('pointerdown',()=>{if(sel!==i){sel=i;renderHotbar();setTimeout(pkRender,0);}});hot.appendChild(el);}
+  updateCursorItem();
+}
+const pkKey=id=>{for(const k in(isBlockId(id)?B:I))if((isBlockId(id)?B:I)[k]===id)return k.toLowerCase();return'';};
+// survival: recipes of the chosen category (or matching the search)
+function pkRecipes(g,det){
+  const gw=ctGW(),counts=invCounts(),rows=[],q=pkQ.trim().toLowerCase();
+  for(const r of RECIPES){if(pkL==='search'){if(q&&!itemName(r.out).toLowerCase().includes(q)&&!pkKey(r.out).includes(q))continue;}else if(pkCategory(r.out)!==pkL)continue;
+    const fits=fitsGrid(r,gw),can=fits&&!!useReqs(r,counts);if(rbOnlyCan&&!can)continue;rows.push({r,fits,can});}
+  rows.sort((a,b)=>(b.can-a.can)||(b.fits-a.fits));
+  if(!rows.length)g.innerHTML='<div class="pk-empty">'+(rbOnlyCan?'今の持ち物で作れるものはありません':'レシピがありません')+'</div>';
+  for(const{r,fits,can}of rows){const d=document.createElement('div');d.className='rslot islot '+(can?'can':'no')+(r===rbPick?' pick':'');
+    d.innerHTML=`<img alt="" src="${ICONS[r.out]}">`+(r.n>1?`<span class="cnt">${r.n}</span>`:'')+(!fits?'<span class="tbl">作業台</span>':'');d.title=itemName(r.out);
+    d.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(e.shiftKey&&can){craftFromBook(r,craftTimes(r));return;}if(rbPick===r&&can){craftFromBook(r,1);return;}rbPick=r;sfx.slot(true);pkRender();});
+    g.appendChild(d);}
+  if(!rbPick)return;det.classList.remove('hidden');
+  const r=rbPick,fits=fitsGrid(r,gw),times=fits?craftTimes(r):0,c=new Map(counts);
+  let h=`<b>${itemName(r.out)}</b>${r.n>1?' ×'+r.n:''}<span class="ing">`;
+  for(const qq of recipeReqs(r)){const ids=Array.isArray(qq.spec)?qq.spec:[qq.spec];let have=0;for(const id of ids)have+=c.get(id)||0;const shown=ids.find(id=>(c.get(id)||0)>0)||ids[0];
+    h+=`<span class="${have>=qq.n?'':'miss'}" title="${TAG_NAMES.get(qq.spec)||itemName(shown)}"><img alt="" src="${ICONS[shown]}">×${qq.n}</span>`;}
+  h+='</span>';det.innerHTML=h;
+  const btn=document.createElement('button');btn.className='small';btn.textContent=!fits?'作業台が必要':times?'作る':'材料が足りない';btn.disabled=!fits||!times;btn.onpointerdown=e=>{e.preventDefault();craftFromBook(r,1);};
+  const b2=document.createElement('button');b2.className='small';b2.textContent='まとめて';b2.disabled=!fits||times<2;b2.onpointerdown=e=>{e.preventDefault();craftFromBook(r,times);};det.appendChild(btn);det.appendChild(b2);
+}
+// armour tab: gauge, four armour slots plus the off-hand, and your character wearing it
+function pkArmorPanel(top){
+  const[d]=armorPoints();if(!STAT2.full)buildArmorIcons();
+  const gauge=document.createElement('div');gauge.className='pk-gauge';let h='';for(let i=0;i<10;i++){const v=d-i*2;h+=`<span style="background-image:url(${v>=2?STAT2.full:v>=1?STAT2.half:STAT2.empty})"></span>`;}gauge.innerHTML=h;top.appendChild(gauge);
+  const row=document.createElement('div');row.className='pk-arm';
+  const col=document.createElement('div');col.className='pk-armslots';
+  const PH=[I.IRON_HELMET,I.IRON_CHEST,I.IRON_LEGS,I.IRON_BOOTS,I.SHIELD];
+  for(let i=0;i<5;i++){const el=slotEl({arr:ARMOR,i,kind:'armor'},'armor'+(ARMOR[i]?'':' ph'));if(!ARMOR[i])el.innerHTML=`<img alt="" src="${ICONS[PH[i]]}">`;if(i===4)el.style.marginTop='calc(var(--ps)*0.25)';col.appendChild(el);}
+  row.appendChild(col);
+  const pv=document.createElement('div');pv.className='pk-preview';const cv=document.createElement('canvas');cv.width=96;cv.height=136;pv.appendChild(cv);row.appendChild(pv);top.appendChild(row);
+  drawPreview(cv);
+}
+function drawPreview(cv){
+  const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,cv.width,cv.height);
+  const st=SKIN_TILES[settings.skin]||SKIN_TILES[0],ox=16,oy=4;
+  const dr=(t,x,y,w,h,a)=>{if(t===undefined)return;const[sx,sy]=tileSrc(t);g.globalAlpha=a||1;g.drawImage(atlasCanvas,sx,sy,16,16,ox+x,oy+y,w,h);g.globalAlpha=1;};
+  const at=k=>{const s=ARMOR[k],a=s&&ITEMS[s.id]&&ITEMS[s.id].armor;return a?T['ARM_'+a.mat]:undefined;};
+  if(ARMOR[1]&&ARMOR[1].id===I.ELYTRA){dr(T.ARM_ELYTRA,-8,32,30,52);dr(T.ARM_ELYTRA,42,32,30,52);}
+  dr(st.legS,16,80,16,48);dr(st.legS,32,80,16,48);dr(st.bodyF,16,32,32,48);dr(st.armS,0,32,16,48);dr(st.armS,48,32,16,48);dr(st.headF,16,0,32,32);
+  const h=at(0),c=ARMOR[1]&&ARMOR[1].id!==I.ELYTRA?at(1):undefined,l=at(2),b=at(3);
+  if(l){dr(l,15,74,34,9);dr(l,15,82,17,32);dr(l,32,82,17,32);}
+  if(b){dr(b,14,112,18,17);dr(b,32,112,18,17);}
+  if(c){dr(c,14,31,36,46);dr(c,-1,31,18,22);dr(c,47,31,18,22);}
+  if(h){dr(h,14,-2,36,10);dr(h,14,8,5,16);dr(h,45,8,5,16);}
+  const icon=(id,x,y,w)=>{const im=new Image();im.onload=()=>{g.imageSmoothingEnabled=false;g.drawImage(im,ox+x,oy+y,w,w);};im.src=ICONS[id];};
+  const held=inv[sel];if(held)icon(held.id,-16,60,32);
+  if(ARMOR[4])icon(ARMOR[4].id,48,60,32);
+}
+// furnace, chest and brewing stand keep their own layouts in the right panel
+function pkOtherPanel(top){
+  if(ctKind==='furnace'){
+    const t=ctTile,row=document.createElement('div');row.className='ct-row';const col=document.createElement('div');col.className='furn';
+    col.appendChild(slotEl({arr:t.slots,i:0}));const fire=document.createElement('div');fire.className='fire';fire.innerHTML=`<i style="height:${t.burnMax?clamp(t.burn/t.burnMax,0,1)*100:0}%"></i>`;col.appendChild(fire);
+    col.appendChild(slotEl({arr:t.slots,i:1}));const pr=document.createElement('div');pr.className='prog';pr.innerHTML=`<i style="width:${clamp(t.cook/5,0,1)*100}%"></i>`;
+    row.appendChild(col);row.appendChild(pr);row.appendChild(slotEl({arr:t.slots,i:2,kind:'take'},'big'));top.appendChild(row);
+    const n=document.createElement('div');n.className='pk-note';n.textContent='上に焼きたいもの、下に燃料（石炭・木など）を入れます';top.appendChild(n);
+  }else if(ctKind==='brew'){
+    const t=ctTile,row=document.createElement('div');row.className='ct-row';while(t.slots.length<5)t.slots.push(null);
+    const c1=document.createElement('div');c1.className='furn';c1.appendChild(slotEl({arr:t.slots,i:4}));const fu=document.createElement('div');fu.className='pk-note';fu.textContent='燃料 '+(t.fuel||0);c1.appendChild(fu);row.appendChild(c1);
+    const c2=document.createElement('div');c2.className='furn';c2.appendChild(slotEl({arr:t.slots,i:0}));const pr=document.createElement('div');pr.className='prog';pr.style.width='60px';pr.innerHTML=`<i style="width:${clamp((t.t||0)/10,0,1)*100}%"></i>`;c2.appendChild(pr);row.appendChild(c2);
+    const c3=document.createElement('div');c3.style.cssText='display:flex;gap:4px';for(const i of[1,2,3])c3.appendChild(slotEl({arr:t.slots,i}));row.appendChild(c3);top.appendChild(row);
+    const n=document.createElement('div');n.className='pk-note';n.textContent='左に炎の粉（燃料）、真ん中に材料、右の3つに水入り瓶やポーションを入れます';top.appendChild(n);
+  }else if(ctKind==='chest'){
+    const g=document.createElement('div');g.className='pk-chest';for(let i=0;i<27;i++)g.appendChild(slotEl({arr:ctTile.slots,i}));top.appendChild(g);
+  }
+}
+$('pk-search').addEventListener('input',e=>{pkQ=e.target.value;const pos=e.target.selectionStart;pkRender();const s=$('pk-search');s.focus();try{s.setSelectionRange(pos,pos);}catch(_){}});
+$('pk-search').addEventListener('keydown',e=>e.stopPropagation());
+$('pk-help').onpointerdown=e=>{e.preventDefault();toast('防具を着ると受けるダメージが減ります。いちばん下の枠には盾などをもう片方の手に持てます');};
 
 // ============================================================================
 //  ONLINE MODULE — adapted for this game from the user's online.js
