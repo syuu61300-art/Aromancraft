@@ -35,6 +35,20 @@
     background:rgba(0,0,0,.28)!important;border:1px solid rgba(255,255,255,.28)!important;color:rgba(255,255,255,.75)!important;border-radius:4px;box-shadow:none!important;letter-spacing:1px}
   .modlink:hover{color:#fff!important;border-color:rgba(255,255,255,.6)!important}
   #mod-badge{position:absolute;right:62px;bottom:9px;font-size:12px;font-weight:bold;color:#c9ff9c;background:rgba(40,90,30,.55);border:1px solid #8fd06a;border-radius:4px;padding:2px 8px;letter-spacing:1px;text-shadow:1px 1px 0 #000}
+  .worlds-dlg{width:min(760px,96vw);max-height:92vh;display:flex;flex-direction:column}
+  .wlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-rows:max-content;align-content:start;gap:12px;overflow:auto;padding:4px 2px 8px;min-height:120px;max-height:62vh;flex:1 1 auto}
+  .wcard{position:relative;background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.18);border-radius:6px;overflow:hidden;cursor:pointer;transition:border-color .12s,transform .12s}
+  .wcard:hover{border-color:#9fd06a;transform:translateY(-2px)}
+  .wthumb{position:relative;aspect-ratio:16/9;background:linear-gradient(180deg,#6fa8ef 0 52%,#79b24f 52% 60%,#7b5a3a 60% 100%);background-size:cover;background-position:center;image-rendering:auto}
+  .wfriend{position:absolute;right:6px;bottom:6px;font-size:12px;font-weight:bold;color:#fff;background:rgba(40,110,200,.88);border:1px solid #bfe0ff;border-radius:3px;padding:2px 7px;letter-spacing:1px;text-shadow:1px 1px 0 #0b2a50}
+  .wmode{position:absolute;left:6px;top:6px;font-size:11px;color:#fff;background:rgba(0,0,0,.55);border-radius:3px;padding:1px 6px}
+  .winfo{padding:7px 9px 9px}
+  .wname{font-size:16px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:34px}
+  .wmeta{font-size:12px;color:#c9d2bf;margin-top:2px}
+  .wdel{position:absolute;right:6px;bottom:8px;width:30px!important;min-width:0!important;height:28px!important;padding:0!important;margin:0!important;font-size:14px!important}
+  .wconfirm{position:absolute;inset:0;background:rgba(10,12,16,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;text-align:center;font-size:14px;color:#fff}
+  .wconfirm .row{display:flex;gap:8px}.wconfirm button{width:auto!important;min-width:84px;margin:0!important}
+  .wempty{grid-column:1/-1;text-align:center;color:#c9d2bf;padding:30px 0}
   .modlock{width:min(360px,92vw);text-align:center}
   .modlock input{width:100%;box-sizing:border-box;font-size:20px;padding:10px;text-align:center;letter-spacing:4px;margin:6px 0}
   #mod-err{color:#ff9a8a;min-height:1.3em;margin:4px 0}
@@ -181,7 +195,9 @@
   #stick.active #stick-knob{transition:none;background:rgba(255,255,255,.6)}
   #t-sneak{position:absolute;right:calc(var(--tb)*1.95);bottom:calc(var(--tb)*2.15);width:var(--tb);height:var(--tb);border-radius:50%;font-size:calc(var(--tb)*0.19)!important;white-space:nowrap;letter-spacing:-1px}
   #touch #t-sneak.on{background:rgba(160,220,110,.5);border-color:#e4ffd0}
-  #t-jump{position:absolute;right:calc(var(--tb)*0.5);bottom:calc(var(--tb)*0.9);width:calc(var(--tb)*1.2);height:calc(var(--tb)*1.2);border-radius:10px}
+  #t-jump{position:absolute;right:calc(var(--tb)*0.5);bottom:calc(var(--tb)*0.9);width:calc(var(--tb)*1.25);height:calc(var(--tb)*1.25);border-radius:50%}
+  #touch .pxicon{width:62%;height:62%;display:block;pointer-events:none;shape-rendering:crispEdges}
+  #t-fly-up,#t-fly-down{border-radius:50%}
   #t-sprint{position:absolute;right:calc(var(--tb)*1.95);bottom:calc(var(--tb)*0.95);width:var(--tb);height:var(--tb);border-radius:50%;font-size:calc(var(--tb)*0.3)!important}
   #touch #t-sprint.on{background:rgba(120,200,90,.55);border-color:#d8ffc0}
   #t-fly-up{position:absolute;right:calc(var(--tb)*0.6);bottom:calc(var(--tb)*1.7);width:var(--tb);height:var(--tb)}
@@ -227,9 +243,9 @@
   <div id="stick" class="hidden"><div id="stick-knob"></div></div>
   <div id="t-sneak" class="tb hidden">しゃがむ</div>
   <div id="t-sprint" class="tb">走</div>
-  <div id="t-jump" class="tb">⤒</div>
-  <div id="t-fly-up" class="tb hidden">▲</div>
-  <div id="t-fly-down" class="tb hidden">▼</div>
+  <div id="t-jump" class="tb"></div>
+  <div id="t-fly-up" class="tb hidden"></div>
+  <div id="t-fly-down" class="tb hidden"></div>
   <div id="t-topbar"><div id="t-chat" class="tb">💬</div><div id="t-cam" class="tb">👁</div><div id="t-pause" class="tb">Ⅱ</div></div>
 </div>
 
@@ -237,7 +253,7 @@
   <div class="logo">アロマンクラフト</div>
   <div class="subtitle">ゼロから作ったブロックの世界</div>
   <div class="panel">
-    <button id="btn-continue" class="hidden">続きから遊ぶ</button>
+    <button id="btn-worlds">マイワールド</button>
     <button id="btn-new">新しいワールド</button>
     <button id="btn-multi">マルチプレイ</button>
     <div class="row"><button id="btn-char">キャラクター</button><button id="btn-settings">設定</button></div>
@@ -278,12 +294,20 @@
 <div id="newworld" class="screen dim hidden">
   <div class="dialog">
     <h2>新しいワールド</h2>
+    <div class="setrow2"><label for="nw-name">ワールドの名前</label><input id="nw-name" type="text" maxlength="24"></div>
     <div class="setrow2"><label for="seed">シード</label><input id="seed" type="text" placeholder="空欄でランダム" maxlength="32"></div>
     <div class="setrow2"><span>ゲームモード</span><div class="seg"><button id="nw-surv" class="small">サバイバル</button><button id="nw-crea" class="small">クリエイティブ</button></div></div>
     <p class="note" id="nw-note"></p>
     <div class="setrow2"><span>モンスター</span><div class="seg"><button id="nw-mob-on" class="small">出る</button><button id="nw-mob-off" class="small">出ない</button></div></div>
-    <p class="note" id="overwrite-note">※ 保存中のワールドは上書きされます</p>
     <div class="actions"><button id="nw-back">戻る</button><button id="nw-go">ワールドを作る</button></div>
+  </div>
+</div>
+
+<div id="worlds" class="screen dim hidden">
+  <div class="dialog worlds-dlg">
+    <h2>マイワールド</h2>
+    <div id="world-list" class="wlist"></div>
+    <div class="actions"><button id="wl-back" class="small">戻る</button><button id="wl-new">新しいワールド</button></div>
   </div>
 </div>
 
@@ -294,7 +318,7 @@
     <div class="setrow2"><span>つなぎ方</span><div class="seg"><button id="mp-k-peer" class="small">オンライン（PeerJS）</button><button id="mp-k-room" class="small">claude.ai 共有ルーム</button></div></div>
     <p class="note" id="mp-k-note"></p>
     <h3>ルームを作る</h3>
-    <p class="note" style="text-align:left">保存中のワールド（なければ新しいワールド）を公開して、ルームコードを発行します。</p>
+    <p class="note" style="text-align:left">最後に遊んだワールド（なければ新しいワールド）を公開して、ルームコードを発行します。マイワールドでは「フレンド」と表示されます。</p>
     <button id="mp-host" style="width:100%">ルームを作る</button>
     <h3>ルームに参加</h3>
     <div class="row"><input id="mp-code" type="text" maxlength="12" placeholder="ルームコード（例: K7M2QX）" style="flex:2"><button id="mp-join" class="small">参加</button></div>
@@ -344,6 +368,7 @@
     <div class="setrow2"><span>モンスター</span><div class="seg"><button id="s-peace-off" class="small">出る</button><button id="s-peace-on" class="small">出ない</button></div></div>
     <div class="setrow2"><span>スマホの移動操作</span><div class="seg"><button id="s-mc-dpad" class="small">ボタン</button><button id="s-mc-stick" class="small">スティック</button></div></div>
     <div class="setrow2"><span>オートダッシュ</span><div class="seg"><button id="s-auto-on" class="small">オン</button><button id="s-auto-off" class="small">オフ</button></div></div>
+    <div class="setrow2"><span>夜の明るさ自動調整</span><div class="seg"><button id="s-adapt-on" class="small">オン</button><button id="s-adapt-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>歩くときの揺れ</span><div class="seg"><button id="s-bob-on" class="small">オン</button><button id="s-bob-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>クリックで全画面</span><div class="seg"><button id="s-fs-on" class="small">オン</button><button id="s-fs-off" class="small">オフ</button></div></div>
     <div class="setrow"><label for="s-rd">描画距離（チャンク）</label><input id="s-rd" type="range" min="2" max="12" step="1"><output id="o-rd"></output></div>
@@ -681,6 +706,8 @@ function buildCracks(){
     for(let w=0;w<=k;w++){const n=Math.min(10,3+k);for(let i=0;i<n;i++){const[x,y]=walks[w][i];const xi=Math.floor(x),yi=Math.floor(y);if(xi>=0&&xi<16&&yi>=0&&yi<16)g[yi*16+xi]=1;}}
     CRACK[k]=nt('CRACK'+k);paint(CRACK[k],(x,y)=>g[y*16+x]?[24,22,20,255]:CLEAR);
   }
+  // soft round shadow drawn on the ground under players, mobs and items
+  paint(nt('BLOB'),(x,y)=>{const d=Math.hypot(x-7.5,y-7.5)/7.6;return[8,8,10,d<1?Math.round(Math.pow(1-d*d,0.7)*190):0];});
 }
 
 function buildAtlas(){
@@ -1087,7 +1114,7 @@ class Chunk{
     this.lights=new Set();this.solid=null;this.water=null;this.dirty=true;this.meshed=false;this.spawns=null;}
 }
 class World{
-  constructor(seed){
+  constructor(seed){this._sky=new Map();
     this.seed=seed|0;this.chunks=new Map();this.edits=new Map();this.urgent=new Set();this.tiles=new Map();this.saplings=new Map();
     this.onEdit=null;
     this.nH=new Simplex(seed);this.nM=new Simplex(seed+101);this.nT=new Simplex(seed+202);this.nF=new Simplex(seed+303);
@@ -1187,11 +1214,15 @@ class World{
         if(c.cx%2===0&&c.cz%3===0&&hash2(wx,wz,s+31)<0.012&&spawns.length<4)spawns.push([wx+0.5,h+1,wz+0.5]);
       }else if(bio===1&&top===B.SAND&&h>SEA+1){
         const r=hash2(wx,wz,s+6);
-        if(r<0.005){const n=1+(((r*100000)|0)%3);for(let k=1;k<=n;k++)BL[bidx(x,h+k,z)]=B.CACTUS;}
+        if(r<0.005&&x>0&&x<15&&z>0&&z<15){const n=1+(((r*100000)|0)%3);let ok=true;
+          for(let k=1;k<=n&&ok;k++)for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]])if(SOLID[BL[bidx(x+dx,h+k,z+dz)]])ok=false;
+          if(ok)for(let k=1;k<=n;k++)BL[bidx(x,h+k,z)]=B.CACTUS;}
         else if(r<0.014)BL[up]=B.DEAD_BUSH;
       }
-      if((top===B.SAND||top===B.GRASS)&&(h===SEA||h===SEA+1)&&BL[up]===0){
-        const nearW=RH[ri-1]<SEA||RH[ri+1]<SEA||RH[ri-20]<SEA||RH[ri+20]<SEA;
+      if((top===B.SAND||top===B.GRASS)&&h===SEA&&BL[up]===0){
+        // the neighbour column is lower than sea level, so water sits right beside the block the cane grows from
+        const wAt=r2=>RH[r2]<SEA&&RB[r2]!==2;
+        const nearW=wAt(ri-1)||wAt(ri+1)||wAt(ri-20)||wAt(ri+20);
         if(nearW&&hash2(wx,wz,s+7)<0.18){const n=1+((hash2(wx,wz,s+8)*3)|0);for(let k=1;k<=n;k++)BL[bidx(x,h+k,z)]=B.SUGARCANE;}
       }
     }
@@ -1256,7 +1287,21 @@ class World{
       for(const i of c.lights){const d=Math.abs(c.cx*16+(i&15)-x)+Math.abs((i>>8)-y)+Math.abs(c.cz*16+((i>>4)&15)-z),l=LIGHT[c.blocks[i]]-d;if(l>best)best=l;}}
     return best/15;
   }
-  skyAt(x,y,z){const c=this.getChunk(x>>4,z>>4);if(!c)return 1;const h=c.hmap[((z&15)<<4)|(x&15)];if(y>=h)return 1;return Math.max(0,14-(h-y)*2)/15;}
+  hAt(x,z){const c=this.getChunk(x>>4,z>>4);return c?c.hmap[((z&15)<<4)|(x&15)]:0;}
+  // daylight for things that move (players, mobs, items): like the terrain's sky light, it comes in from the side
+  // under a roof or a tree (one level less per block from the nearest open sky), and a canopy of leaves lets some through
+  skyAt(x,y,z){
+    const h=this.hAt(x,z);if(y>=h)return 1;
+    const key=((x&4095)*4096+(z&4095))*256+(y&255);const cv=this._sky.get(key);if(cv!==undefined)return cv;
+    let best=0;
+    for(let r=1;r<=8&&15-r>best;r++){let hit=false;
+      for(let i=0;i<r&&!hit;i++){const a=r-i,b=i;
+        if(y>=this.hAt(x+a,z+b)||y>=this.hAt(x-b,z+a)||y>=this.hAt(x-a,z-b)||y>=this.hAt(x+b,z-a))hit=true;}
+      if(hit)best=15-r;}
+    let leaves=0,roof=false;for(let yy=y+1;yy<h&&yy<y+24;yy++){const id=this.getBlock(x,yy,z);if(OPAQUE[id]){roof=true;break;}if(id)leaves++;}
+    if(!roof)best=Math.max(best,13-leaves);
+    const v=Math.max(0,best)/15;if(this._sky.size>4000)this._sky.clear();this._sky.set(key,v);return v;
+  }
 }
 
 // ---------------------------------------------------------------- meshing (face culling + AO + smooth sky light + flood-filled block light)
@@ -1273,6 +1318,11 @@ for(const f of FACES){
   const ax=f.n[0]?0:f.n[1]?1:2;const t=[0,1,2].filter(a=>a!==ax);
   f.ao=f.v.map(p=>{const o1=[0,0,0],o2=[0,0,0];o1[t[0]]=p[t[0]]?1:-1;o2[t[1]]=p[t[1]]?1:-1;return[...o1,...o2];});
 }
+const CANE_Q=[
+  [[0.06,0,0.06],[0.94,0,0.94],[0.94,1,0.94],[0.06,1,0.06]],
+  [[0.94,0,0.94],[0.06,0,0.06],[0.06,1,0.06],[0.94,1,0.94]],
+  [[0.94,0,0.06],[0.06,0,0.94],[0.06,1,0.94],[0.94,1,0.06]],
+  [[0.06,0,0.94],[0.94,0,0.06],[0.94,1,0.06],[0.06,1,0.94]]];
 const CROSS_Q=[
   [[0.15,0,0.15],[0.85,0,0.85],[0.85,1,0.85],[0.15,1,0.15]],
   [[0.85,0,0.85],[0.15,0,0.15],[0.15,1,0.15],[0.85,1,0.85]],
@@ -1384,9 +1434,11 @@ function emitFace(buf,id,f,x,y,z,bx,bz,liquid){
 }
 function emitCross(buf,id,x,y,z,bx,bz){
   const tile=FT[id*6],em=LIGHT[id]>0,sk=em?1:skyAt(x,y,z)/15,bl=em?1:blkAt(x,y,z)/15,sh=em?1:1.2;
-  const j=(hash3(bx+x,y,bz+z,3)-0.5)*0.25,k=(hash3(bx+x,y,bz+z,4)-0.5)*0.25;
+  // small random offset per column (never per level, so stacked plants line up); sugar cane stays centred and a little wider
+  const cane=id===B.SUGARCANE,still=em||cane,j=still?0:(hash3(bx+x,0,bz+z,3)-0.5)*0.25,k=still?0:(hash3(bx+x,0,bz+z,4)-0.5)*0.25;
+  const Q=cane?CANE_Q:CROSS_Q;
   buf.ensure(16);
-  for(const q of CROSS_Q){const base=buf.nv;for(let v=0;v<4;v++){const p=q[v];buf.vert(bx+x+p[0]+(em?0:j),y+p[1],bz+z+p[2]+(em?0:k),tile,QUV[v][0],QUV[v][1],sh,sk,bl);}buf.quad(base,false);}
+  for(const q of Q){const base=buf.nv;for(let v=0;v<4;v++){const p=q[v];buf.vert(bx+x+p[0]+j,y+p[1],bz+z+p[2]+k,tile,QUV[v][0],QUV[v][1],sh,sk,bl);}buf.quad(base,false);}
 }
 // standing torch: a thin stick plus a little crossed flame (full bright)
 function emitTorch(buf,x,y,z,bx,bz){
@@ -1451,7 +1503,7 @@ const TERRAIN_FS=`#version 300 es
 precision highp float;
 uniform sampler2D uTex; uniform float uTime; uniform vec3 uFogColor; uniform vec2 uFog; uniform vec3 uCam;
 uniform float uDay; uniform vec3 uSkyTint; uniform float uAlphaMode; uniform float uWaterTile; uniform float uLavaTile;
-uniform vec3 uSunDir; uniform float uSunAmt; uniform float uSunset; uniform float uMinL;
+uniform vec3 uSunDir; uniform float uSunAmt; uniform float uSunset; uniform float uMinL; uniform float uAdapt;
 in vec2 vUV; flat in float vTile; in vec3 vLight; in vec3 vPos;
 out vec4 outColor;
 void main(){
@@ -1472,11 +1524,14 @@ void main(){
   vec3 L=max(uSkyTint*sb*uDay*skyShade+vec3(1.0,0.6,0.32)*sb*sunK*uSunset*0.32*uSunAmt, vec3(1.0,0.84,0.62)*bb*stat);
   L=max(L,vec3(uMinL*stat));
   L=max(L,vec3(0.035));
+  // eyes getting used to the dark: lifts dim light a lot, bright light hardly at all
+  if(uAdapt>0.001){vec3 Lc=min(L,vec3(1.0));L+=Lc/(Lc+(1.0-Lc)*(1.0-0.6*uAdapt))-Lc;}
   vec3 col=c.rgb*min(vLight.x,1.25)*L;
   col=mix(col,vec3(1.0),clamp(vLight.x-1.5,0.0,0.5)*1.6);
   float d=length(vPos-uCam);
   float f=clamp((d-uFog.x)/(uFog.y-uFog.x),0.0,1.0);
   col=mix(col,uFogColor,f);
+  if(uAlphaMode>1.5){outColor=vec4(mix(vec3(0.0),uFogColor,f),c.a*vLight.x*(1.0-f));return;}
   outColor=vec4(col, uAlphaMode<0.5?1.0:c.a);
 }`;
 const SKY_VS=`#version 300 es
@@ -1592,7 +1647,7 @@ function boxVisible(x0,y0,z0,x1,y1,z1,pl){
 const SAVE_KEY='voxelcraft.save.v2',SAVE_V1='voxelcraft.save.v1',SET_KEY='voxelcraft.settings.v1',MP_KEY='voxelcraft.mp.';
 function store(){try{return window.localStorage;}catch(e){return null;}}
 const isTouch=('ontouchstart' in window)||(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
-const settings={damage:true,autoSprint:false,moveCtl:'dpad',bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
+const settings={damage:true,autoSprint:false,moveCtl:'dpad',nightAdapt:true,bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
 try{const s=store();const j=s&&s.getItem(SET_KEY);if(j)Object.assign(settings,JSON.parse(j));}catch(e){}
 settings.skin=clamp(settings.skin|0,0,5);
 // ---- key bindings (2 keys per action, editable in Settings) ----
@@ -1649,7 +1704,7 @@ function newWorld(seed){
   disposeWorld();world=new World(seed);spawnPoint=findSpawn(world);
   titleCam={x:spawnPoint[0],y:spawnPoint[1]+22,z:spawnPoint[2],yaw:Math.random()*6.28};
   primed.length=0;particles.length=0;items.length=0;mobs.length=0;
-  world.onEdit=(x,y,z,id)=>{if(typeof mpOnLocalEdit==='function')mpOnLocalEdit(x,y,z,id);};
+  world.onEdit=(x,y,z,id)=>{if(typeof mpOnLocalEdit==='function')mpOnLocalEdit(x,y,z,id);plantCheckAround(x,y,z);};
 }
 
 // ---------------------------------------------------------------- physics (axis-separated AABB sweep)
@@ -1735,7 +1790,7 @@ function updatePlayer(dt){
   const wasGround=p.onGround;
   const dy=physStep(p,dt,p.sneak);
   if(!p.onGround&&dy<0&&!liquid&&!p.flying)p.fall+=-dy;
-  if(p.onGround&&!wasGround){if(p.fall>0.6)sfx.land(p.fall,world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2])));if(p.fall>3.2&&mode==='survival')hurt(Math.ceil(p.fall-3),'fall');p.fall=0;}
+  if(p.onGround&&!wasGround){if(p.fall>0.6)sfx.land(p.fall,world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2])));if(p.fall>3.5&&mode==='survival')hurt(Math.ceil(p.fall-3.5),'fall');p.fall=0;}
   if(p.flying&&p.onGround&&!jump)p.flying=false;
   if(p.pos[1]<-20){if(mode==='survival')hurt(100,'void');else{p.pos[1]=H;p.vel[1]=0;}}
   const eyeB=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+1.62),Math.floor(p.pos[2]));p.headWater=eyeB===B.WATER;
@@ -1925,6 +1980,10 @@ function placeBlock(id){
   const below=world.getBlock(x,y-1,z);
   if(CROSS[id]&&id!==B.TORCH&&!SOLID[below]&&!(id===B.SUGARCANE&&below===B.SUGARCANE))return false;
   if(SAPLING_TYPE[id]!==undefined&&below!==B.GRASS&&below!==B.DIRT&&below!==B.SNOWY)return false;
+  if(id===B.CACTUS){
+    if(below!==B.SAND&&below!==B.CACTUS){toast('サボテンは砂の上にしか置けません');return false;}
+    for(const[dx,dz]of H4)if(SOLID[world.getBlock(x+dx,y,z+dz)]){toast('サボテンのとなりにブロックがあると置けません');return false;}
+  }
   if(id===B.SUGARCANE&&below!==B.SUGARCANE&&(![B.SAND,B.GRASS,B.DIRT].includes(below)||!(world.getBlock(x+1,y-1,z)===B.WATER||world.getBlock(x-1,y-1,z)===B.WATER||world.getBlock(x,y-1,z+1)===B.WATER||world.getBlock(x,y-1,z-1)===B.WATER))){toast('サトウキビは水辺にしか植えられません');return false;}
   const pid=facingVariant(id);
   if(world.setBlock(x,y,z,pid)){sfx.place(id,[x+0.5,y+0.5,z+0.5]);startSwing();consumeHeld(1);return true;}
@@ -1953,6 +2012,26 @@ function eatingTick(dt,holding){
   eating.t+=dt;eating.munch-=dt;
   if(eating.munch<=0){eating.munch=0.21+Math.random()*0.04;sfx.munch(eating.id===I.STEW);eatCrumbs(eating.id);}
   if(eating.t>=EAT_TIME){const id=eating.id;stopEating();if(mode==='survival')eat(id);else sfx.eat(id===I.STEW);}
+}
+// ---- plants that need the right neighbours
+// cactus: stands on sand or cactus, and nothing solid may touch its sides (if something does, it breaks off)
+// sugar cane: stands on cane, or on grass/dirt/sand that has water right beside it
+const H4=[[1,0],[-1,0],[0,1],[0,-1]];
+function cactusOK(x,y,z){const b=world.getBlock(x,y-1,z);if(b!==B.SAND&&b!==B.CACTUS)return false;
+  for(const[dx,dz]of H4){const n=world.getBlock(x+dx,y,z+dz);if(SOLID[n]||n===B.LAVA)return false;}return true;}
+function caneOK(x,y,z){const b=world.getBlock(x,y-1,z);if(b===B.SUGARCANE)return true;if(b!==B.GRASS&&b!==B.DIRT&&b!==B.SAND)return false;
+  for(const[dx,dz]of H4){const n=world.getBlock(x+dx,y-1,z+dz);if(n===B.WATER||n===B.ICE)return true;}return false;}
+let plantBusy=false;const plantQ=[];
+function plantCheckAround(x,y,z){
+  plantQ.push(x,y+1,z,x+1,y,z,x-1,y,z,x,y,z+1,x,y,z-1,x+1,y+1,z,x-1,y+1,z,x,y+1,z+1,x,y+1,z-1);
+  if(plantBusy)return;plantBusy=true;
+  try{let guard=0;
+    while(plantQ.length&&guard++<400){const qz=plantQ.pop(),qy=plantQ.pop(),qx=plantQ.pop();const id=world.getBlock(qx,qy,qz);
+      if((id===B.CACTUS&&!cactusOK(qx,qy,qz))||(id===B.SUGARCANE&&!caneOK(qx,qy,qz))){
+        world.setBlock(qx,qy,qz,0);   // goes through onEdit again, so whatever stood on it is checked too
+        if(mode==='survival')spawnItem(qx+0.5,qy+0.4,qz+0.5,id,1);
+        spawnBreakParticles(qx,qy,qz,id,8);sfx.dig(id,[qx+0.5,qy+0.5,qz+0.5]);}}
+  }finally{plantBusy=false;plantQ.length=0;}
 }
 function eat(id){
   const it=ITEMS[id];const p=player;
@@ -2633,8 +2712,27 @@ function setupCamera(){
   if(roll){const c=Math.cos(roll),s=Math.sin(roll);for(let i=0;i<3;i++){const r=rt[i],u=up[i];rt[i]=r*c+u*s;up[i]=u*c-r*s;}}
 }
 function lightAt(x,y,z){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);tmpA[0]=world.skyAt(ix,iy,iz);tmpA[1]=world.blockLightAt(ix,iy,iz);return tmpA;}
+// round shadows under things that move (the normal renderer; the リアルMod casts real ones)
+const BLOBS=new MeshBuf(1200);let blobMesh=null;
+function pushBlob(x,y,z,r,a){
+  const ix=Math.floor(x),iz=Math.floor(z);let top=-1;
+  for(let yy=Math.floor(y+0.2);yy>=Math.floor(y)-4;yy--){const id=world.getBlock(ix,yy,iz);if(SOLID[id]&&!CROSS[id]){top=yy+1;break;}}
+  if(top<0)return;const h=y-top;if(h<-0.3||h>4)return;
+  const k=1-clamp(h,0,4)/4,R=r*(0.65+0.35*k),A=a*k;if(A<0.03)return;
+  const Y=top+0.015,t=T.BLOB,sk=world.skyAt(ix,top,iz),bl=world.blockLightAt(ix,top,iz),base=BLOBS.nv;BLOBS.ensure(4);
+  // the tile's alpha carries the shape; the 'shade' slot fades it with height
+  BLOBS.vert(x-R,Y,z-R,t,0,0,A,sk,bl);BLOBS.vert(x+R,Y,z-R,t,1,0,A,sk,bl);BLOBS.vert(x+R,Y,z+R,t,1,1,A,sk,bl);BLOBS.vert(x-R,Y,z+R,t,0,1,A,sk,bl);BLOBS.quad(base,false);
+}
+function buildBlobs(){
+  BLOBS.reset();const ex=eye[0],ez=eye[2],near=(p)=>Math.abs(p[0]-ex)<40&&Math.abs(p[2]-ez)<40;
+  if(state!=='title'&&!player.dead&&camMode>0)pushBlob(player.pos[0],player.pos[1],player.pos[2],0.6,0.9);
+  for(const m of mobs)if(near(m.pos))pushBlob(m.pos[0],m.pos[1],m.pos[2],m.type==='pig'?0.72:0.6,m.deathT>0?0.45:0.9);
+  if(typeof MP!=='undefined')for(const r of MP.remotes.values())if(r.ready&&near(r.pos))pushBlob(r.pos[0],r.pos[1],r.pos[2],0.6,0.9);
+  for(const it of items)if(near(it.pos))pushBlob(it.pos[0],it.pos[1],it.pos[2],0.28,0.7);
+  blobMesh=uploadMesh(blobMesh,BLOBS,gl.DYNAMIC_DRAW);
+}
 function buildDynamic(){
-  DYN.reset();
+  DYN.reset();world._sky.clear();
   const pl=lightAt(player.pos[0],player.pos[1]+1,player.pos[2]),psk=pl[0],pbl=pl[1];
   for(const e of primed){
     const flash=(Math.floor(e.t*5)%2===0)?2.0:1.0,sw=1+Math.max(0,0.25-e.t)*0.6,s=1.002*sw/2;
@@ -2712,6 +2810,20 @@ let drawnChunks=0;
 const projV=new Float32Array(4);
 function project(x,y,z){const m=vp;const cx=m[0]*x+m[4]*y+m[8]*z+m[12],cy=m[1]*x+m[5]*y+m[9]*z+m[13],cw=m[3]*x+m[7]*y+m[11]*z+m[15];
   if(cw<=0.05)return null;return[(cx/cw*0.5+0.5)*cssW,(0.5-cy/cw*0.5)*cssH,cw];}
+// night / dark-place brightness: follows how dark it is where you stand, slowly, like eyes adjusting
+let adaptV=0,adaptT0=0;
+function updateAdapt(sky){
+  const now=performance.now(),dt=Math.min(0.2,adaptT0?(now-adaptT0)/1000:0.016);adaptT0=now;
+  let target=0;
+  if(settings.nightAdapt){
+    let lit=1;
+    if(state!=='title'){const x=Math.floor(eye[0]),y=Math.floor(eye[1]),z=Math.floor(eye[2]);lit=Math.max(world.skyAt(x,y,z)*sky.dayLight,world.blockLightAt(x,y,z)*0.85);}
+    else lit=sky.dayLight;
+    target=clamp((0.62-lit)/0.5,0,1);
+  }
+  adaptV=lerp(adaptV,target,1-Math.exp(-dt/(target>adaptV?2.2:0.8)));
+  return adaptV;
+}
 function render(){
   if(realOn()&&realInit()){
     try{renderReal();return;}
@@ -2742,7 +2854,7 @@ function render(){
   gl.uniformMatrix4fv(u.uVP,false,vp);gl.uniform1f(u.uTime,gameTime);gl.uniform3fv(u.uFogColor,fogCol);gl.uniform2f(u.uFog,fogStart,fogEnd);
   gl.uniform3fv(u.uCam,eye);gl.uniform1f(u.uDay,sky.dayLight);gl.uniform3fv(u.uSkyTint,sky.tint);gl.uniform1f(u.uAlphaMode,0);
   gl.uniform1f(u.uWaterTile,T.WATER);gl.uniform1f(u.uLavaTile,T.LAVA);
-  gl.uniform3fv(u.uSunDir,sunDir);gl.uniform1f(u.uSunAmt,0.85*smooth(0.05,0.6,sky.day));gl.uniform1f(u.uSunset,sky.sunset);gl.uniform1f(u.uMinL,0);
+  gl.uniform3fv(u.uSunDir,sunDir);gl.uniform1f(u.uSunAmt,0.85*smooth(0.05,0.6,sky.day));gl.uniform1f(u.uSunset,sky.sunset);gl.uniform1f(u.uMinL,0);gl.uniform1f(u.uAdapt,updateAdapt(sky));
   const waters=[];drawnChunks=0;const maxD=(R+1)*16;
   for(const c of world.chunks.values()){
     if(!c.meshed)continue;const x0=c.cx*16,z0=c.cz*16;
@@ -2761,6 +2873,13 @@ function render(){
     gl.useProgram(progL.p);gl.uniformMatrix4fv(progL.u.uVP,false,vp);gl.uniform4f(progL.u.uColor,0.05,0.05,0.05,1);
     gl.bindVertexArray(lineVAO);gl.bindBuffer(gl.ARRAY_BUFFER,lineVBO);gl.bufferData(gl.ARRAY_BUFFER,lineData,gl.DYNAMIC_DRAW);gl.drawArrays(gl.LINES,0,24);
     gl.useProgram(progT.p);
+  }
+  buildBlobs();
+  if(blobMesh){
+    gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.disable(gl.CULL_FACE);
+    gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(-1,-2);gl.uniform1f(u.uAlphaMode,2);
+    gl.bindVertexArray(blobMesh.vao);gl.drawElements(gl.TRIANGLES,blobMesh.count,gl.UNSIGNED_INT,0);
+    gl.disable(gl.POLYGON_OFFSET_FILL);gl.depthMask(true);gl.disable(gl.BLEND);gl.enable(gl.CULL_FACE);gl.uniform1f(u.uAlphaMode,0);
   }
   if(waters.length){
     waters.sort((a,b)=>b[0]-a[0]);
@@ -3081,6 +3200,7 @@ function realTargets(Q){
   }
 }
 function ortho(o,l,r,b,t,n,f){o.fill(0);o[0]=2/(r-l);o[5]=2/(t-b);o[10]=-2/(f-n);o[12]=-(r+l)/(r-l);o[13]=-(t+b)/(t-b);o[14]=-(f+n)/(f-n);o[15]=1;return o;}
+const SELF=new MeshBuf(1500);let selfMesh=null;
 const lightView=new Float32Array(16),lightProj=new Float32Array(16),lightVP=new Float32Array(16),lightPlanes=new Float32Array(24),handVP=new Float32Array(16);
 const sq3=c=>[c[0]*c[0],c[1]*c[1],c[2]*c[2]];
 const scale3=(c,k)=>[c[0]*k,c[1]*k,c[2]*k];
@@ -3113,7 +3233,7 @@ function renderReal(){
   const haze=under?0.08:0.0022*(0.5+0.5*sky.day);
   // eye adaptation: brighter in caves and at night, settles over a second or two
   const eyeSky=state==='title'?1:world.skyAt(Math.floor(eye[0]),Math.floor(eye[1]),Math.floor(eye[2]));
-  const expT=clamp(lerp(0.92,1.6,1-sky.day)*lerp(1.0,1.25,1-eyeSky),0.8,2.4);
+  const expT=settings.nightAdapt?clamp(lerp(0.92,1.75,1-sky.day)*lerp(1.0,1.3,1-eyeSky),0.8,2.6):0.95;
   REAL.exposure=lerp(REAL.exposure,expT,1-Math.exp(-dt*1.6));
   buildDynamic();
   // ---- shadow map from the sun (or the moon)
@@ -3141,6 +3261,10 @@ function renderReal(){
       gl.bindVertexArray(c.solid.vao);gl.drawElements(gl.TRIANGLES,c.solid.count,gl.UNSIGNED_INT,0);
     }
     if(dynMesh){gl.bindVertexArray(dynMesh.vao);gl.drawElements(gl.TRIANGLES,dynMesh.count,gl.UNSIGNED_INT,0);}
+    // in first person your own body is not drawn, but it still casts a shadow
+    if(camMode===0&&state!=='title'&&!player.dead){const p=player;SELF.reset();
+      drawHumanoid(SELF,settings.skin,p.pos[0],p.pos[1],p.pos[2],{yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
+      selfMesh=uploadMesh(selfMesh,SELF,gl.DYNAMIC_DRAW);if(selfMesh){gl.bindVertexArray(selfMesh.vao);gl.drawElements(gl.TRIANGLES,selfMesh.count,gl.UNSIGNED_INT,0);}}
     gl.disable(gl.POLYGON_OFFSET_FILL);
   }
   // ---- scene into the HDR target
@@ -3314,7 +3438,7 @@ function renderHotbar(){
 function selectSlot(i){if((i+9)%9!==sel){sfx.tick();equipP=0;stopEating();}sel=(i+9)%9;mining.active=false;renderHotbar();const s=inv[sel];if(s)toast(itemName(s.id));if(typeof renderCreativeHot==='function')renderCreativeHot();}
 
 // ---------------------------------------------------------------- screens
-const SCREENS=['title','newworld','multi','character','loading','pause','death','settings','help','inventory','container','keybinds','modlock','modscreen'];
+const SCREENS=['title','newworld','worlds','multi','character','loading','pause','death','settings','help','inventory','container','keybinds','modlock','modscreen'];
 function showScreen(name){for(const s of SCREENS)$(s).classList.toggle('hidden',s!==name);}
 let returnTo='title';
 function openDialog(id,from){returnTo=from;if(id==='settings')syncSettingsUI();if(id==='character')buildChars();showScreen(id);}
@@ -3328,6 +3452,7 @@ function syncSettingsUI(){
     $(on).onclick=()=>{settings[key]=true;saveSettings();sync();if(after)after();};$(off).onclick=()=>{settings[key]=false;saveSettings();sync();if(after)after();};};
   seg('s-dmg-on','s-dmg-off','damage',()=>{if(!settings.damage){player.hurtT=0;}});
   seg('s-auto-on','s-auto-off','autoSprint');
+  seg('s-adapt-on','s-adapt-off','nightAdapt');
   const mcSync=()=>{$('s-mc-dpad').classList.toggle('on',settings.moveCtl!=='stick');$('s-mc-stick').classList.toggle('on',settings.moveCtl==='stick');};mcSync();
   $('s-mc-dpad').onclick=()=>{settings.moveCtl='dpad';saveSettings();mcSync();applyMoveCtl();};
   $('s-mc-stick').onclick=()=>{settings.moveCtl='stick';saveSettings();mcSync();applyMoveCtl();};
@@ -3632,7 +3757,6 @@ function syncNewWorldUI(){
   $('nw-surv').classList.toggle('on',nwMode==='survival');$('nw-crea').classList.toggle('on',nwMode==='creative');
   $('nw-mob-on').classList.toggle('on',!nwPeaceful);$('nw-mob-off').classList.toggle('on',nwPeaceful);
   $('nw-note').textContent=nwMode==='survival'?'体力と空腹があり、素材を集めて道具を作ります。':'すべてのブロックが使い放題。ダメージを受けず、空を飛べます。';
-  $('overwrite-note').classList.toggle('hidden',!readJSON(SAVE_KEY));
 }
 const DEFAULT_CREATIVE=[B.GRASS,B.DIRT,B.STONE,B.COBBLE,B.PLANKS,B.LOG,B.GLASS,B.BRICK,B.TORCH];
 function resetPlayer(){
@@ -3643,11 +3767,12 @@ function resetPlayer(){
 function startNewWorld(){
   initAudio();
   const seed=seedFromString($('seed').value);
+  if(typeof createWorldEntry==='function')createWorldEntry($('nw-name').value,seed,nwMode);
   if(!world||world.seed!==seed||world.edits.size||world.tiles.size)newWorld(seed);
   world.edits.clear();world.tiles.clear();
   mode=nwMode;settings.peaceful=nwPeaceful;saveSettings();
   resetPlayer();player.pos=spawnPoint.slice();player.yaw=titleCam.yaw;player.pitch=0;dayTime=0.03;
-  mobs.length=0;items.length=0;
+  mobs.length=0;items.length=0;lastSave=performance.now()-12000;
   beginLoading();enterFullscreen();
 }
 function loadSaveInto(s){
@@ -3663,11 +3788,7 @@ function loadSaveInto(s){
   if(Array.isArray(s.spawn))spawnPoint=s.spawn.slice(0,3).map(Number);
   sel=clamp(s.sel|0,0,8);dayTime=typeof s.time==='number'?s.time:0.1;
 }
-function startContinue(){
-  initAudio();
-  const s=readJSON(SAVE_KEY)||readJSON(SAVE_V1);if(!s)return openNewWorld();
-  loadSaveInto(s);beginLoading();enterFullscreen();
-}
+function startContinue(){const w=worldsList()[0];if(w)playWorld(w.id);else openNewWorld();}
 let loadingTargets=[];
 function beginLoading(text){
   state='loading';showScreen('loading');$('lbar').style.width='0%';$('ltext').textContent=text||'ワールドを生成中…';
@@ -3683,20 +3804,21 @@ function serializeSave(){
 }
 function saveGame(){
   if(!world||state==='title'||state==='loading')return;
-  if(typeof MP!=='undefined'&&MP.active&&!MP.isHost)return;
+  if(typeof MP!=='undefined'&&MP.active&&!MP.isHost){touchFriendWorld();return;}
   const s=store();if(!s)return;
-  try{if(player.dead)return;s.setItem(SAVE_KEY,JSON.stringify(serializeSave()));}catch(e){}
+  if(player.dead)return;saveCurrentWorld();
 }
 function quitToTitle(){
   if(isLocked())document.exitPointerLock();
+  try{if(state!=='dead'){render();captureThumb();}}catch(e){}
   saveGame();if(typeof mpLeave==='function')mpLeave(true);
   state='title';showScreen('title');$('hud').classList.add('hidden');$('touch').classList.add('hidden');
   primed.length=0;particles.length=0;items.length=0;mobs.length=0;camMode=0;
   titleCam={x:player.pos[0],y:Math.max(player.pos[1]+18,SEA+30),z:player.pos[2],yaw:player.yaw};
   updateTitleButtons();
 }
-function updateTitleButtons(){$('btn-continue').classList.toggle('hidden',!(readJSON(SAVE_KEY)||readJSON(SAVE_V1)));}
-function openNewWorld(){syncNewWorldUI();showScreen('newworld');}
+function updateTitleButtons(){}
+function openNewWorld(){$('nw-name').value=nextWorldName();syncNewWorldUI();showScreen('newworld');}
 
 // ---------------------------------------------------------------- keyboard & mouse
 let breakHeld=false,placeHeld=false,repeatT=0,lastSpace=0,lastW=0;
@@ -3830,7 +3952,19 @@ function screenRay(x,y,o,d){
   const un=(z)=>{const m=tmpM,X=m[0]*nx+m[4]*ny+m[8]*z+m[12],Y=m[1]*nx+m[5]*ny+m[9]*z+m[13],Z=m[2]*nx+m[6]*ny+m[10]*z+m[14],W=m[3]*nx+m[7]*ny+m[11]*z+m[15];return[X/W,Y/W,Z/W];};
   const a=un(-1),b=un(1);o[0]=eye[0];o[1]=eye[1];o[2]=eye[2];const l=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]);d[0]=(b[0]-a[0])/l;d[1]=(b[1]-a[1])/l;d[2]=(b[2]-a[2])/l;
 }
+// pixel-style button icons (drawn here, no image files): jump = arrow up off a ground line, fly = arrow up / down
+function pxIcon(rows,flip){
+  const h=rows.length,w=rows[0].length;let a='',b='';
+  rows.forEach((r,y)=>{for(let x=0;x<w;x++)if(r[x]==='#'){const yy=flip?h-1-y:y;a+=`<rect x="${x+0.6}" y="${yy+0.7}" width="1" height="1"/>`;b+=`<rect x="${x}" y="${yy}" width="1" height="1"/>`;}});
+  return `<svg class="pxicon" viewBox="-0.5 -0.5 ${w+1.2} ${h+1.2}"><g fill="rgba(0,0,0,.55)">${a}</g><g fill="#ffffff">${b}</g></svg>`;
+}
+const ICON_ARROW=['.....#.....','....###....','...#####...','..#######..','.#########.','....###....','....###....','....###....'];
+function setupTouchIcons(){
+  $('t-jump').innerHTML=pxIcon([...ICON_ARROW,'...........','.#########.']);
+  $('t-fly-up').innerHTML=pxIcon(ICON_ARROW);$('t-fly-down').innerHTML=pxIcon(ICON_ARROW,true);
+}
 function setupTouch(){
+  setupTouchIcons();
   document.body.classList.add('touch');$('t-more').classList.remove('hidden');
   const dpad=$('dpad'),cells=[...dpad.querySelectorAll('.dp[data-d]')];let dpadId=null,lastF=0;
   const cellAt=(x,y)=>{for(const c of cells){if(c.dataset.d==='c')continue;if((c.dataset.d==='fl'||c.dataset.d==='fr')&&!dpad.classList.contains('fwd'))continue;
@@ -3959,7 +4093,7 @@ syncModUI();
 
 // ---------------------------------------------------------------- buttons
 $('btn-new').onclick=openNewWorld;
-$('btn-continue').onclick=startContinue;
+$('btn-worlds').onclick=()=>openWorlds();
 $('nw-surv').onclick=()=>{nwMode='survival';syncNewWorldUI();};$('nw-crea').onclick=()=>{nwMode='creative';syncNewWorldUI();};
 $('nw-mob-on').onclick=()=>{nwPeaceful=false;syncNewWorldUI();};$('nw-mob-off').onclick=()=>{nwPeaceful=true;syncNewWorldUI();};
 $('nw-back').onclick=()=>showScreen('title');$('nw-go').onclick=startNewWorld;
@@ -3977,6 +4111,122 @@ $('cr-close').onclick=closeCreative;$('ct-close').onclick=closeContainer;
 $('btn-respawn').onclick=()=>{respawn();showScreen(null);state='play';if(isTouch)$('touch').classList.remove('hidden');requestLock();};
 $('btn-death-quit').onclick=()=>{respawn();quitToTitle();};
 $('btn-open-mp').onclick=()=>{if(typeof pauseMPButton==='function')pauseMPButton();};
+
+// ================================================================ マイワールド: several saved worlds, each with a picture
+// index:  aromancraft.worlds.v1  → [{id,name,seed,mode,created,played,online,friend,code,kind}]
+// data:   aromancraft.world.<id> → the same save format as before (serializeSave)
+// picture aromancraft.thumb.<id> → a small JPEG of the last view
+const WL_KEY='aromancraft.worlds.v1',WD_KEY='aromancraft.world.',WT_KEY='aromancraft.thumb.';
+let curWorldId=null,lastThumbT=0;
+function worldsList(){const l=readJSON(WL_KEY);return Array.isArray(l)?l.filter(w=>w&&typeof w.id==='string').sort((a,b)=>(b.played||0)-(a.played||0)):[];}
+function saveWorldsList(l){try{const s=store();if(s)s.setItem(WL_KEY,JSON.stringify(l));}catch(e){}}
+function worldEntry(id){return worldsList().find(w=>w.id===id)||null;}
+function curWorld(){return curWorldId?worldEntry(curWorldId):null;}
+function patchWorld(id,patch){const l=worldsList(),w=l.find(v=>v.id===id);if(!w)return null;Object.assign(w,patch);saveWorldsList(l);return w;}
+function cleanWorldName(s){s=String(s||'').replace(/[\u0000-\u001f\u007f-\u009f<>​-‏‪-‮⁦-⁩]/g,'').trim().slice(0,24);return s;}
+function nextWorldName(){const names=new Set(worldsList().map(w=>w.name));for(let i=1;;i++){const n='ワールド'+i;if(!names.has(n))return n;}}
+function newWorldId(){return 'w'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36);}
+function createWorldEntry(name,seed,mode){
+  const id=newWorldId(),now=Date.now(),l=worldsList();
+  l.push({id,name:cleanWorldName(name)||nextWorldName(),seed,mode,created:now,played:now,online:false,friend:false,code:null});
+  saveWorldsList(l);curWorldId=id;return id;
+}
+// the old single save becomes the first world in the list
+(function migrateOldSave(){
+  if(readJSON(WL_KEY))return;
+  const old=readJSON(SAVE_KEY)||readJSON(SAVE_V1);if(!old){saveWorldsList([]);return;}
+  const id=newWorldId(),now=Date.now();
+  try{const s=store();s.setItem(WD_KEY+id,JSON.stringify(old));
+    saveWorldsList([{id,name:'ワールド1',seed:old.seed|0,mode:old.mode==='survival'?'survival':'creative',created:now,played:now,online:false,friend:false,code:null}]);
+    s.removeItem(SAVE_KEY);s.removeItem(SAVE_V1);
+  }catch(e){}
+})();
+function saveCurrentWorld(){
+  const s=store();if(!s)return;
+  if(!curWorldId||!worldEntry(curWorldId))createWorldEntry(nextWorldName(),world.seed,mode);
+  try{s.setItem(WD_KEY+curWorldId,JSON.stringify(serializeSave()));}
+  catch(e){if(!saveCurrentWorld.warned){saveCurrentWorld.warned=true;toast('保存できる容量がいっぱいです。使わないワールドを消してください');}return;}
+  patchWorld(curWorldId,{played:Date.now(),mode,seed:world.seed});
+}
+function touchFriendWorld(){if(curWorldId&&worldEntry(curWorldId))patchWorld(curWorldId,{played:Date.now()});}
+// a small picture of what you see, taken right after a frame is drawn
+function captureThumb(){
+  if(!curWorldId)return;lastThumbT=performance.now();
+  try{const c=document.createElement('canvas');c.width=256;c.height=144;const g=c.getContext('2d');
+    const sw=canvas.width,sh=canvas.height,r=Math.min(sw/16,sh/9),w=r*16,h=r*9;
+    g.drawImage(canvas,(sw-w)/2,(sh-h)/2,w,h,0,0,256,144);
+    store().setItem(WT_KEY+curWorldId,c.toDataURL('image/jpeg',0.72));
+  }catch(e){}
+}
+function thumbWanted(){return state==='play'&&curWorldId&&performance.now()-lastThumbT>(lastThumbT?120000:4000);}
+function deleteWorld(id){
+  const s=store();try{s.removeItem(WD_KEY+id);s.removeItem(WT_KEY+id);}catch(e){}
+  saveWorldsList(worldsList().filter(w=>w.id!==id));if(curWorldId===id)curWorldId=null;
+}
+function playWorld(id){
+  const w=worldEntry(id);if(!w)return;initAudio();
+  if(w.friend){joinFriendWorld(w);return;}
+  const data=readJSON(WD_KEY+id);curWorldId=id;
+  if(data)loadSaveInto(data);
+  else{newWorld(w.seed|0);mode=w.mode==='survival'?'survival':'creative';resetPlayer();player.pos=spawnPoint.slice();dayTime=0.03;mobs.length=0;items.length=0;}
+  patchWorld(id,{played:Date.now()});lastThumbT=0;
+  beginLoading('「'+w.name+'」を読み込み中…');enterFullscreen();
+}
+function joinFriendWorld(w){
+  if(typeof openMulti!=='function')return;
+  openMulti();if(w.kind)setKind(w.kind);
+  $('mp-code').value=w.code||'';$('mp-status').textContent='「'+w.name+'」に参加しています…';
+  setTimeout(()=>$('mp-join').click(),60);
+}
+// called by the multiplayer code
+function rememberFriendWorld(info){
+  if(!MP.code)return;const id='f_'+MP.code,l=worldsList(),now=Date.now();let w=l.find(v=>v.id===id);
+  const name=cleanWorldName(info&&info.wn)||((info&&info.hn)?cleanName(info.hn)+' のワールド':'フレンドのワールド');
+  if(!w){w={id,created:now};l.push(w);}
+  Object.assign(w,{name,seed:(info&&info.seed)|0,mode:info&&info.mode==='survival'?'survival':'creative',played:now,online:true,friend:true,code:MP.code,kind:MP.kind});
+  saveWorldsList(l);curWorldId=id;lastThumbT=0;
+}
+function markWorldOnline(code){
+  if(!curWorldId||!worldEntry(curWorldId))createWorldEntry(nextWorldName(),world.seed,mode);
+  patchWorld(curWorldId,{online:true,code,kind:MP.kind});
+}
+function fmtPlayed(t){if(!t)return'';const d=new Date(t),n=new Date(),p=v=>String(v).padStart(2,'0');
+  const hm=p(d.getHours())+':'+p(d.getMinutes());
+  if(d.toDateString()===n.toDateString())return'今日 '+hm;
+  return (d.getFullYear()!==n.getFullYear()?d.getFullYear()+'/':'')+(d.getMonth()+1)+'/'+d.getDate()+' '+hm;}
+function openWorlds(){renderWorldList();showScreen('worlds');}
+function renderWorldList(){
+  const box=$('world-list');box.innerHTML='';const l=worldsList();
+  if(!l.length){const e=document.createElement('div');e.className='wempty';e.textContent='まだワールドがありません。「新しいワールド」から作りましょう。';box.appendChild(e);return;}
+  for(const w of l){
+    const card=document.createElement('div');card.className='wcard clicky';card.dataset.id=w.id;
+    const th=document.createElement('div');th.className='wthumb';
+    let img=null;try{img=store().getItem(WT_KEY+w.id);}catch(e){}
+    if(img&&/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(img))th.style.backgroundImage='url("'+img+'")';
+    const md=document.createElement('span');md.className='wmode';md.textContent=w.mode==='survival'?'サバイバル':'クリエイティブ';th.appendChild(md);
+    if(w.online||w.friend){const f=document.createElement('span');f.className='wfriend';f.textContent='フレンド';th.appendChild(f);}
+    card.appendChild(th);
+    const info=document.createElement('div');info.className='winfo';
+    const nm=document.createElement('div');nm.className='wname';nm.textContent=w.name;
+    const mt=document.createElement('div');mt.className='wmeta';mt.textContent=(w.friend?'参加したワールド ・ ':'')+fmtPlayed(w.played);
+    info.appendChild(nm);info.appendChild(mt);card.appendChild(info);
+    const del=document.createElement('button');del.className='wdel small';del.title=w.friend?'一覧から外す':'削除';del.textContent='🗑';card.appendChild(del);
+    del.onclick=e=>{e.stopPropagation();
+      const cf=document.createElement('div');cf.className='wconfirm';
+      const q=document.createElement('div');q.textContent=w.friend?'「'+w.name+'」を一覧から外しますか？':'「'+w.name+'」を削除しますか？（元に戻せません）';
+      const row=document.createElement('div');row.className='row';
+      const yes=document.createElement('button');yes.className='small';yes.textContent=w.friend?'外す':'削除する';
+      const no=document.createElement('button');no.className='small';no.textContent='やめる';
+      yes.onclick=ev=>{ev.stopPropagation();deleteWorld(w.id);renderWorldList();};
+      no.onclick=ev=>{ev.stopPropagation();cf.remove();};
+      row.appendChild(yes);row.appendChild(no);cf.appendChild(q);cf.appendChild(row);cf.onclick=ev=>ev.stopPropagation();card.appendChild(cf);
+    };
+    card.onclick=()=>playWorld(w.id);
+    box.appendChild(card);
+  }
+}
+$('wl-back').onclick=()=>showScreen('title');
+$('wl-new').onclick=()=>openNewWorld();
 
 // ============================================================================
 //  ONLINE MODULE — adapted for this game from the user's online.js
@@ -4161,7 +4411,7 @@ const RoomNet={
   _tick(){
     if(!this.room)return;
     const pr={n:this.name,st:this._pos,e:this.ring};
-    if(this.isHost&&world)Object.assign(pr,{host:1,seed:world.seed,tm:Math.round(dayTime*1000)/1000,md:mode});
+    if(this.isHost&&world){const cw=curWorld();Object.assign(pr,{host:1,seed:world.seed,tm:Math.round(dayTime*1000)/1000,md:mode,wn:cw?String(cw.name).slice(0,24):''});}
     this.room.presence(pr).catch(()=>{});
     const m=this.q.shift();if(m)this.room.emit('sync',m).catch(e=>{if(e&&e.code==='not_permitted'){this.q.length=0;}});
   },
@@ -4176,7 +4426,7 @@ const RoomNet={
     this.isHost=false;await this._open(code,name);
     return new Promise((ok,ng)=>{const t0=Date.now();
       const chk=()=>{if(!this.room)return ng(new Error('切断されました'));const h=this._findHost();
-        if(h){const pr=h.presence,st=sanitizeState(pr.st);ok();this._emit('world',{seed:pr.seed,time:pr.tm,mode:pr.md,spawn:st?st.p:null});
+        if(h){const pr=h.presence,st=sanitizeState(pr.st);ok();this._emit('world',{seed:pr.seed,time:pr.tm,mode:pr.md,spawn:st?st.p:null,wn:typeof pr.wn==='string'?pr.wn:'',hn:typeof pr.n==='string'?pr.n:''});
           this.room.emit('hello',{}).catch(()=>{this._emit('error','ホストにワールドの同期を頼めませんでした（閲覧のみの権限かもしれません）');});return;}
         if(Date.now()-t0>10000){this.leave();ng(new Error('このコードのルームにホストがいません'));return;}setTimeout(chk,300);};
       chk();});
@@ -4216,7 +4466,8 @@ function wireNet(net){
   net.on('left',({id,name})=>{removeRemote(id);if(name){addChat('',name+' が退出しました',true);sfx.leave();}});
   net.on('joined',({name})=>{if(name){addChat('',name+' が参加しました',true);sfx.join();}});
   net.on('join',({name,send})=>{
-    send({t:'world',seed:world.seed,time:dayTime,mode,spawn:player.pos.map(v=>Math.round(v*100)/100)});
+    const cw=curWorld();
+    send({t:'world',seed:world.seed,time:dayTime,mode,spawn:player.pos.map(v=>Math.round(v*100)/100),wn:cw?cw.name:'',hn:myName()});
     const all=allEdits();for(let i=0;i<all.length;i+=8000)send({t:'sync',e:all.slice(i,i+8000)});send({t:'syncdone'});
     addChat('',name+' が参加しました',true);sfx.join();
   });
@@ -4231,6 +4482,7 @@ function wireNet(net){
 function onWorldInfo(m){
   if(!MP.waitingWorld)return;MP.waitingWorld=false;
   newWorld(m.seed|0);mode=m.mode==='survival'?'survival':'creative';resetPlayer();
+  rememberFriendWorld({wn:typeof m.wn==='string'?m.wn:'',hn:typeof m.hn==='string'?m.hn:'',seed:m.seed|0,mode});
   const sp=Array.isArray(m.spawn)&&m.spawn.length===3&&m.spawn.every(isFinite)?m.spawn.map(Number):spawnPoint;
   player.pos=[sp[0]+0.8,sp[1]+0.5,sp[2]+0.8];spawnPoint=player.pos.slice();dayTime=isFinite(m.time)?(((+m.time)%1)+1)%1:0.1;
   beginLoading('ホストのワールドを読み込み中…');
@@ -4291,17 +4543,19 @@ $('mp-back').onclick=()=>showScreen('title');
 $('mp-name').oninput=()=>{settings.name=cleanName($('mp-name').value,true);saveSettings();};
 async function startHosting(fromPause){
   const net=mpNet();wireNet(net);
-  const code=Online.genCode();
-  try{await net.host(code,myName());}
+  // a world keeps its room code, so friends can come back to the same world from マイワールド
+  const cw=curWorld();let code=(cw&&cw.code&&!cw.friend)?cw.code:Online.genCode();
+  try{try{await net.host(code,myName());}catch(e1){if(cw&&cw.code===code){try{net.leave();}catch(_){ }wireNet(net);code=Online.genCode();await net.host(code,myName());}else throw e1;}}
   catch(e){const msg=(e&&e.message)||'接続できませんでした';$('mp-status').textContent=msg;if(fromPause)$('pause-note').textContent=msg+(MP.kind==='peer'&&insideClaude()?'（claude.ai の中では「claude.ai 共有ルーム」を使ってください）':'');try{net.leave();}catch(_){ }return false;}
-  MP.active=true;MP.isHost=true;MP.code=code;
+  MP.active=true;MP.isHost=true;MP.code=code;markWorldOnline(code);
   return true;
 }
 $('mp-host').onclick=async()=>{
   initAudio();settings.name=cleanName($('mp-name').value);saveSettings();
   $('mp-status').textContent='ルームを準備中…';$('mp-host').disabled=true;
-  const s=readJSON(SAVE_KEY)||readJSON(SAVE_V1);
-  if(s)loadSaveInto(s);else{newWorld(seedFromString(''));mode='survival';resetPlayer();player.pos=spawnPoint.slice();dayTime=0.03;}
+  const w=worldsList().find(v=>!v.friend),s=w?readJSON(WD_KEY+w.id):null;
+  if(w)curWorldId=w.id;
+  if(s)loadSaveInto(s);else{if(w)newWorld(w.seed|0);else{newWorld(seedFromString(''));createWorldEntry(nextWorldName(),world.seed,'survival');}mode=w&&w.mode==='creative'?'creative':'survival';resetPlayer();player.pos=spawnPoint.slice();dayTime=0.03;}
   const ok=await startHosting(false);$('mp-host').disabled=false;
   if(!ok)return;
   beginLoading('ルーム '+MP.code+' を開きました。ワールドを準備中…');
@@ -4414,6 +4668,7 @@ function frame(now){
   }
   if(isTouch&&state==='play'){$('touch').classList.remove('hidden');}
   render();
+  if(thumbWanted())captureThumb();
   audioUpdate(dt,sky);
 }
 window.addEventListener('beforeunload',saveGame);
@@ -4428,7 +4683,7 @@ buildAtlas();defineBlocks();refineSounds();defineItems();buildTables();defineRec
 uploadAtlas();buildIcons();buildStatIcons();applyButtonSize();resizeUI();
 if(isTouch)setupTouch();
 renderHotbar();updateTitleButtons();
-{const s=readJSON(SAVE_KEY)||readJSON(SAVE_V1);newWorld(s?s.seed|0:seedFromString(''));}
+{const w=worldsList().find(v=>!v.friend);newWorld(w?w.seed|0:seedFromString(''));}
 requestAnimationFrame(frame);
 
 </script>
