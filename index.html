@@ -273,6 +273,7 @@
     <h2>設定</h2>
     <div class="setrow2"><label for="s-name">ニックネーム</label><input id="s-name" type="text" maxlength="16"></div>
     <div class="setrow2"><span>操作キー</span><div><button id="btn-keys" class="small" style="width:100%">キー割り当てを変える…</button></div></div>
+    <div class="setrow2"><span>歩くときの揺れ</span><div class="seg"><button id="s-bob-on" class="small">オン</button><button id="s-bob-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>クリックで全画面</span><div class="seg"><button id="s-fs-on" class="small">オン</button><button id="s-fs-off" class="small">オフ</button></div></div>
     <div class="setrow"><label for="s-rd">描画距離（チャンク）</label><input id="s-rd" type="range" min="2" max="12" step="1"><output id="o-rd"></output></div>
     <div class="setrow"><label for="s-fov">視野角</label><input id="s-fov" type="range" min="50" max="110" step="1"><output id="o-fov"></output></div>
@@ -1460,7 +1461,7 @@ function boxVisible(x0,y0,z0,x1,y1,z1){
 const SAVE_KEY='voxelcraft.save.v2',SAVE_V1='voxelcraft.save.v1',SET_KEY='voxelcraft.settings.v1',MP_KEY='voxelcraft.mp.';
 function store(){try{return window.localStorage;}catch(e){return null;}}
 const isTouch=('ontouchstart' in window)||(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
-const settings={fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
+const settings={bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
 try{const s=store();const j=s&&s.getItem(SET_KEY);if(j)Object.assign(settings,JSON.parse(j));}catch(e){}
 settings.skin=clamp(settings.skin|0,0,5);
 // ---- key bindings (2 keys per action, editable in Settings) ----
@@ -1608,8 +1609,11 @@ function updatePlayer(dt){
   const hs=Math.hypot(p.vel[0],p.vel[2]);
   if(p.sprint&&p.onGround)p.exh+=hs*dt*0.1;
   p.walkAmp=lerp(p.walkAmp,Math.min(1,hs/4.4)*(p.onGround||liquid?1:0.3),1-Math.exp(-10*dt));p.walk+=hs*dt*1.6;
-  if(p.onGround&&hs>0.5){bob+=hs*dt*1.9;stepDist+=hs*dt;if(stepDist>2.1){stepDist=0;const under=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2]));if(under)sfx.step(under);}}
-  else bob*=Math.pow(0.02,dt);
+  // view bobbing: phase follows distance walked (one step per half cycle), amplitude eases in/out
+  const walking=p.onGround&&!p.flying&&!liquid&&hs>0.3;
+  p.bobAmp=lerp(p.bobAmp||0,walking?Math.min(1,hs/4.4):0,1-Math.exp(-(walking?6:9)*dt));
+  if(walking){const prev=bob;bob+=hs*dt*0.55;if(Math.floor(prev)!==Math.floor(bob)){const under=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2]));if(under)sfx.step(under);}}
+  p.eyeH=lerp(p.eyeH||1.62,p.sneak&&p.onGround?1.42:1.62,1-Math.exp(-14*dt));
   if(liquid&&hs>1){p.swimD=(p.swimD||0)+hs*dt;if(p.swimD>1.7){p.swimD=0;if(p.inWater)sfx.swim();}}
   p.invuln=Math.max(0,p.invuln-dt);p.hurtT=Math.max(0,p.hurtT-dt);p.eatCD=Math.max(0,p.eatCD-dt);
   let dyaw=p.yaw-p.bodyYaw;dyaw=Math.atan2(Math.sin(dyaw),Math.cos(dyaw));
@@ -1655,11 +1659,11 @@ function respawn(){
 }
 function eyePos(out){
   const p=player;
-  out[0]=p.pos[0];out[1]=p.pos[1]+(p.sneak&&p.onGround?1.48:1.62);out[2]=p.pos[2];
-  const amp=Math.min(1,Math.hypot(p.vel[0],p.vel[2])/4.4)*(p.onGround?1:0);
-  if(camMode===0){
-    out[1]+=Math.abs(Math.sin(bob*Math.PI))*0.06*amp;
-    out[0]+=Math.cos(p.yaw)*Math.sin(bob*Math.PI)*0.025*amp;out[2]+=Math.sin(p.yaw)*Math.sin(bob*Math.PI)*0.025*amp;
+  out[0]=p.pos[0];out[1]=p.pos[1]+(p.eyeH||1.62);out[2]=p.pos[2];
+  const amp=p.bobAmp||0;
+  if(camMode===0&&settings.bob&&amp>0.001){
+    const s=Math.sin(bob*Math.PI),v=(Math.abs(s)-0.5)*0.05*amp,hz=s*0.028*amp;
+    out[1]+=v;out[0]+=Math.cos(p.yaw)*hz;out[2]+=Math.sin(p.yaw)*hz;
   }
   if(shake>0){out[0]+=(Math.random()-0.5)*shake*0.5;out[1]+=(Math.random()-0.5)*shake*0.5;out[2]+=(Math.random()-0.5)*shake*0.5;}
   return out;
@@ -2450,8 +2454,8 @@ function buildDynamic(){
 function buildHand(){
   HAND.reset();
   const id=heldId(),L=lightAt(player.pos[0],player.pos[1]+1.6,player.pos[2]),sk=L[0],hb=L[1];
-  const sw=Math.sin(swing*Math.PI),amp=Math.min(1,Math.hypot(player.vel[0],player.vel[2])/4.4)*(player.onGround?1:0);
-  const bob1=Math.sin(bob*Math.PI)*0.03*amp,bob2=Math.abs(Math.sin(bob*Math.PI))*0.03*amp;
+  const sw=Math.sin(swing*Math.PI),amp=settings.bob?(player.bobAmp||0):0;
+  const bob1=Math.sin(bob*Math.PI)*0.022*amp,bob2=Math.abs(Math.sin(bob*Math.PI))*0.02*amp;
   if(!id){
     const st=SKIN_TILES[settings.skin],arm=[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS];
     const M=mChain(mT(0.62+bob1-sw*0.1,-0.8-bob2+sw*0.05,-0.42-sw*0.2),mRY(0.35-sw*0.3),mRX(1.95-sw*0.6),mS(0.06));
@@ -2619,6 +2623,8 @@ function syncSettingsUI(){
   const map={rd:['s-rd','o-rd',v=>v],fov:['s-fov','o-fov',v=>v+'°'],sens:['s-sens','o-sens',v=>v],vol:['s-vol','o-vol',v=>v+'%'],music:['s-music','o-music',v=>v+'%'],amb:['s-amb','o-amb',v=>v+'%'],fx:['s-fx','o-fx',v=>v+'%'],ui:['s-ui','o-ui',v=>v+'%'],day:['s-day','o-day',v=>v+'分'],btn:['s-btn','o-btn',v=>v+'px']};
   for(const k in map){const[i,o,f]=map[k];$(i).value=settings[k];$(o).textContent=f(settings[k]);
     $(i).oninput=()=>{settings[k]=Number($(i).value);$(o).textContent=f(settings[k]);if(['vol','music','amb','fx','ui'].includes(k))applyVolumes();if(k==='btn')applyButtonSize();saveSettings();};}
+  const bobSync=()=>{$('s-bob-on').classList.toggle('on',settings.bob);$('s-bob-off').classList.toggle('on',!settings.bob);};bobSync();
+  $('s-bob-on').onclick=()=>{settings.bob=true;saveSettings();bobSync();};$('s-bob-off').onclick=()=>{settings.bob=false;saveSettings();bobSync();};
   const fsSync=()=>{$('s-fs-on').classList.toggle('on',settings.fs);$('s-fs-off').classList.toggle('on',!settings.fs);};fsSync();
   $('s-fs-on').onclick=()=>{settings.fs=true;fsBlocked=false;saveSettings();fsSync();};$('s-fs-off').onclick=()=>{settings.fs=false;saveSettings();fsSync();};
   $('s-name').value=settings.name;$('s-name').oninput=()=>{settings.name=cleanName($('s-name').value,true);saveSettings();};
