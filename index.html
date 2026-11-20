@@ -5340,9 +5340,13 @@ function updateProjectiles(dt){
     const steps=Math.max(1,Math.ceil(sp*dt/0.2)),h=dt/steps;let gone=false;
     for(let k=0;k<steps&&!gone&&!q.stuck;k++){
       const np=[q.pos[0]+q.vel[0]*h,q.pos[1]+q.vel[1]*h,q.pos[2]+q.vel[2]*h];
+      // 1v1: your arrows and tridents can hit the other player
+      if(!q.remote&&typeof pvpProjCheck==='function'&&pvpProjCheck(q,np)){if(q.kind==='trident'&&q.item){q.ret=true;q.retT=-0.35;sfx.tridentReturn();}else gone=true;break;}
       if(!q.remote)for(const m of mobs){if(m.deathT>0||q.hit.has(m)||!projHitsMob(q,m,np))continue;q.hit.add(m);
-        if(q.kind==='arrow'){mobHurt(m,q.dmg,hitDir(q),'proj');sfx.arrowHit(np);gone=true;break;}
-        if(q.kind==='trident'){mobHurt(m,q.dmg,hitDir(q),'proj');sfx.tridentHit(np);q.vel=[-q.vel[0]*0.1,2,-q.vel[2]*0.1];
+        const head=typeof headHit==='function'&&headHit(m,np),hm=head?1.75:1;
+        if(head&&(q.kind==='arrow'||q.kind==='trident'))combatPop(m,'ヘッドショット！','#ff6a5a');
+        if(q.kind==='arrow'){mobHurt(m,q.dmg*hm,hitDir(q),'proj');sfx.arrowHit(np);gone=true;break;}
+        if(q.kind==='trident'){mobHurt(m,q.dmg*hm,hitDir(q),'proj');sfx.tridentHit(np);q.vel=[-q.vel[0]*0.1,2,-q.vel[2]*0.1];
           if(q.item){q.ret=true;q.retT=-0.35;sfx.tridentReturn();}else gone=true;break;}
         if(q.kind==='wind'){mobHurt(m,q.dmg,hitDir(q),'proj');windBurst(q.pos[0],q.pos[1],q.pos[2],false);gone=true;break;}
         if(q.kind==='thrown'&&!q.bobber){thrownHit(q,np,m);gone=true;break;}}
@@ -5392,7 +5396,11 @@ function meleeBonus(m,dmg){
     for(const o of mobs){if(o===m||o.deathT>0)continue;const ox=o.pos[0]-m.pos[0],oz=o.pos[2]-m.pos[2],od=Math.hypot(ox,oz);if(od<3.5){const L=1-od/3.5,n=od||1;o.vel[0]+=ox/n*L*9;o.vel[2]+=oz/n*L*9;o.vel[1]=Math.max(o.vel[1],L*7);}}
   }else if(id===I.MACE)sfx.maceHit(m.pos);
   if(k==='trident')sfx.spear();
-  return{dmg,knock,smashed};
+  // critical hit: striking while falling from a jump (not on a ladder, in water, flying, riding or gliding)
+  const onClimb=CLIMB[world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+0.1),Math.floor(p.pos[2]))];
+  const crit=!smashed&&!p.onGround&&p.vel[1]<-0.4&&!p.inWater&&!p.flying&&!p.riding&&!onClimb&&!p.gliding;
+  if(crit){dmg=dmg*1.5;knock*=1.2;if(typeof critFx==='function')critFx(m);}
+  return{dmg,knock,smashed,crit};
 }
 // ---------------------------------------------------------------- drawing
 function frameFromDir(p,d){let ux=0,uy=1,uz=0;if(Math.abs(d[1])>0.97){ux=1;uy=0;}
@@ -5892,7 +5900,9 @@ function mprojHit(q,at,m,blockId){
   if(q.kind==='potion'){splashPotion(at,q.fx);return;}
   if(m===null){
     if(q.kind==='snow'){player.vel[0]+=dir[0]*3;player.vel[2]+=dir[2]*3;puff(at[0],at[1],at[2],2,0.05);return;}
-    if(hurt(Math.max(1,Math.round(q.dmg*diffMul())),own?'mob:'+own.type:'mob',own?own.pos:null)){if(q.fx)addEffect(player,q.fx[0],q.fx[1]-1,q.fx[2]);}
+    // an arrow to the head hurts more
+    const head=(q.kind==='arrow'||q.kind==='trident')&&at[1]>player.pos[1]+(player.sneak?1.2:1.45);if(head&&typeof message==='function')message('頭に命中！',900);
+    if(hurt(Math.max(1,Math.round(q.dmg*diffMul()*(head?1.5:1))),own?'mob:'+own.type:'mob',own?own.pos:null)){if(q.fx)addEffect(player,q.fx[0],q.fx[1]-1,q.fx[2]);}
     if(q.kind==='fire')fxBits(at,T.FIREBALL,6,1.2,0.08);
     return;}
   if(m){const kb=q.kind==='snow'?0.6:1;mobHurt(m,q.kind==='snow'?(m.type==='firespirit'?3:0.01):q.dmg,[dir[0]*kb,0,dir[2]*kb],own||'proj');
@@ -9749,7 +9759,7 @@ const RoomNet={
   _tick(){
     if(!this.room)return;
     const pr={n:this.name,st:this._pos,e:this.ring};
-    if(this.isHost&&world){const cw=curWorld();Object.assign(pr,{host:1,seed:world.seed,tm:Math.round(dayTime*1000)/1000,md:mode,wn:cw?String(cw.name).slice(0,24):''});}
+    if(this.isHost&&world){const cw=curWorld();Object.assign(pr,{host:1,seed:world.seed,tm:Math.round(dayTime*1000)/1000,md:mode,wn:cw?String(cw.name).slice(0,24):'',ar:world.arena?1:0});}
     this.room.presence(pr).catch(()=>{});
     const m=this.q.shift();if(m)this.room.emit('sync',m).catch(e=>{if(e&&e.code==='not_permitted'){this.q.length=0;}});
   },
@@ -9764,7 +9774,7 @@ const RoomNet={
     this.isHost=false;await this._open(code,name);
     return new Promise((ok,ng)=>{const t0=Date.now();
       const chk=()=>{if(!this.room)return ng(new Error('切断されました'));const h=this._findHost();
-        if(h){const pr=h.presence,st=sanitizeState(pr.st);ok();this._emit('world',{seed:pr.seed,time:pr.tm,mode:pr.md,spawn:st?st.p:null,wn:typeof pr.wn==='string'?pr.wn:'',hn:typeof pr.n==='string'?pr.n:''});
+        if(h){const pr=h.presence,st=sanitizeState(pr.st);ok();this._emit('world',{seed:pr.seed,time:pr.tm,mode:pr.md,spawn:st?st.p:null,wn:typeof pr.wn==='string'?pr.wn:'',hn:typeof pr.n==='string'?pr.n:'',ar:pr.ar|0});
           this.room.emit('hello',{}).catch(()=>{this._emit('error','ホストにワールドの同期を頼めませんでした（閲覧のみの権限かもしれません）');});return;}
         if(Date.now()-t0>10000){this.leave();ng(new Error('このコードのルームにホストがいません'));return;}setTimeout(chk,300);};
       chk();});
@@ -9808,7 +9818,7 @@ function wireNet(net){
   net.on('joined',({name})=>{if(name){addChat('',name+' が参加しました',true);sfx.join();}});
   net.on('join',({name,send})=>{
     const cw=curWorld();
-    send({t:'world',seed:world.seed,time:dayTime,mode,spawn:player.pos.map(v=>Math.round(v*100)/100),wn:cw?cw.name:'',hn:myName()});
+    send({t:'world',seed:world.seed,time:dayTime,mode,spawn:player.pos.map(v=>Math.round(v*100)/100),wn:cw?cw.name:'',hn:myName(),ar:world.arena?1:0});
     const all=allEdits();for(let i=0;i<all.length;i+=8000)send({t:'sync',e:all.slice(i,i+8000)});send({t:'syncdone'});
     addChat('',name+' が参加しました',true);sfx.join();
   });
@@ -9823,6 +9833,7 @@ function wireNet(net){
 function onWorldInfo(m){
   if(!MP.waitingWorld)return;MP.waitingWorld=false;
   newWorld(m.seed|0);mode=m.mode==='survival'?'survival':'creative';resetPlayer();
+  if(m.ar){world.arena=true;curWorldId=null;if(typeof duelSetup==='function')duelSetup(false);beginLoading('1v1のアリーナを読み込み中…');return;}
   rememberFriendWorld({wn:typeof m.wn==='string'?m.wn:'',hn:typeof m.hn==='string'?m.hn:'',seed:m.seed|0,mode});
   const sp=Array.isArray(m.spawn)&&m.spawn.length===3&&m.spawn.every(isFinite)?m.spawn.map(Number):spawnPoint;
   player.pos=[sp[0]+0.8,sp[1]+0.5,sp[2]+0.8];spawnPoint=player.pos.slice();dayTime=isFinite(m.time)?(((+m.time)%1)+1)%1:0.1;
@@ -10935,7 +10946,7 @@ function castleBlock(d,dx,dy,dz,wx,wy,wz){
 const DUN_BUILD={tower:towerBlock,temple:templeBlock,castle:castleBlock};
 const DUN_SPAWNER={tower:['walker','skeleton'],temple:['husk','spider'],castle:['stray','skeleton']};
 MODHOOK.gen.push((w,c)=>{
-  if(w.dim!==0||!dunOn())return;
+  if(w.dim!==0||w.arena||!dunOn())return;
   const bx=c.cx*16,bz=c.cz*16,rx0=Math.floor((bx-40)/256),rx1=Math.floor((bx+56)/256),rz0=Math.floor((bz-40)/256),rz1=Math.floor((bz+56)/256);
   for(let rz=rz0;rz<=rz1;rz++)for(let rx=rx0;rx<=rx1;rx++){
     const d=dunAt(w,rx,rz);if(!d)continue;
@@ -11118,6 +11129,261 @@ XMOD_TICK.push(dt=>{
     mobSound(m,'idle');message(`${m.def.name}があらわれた！`,3000);puff(b[0],b[1]+1,b[2],30);shake=Math.max(shake,0.5);
   }
 });
+
+// ================================================================ combat feedback shared by everything: critical hits and head shots
+MODHOOK.tex.push(()=>{sprite('CRIT_P',S=>{for(const[x,y]of[[7,3],[8,3],[7,4],[8,4],[3,7],[4,7],[11,8],[12,8],[7,11],[8,11],[7,12],[8,12],[6,6],[9,6],[6,9],[9,9],[7,7],[8,7],[7,8],[8,8]])S.set(x,y,[255,236,120]);});});
+function critFx(m){const p=[m.pos[0],m.pos[1]+(m.hh||1.8)*0.6,m.pos[2]];
+  for(let i=0;i<14;i++){if(particles.length>900)particles.shift();particles.push({x:p[0]+(Math.random()-0.5)*0.6,y:p[1]+(Math.random()-0.5)*0.6,z:p[2]+(Math.random()-0.5)*0.6,vx:(Math.random()-0.5)*4,vy:Math.random()*3,vz:(Math.random()-0.5)*4,life:0.5+Math.random()*0.3,tile:T.CRIT_P||T.SMOKE,u:0,v:0,s:0.07,smoke:false,full:true});}
+  combatPop(m,'クリティカル！','#ffd23a');sfx.hit&&sfx.hit(B.GLASS,p);}
+function combatPop(m,text,col){if(typeof POPS!=='undefined')POPS.push({x:m.pos[0],y:m.pos[1]+(m.hh||1.8)+0.8,z:m.pos[2],t:0,text,col});}
+function headHit(m,p){return m.hh>=1.1&&p[1]>m.pos[1]+m.hh*0.78;}
+
+// ================================================================ 1v1モード — a two-player duel in a round arena of its own
+// The arena: a round island (radius 34) with a plaza, trees, broken walls and a pond, ringed by a low wall you can see,
+// then fenced in on every side by barrier blocks up to a barrier ceiling at height 100. Outside lies only sea.
+// A match: both players hang in the sky over opposite sides while 3-2-1 counts down, then drop (no fall damage);
+// health bars appear once you land. Weapons and gear are dealt at random: a sword, an axe, blocks, healing and extras.
+const AR={G:40,R:34,WALL:35.6,BAR:37.8,TOP:100};
+World.prototype.genArena=function(c){
+  const BL=c.blocks,bx=c.cx*16,bz=c.cz*16,G=AR.G;
+  const trees=[];for(let k=0;k<6;k++){const a=Math.PI/6+k*Math.PI/3;trees.push([Math.round(Math.cos(a)*19),Math.round(Math.sin(a)*19)]);}
+  const set=(x,y,z,id)=>{if(y>=0&&y<H)BL[bidx(x,y,z)]=id;};
+  for(let z=0;z<16;z++)for(let x=0;x<16;x++){
+    const wx=bx+x,wz=bz+z,r=Math.hypot(wx+0.5,wz+0.5);
+    set(x,0,z,B.BEDROCK);
+    if(r>AR.BAR+0.2){arenaCastle(c,x,z,wx,wz,r,set);continue;}   // beyond the fence: a castle all around
+    // the ground of the island
+    const flat=r<8||r>29,bump=flat?0:Math.round(1.4*(Math.sin(wx*0.19)*Math.cos(wz*0.15)+0.55*Math.sin((wx+wz)*0.11))*smooth(8,14,r)*(1-smooth(24,29,r)));
+    const top=G-1+Math.max(-1,bump);
+    for(let y=1;y<=top;y++)set(x,y,z,y<top-3?B.STONE:y<top?B.DIRT:B.GRASS);
+    if(r>AR.R){ // the visible ring wall, then the invisible fence and ceiling
+      if(r<=AR.WALL){for(let y=G;y<=G+1;y++)set(x,y,z,hash3(wx,y,wz,1401)<0.2?B.MOSSY_STONEBRICK:B.STONEBRICK);
+        const a=Math.atan2(wz,wx);if(Math.abs(((a/(Math.PI*2)*24)%1+1)%1-0.5)>0.42)set(x,G+2,z,B.LANTERN);}
+      else for(let y=G;y<=AR.TOP;y++)set(x,y,z,B.BARRIER);
+      set(x,AR.TOP,z,B.BARRIER);continue;}
+    set(x,AR.TOP,z,B.BARRIER);
+    // centre plaza with four lantern pillars
+    if(r<7.5){set(x,top,z,(Math.floor(wx)+Math.floor(wz))%3===0?B.CHISELED_STONEBRICK:B.STONEBRICK);
+      if(r<4.2)set(x,G,z,B.STONEBRICK);
+      if(Math.abs(wx)===5&&Math.abs(wz)===5){for(let y=G;y<G+5;y++)set(x,y,z,B.STONEBRICK);set(x,G+5,z,B.LANTERN);}
+      continue;}
+    // a pond on each side
+    for(const pz of[-15,15]){const pr=Math.hypot(wx+0.5,wz+0.5-pz);if(pr<3.3){set(x,top,z,B.WATER);set(x,top-1,z,B.WATER);set(x,top-2,z,B.SAND);}else if(pr<4.2)set(x,top,z,B.SAND);}
+    // broken walls for cover
+    for(const s of[-1,1]){const wxx=s*27;if(Math.abs(wx-wxx)<=0&&Math.abs(wz)<=3){const h=Math.abs(wz)===1?1:3;for(let y=G;y<G+h;y++)set(x,y,z,hash3(wx,y,wz,1402)<0.35?B.MOSSY_STONEBRICK:B.CRACKED_STONEBRICK);}
+      if(Math.abs(wz-s*24)<=0&&Math.abs(wx)<=3){const h=Math.abs(wx)===2?1:3;for(let y=G;y<G+h;y++)set(x,y,z,hash3(wx,y,wz,1403)<0.35?B.MOSSY_STONEBRICK:B.CRACKED_STONEBRICK);}}
+    // trees
+    for(const[tx,tz]of trees){const dx=wx-tx,dz=wz-tz;if(dx===0&&dz===0)for(let y=top+1;y<=top+5;y++)set(x,y,z,B.LOG);
+      for(let y=top+3;y<=top+7;y++){const dy=y-(top+5),d=Math.hypot(dx,dy*1.2,dz);if(d<2.6&&!(dx===0&&dz===0&&y<=top+5)&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}}
+    // grass and flowers
+    if(BL[bidx(x,top,z)]===B.GRASS&&BL[bidx(x,top+1,z)]===0){const h=hash3(wx,0,wz,1404);if(h<0.1)set(x,top+1,z,B.TALLGRASS);else if(h<0.125)set(x,top+1,z,h<0.112?B.FLOWER_Y:B.FLOWER_R);}
+  }
+  c.spawns=[];
+};
+// ---- the castle around the arena: stepped stands for spectators, a tall wall with battlements, eight towers, banners;
+// beyond the walls, quiet grassland with trees (you see it from the sky at the start)
+function arenaCastle(c,x,z,wx,wz,r,set){
+  const G=AR.G,BL=c.blocks;for(let y=1;y<G-4;y++)set(x,y,z,B.STONE);for(let y=G-4;y<G-1;y++)set(x,y,z,B.DIRT);
+  const a=Math.atan2(wz,wx),stone=y=>{const v=hash3(wx,y,wz,1411);return v<0.16?B.MOSSY_STONEBRICK:v<0.28?B.CRACKED_STONEBRICK:B.STONEBRICK;};
+  // towers: eight of them standing in the wall
+  let tower=null;for(let k=0;k<8;k++){const ta=(k+0.5)*Math.PI/4,tx=Math.cos(ta)*47,tz=Math.sin(ta)*47,d=Math.hypot(wx+0.5-tx,wz+0.5-tz);if(d<5){tower=d;break;}}
+  if(tower!==null){const top=G+30;set(x,G-1,z,B.STONEBRICK);
+    if(tower>3.9){for(let y=G;y<top;y++)set(x,y,z,(y-G)%9===5&&Math.abs(Math.sin(a*16))<0.3?B.DS_BRICKS:stone(y));if(((wx+wz)&1)===0)set(x,top,z,B.STONEBRICK);}
+    else{set(x,top-1,z,B.STONEBRICK);if(tower<0.8)set(x,top,z,B.LANTERN);}
+    for(let y=G;y<top-1&&tower<=3.9;y++)if((y-G)%10===0)set(x,y,z,B.STONEBRICK);
+    return;}
+  if(r<=44.2){ // stands, one step up per block, with wooden seat rows and lanterns along the front
+    const step=Math.max(0,Math.floor(r-38));for(let y=G-1;y<=G+step;y++)set(x,y,z,y===G+step&&step%2===1?B.DARK_OAK_PLANKS:B.STONEBRICK);
+    if(step===0&&Math.abs(((a/(Math.PI*2)*32)%1+1)%1-0.5)>0.44)set(x,G+1,z,B.LANTERN);return;}
+  if(r<=48.5){ // the great wall
+    const top=G+21;for(let y=G-1;y<top;y++){let id=stone(y);if(y<G+2)id=B.DS_BRICKS;if(y===G+8||y===G+16)id=B.CHISELED_STONEBRICK;
+        if(r<45.2&&(y-G)%8>=3&&(y-G)%8<=5&&Math.abs(Math.sin(a*36))<0.12)id=B.DS_BRICKS;set(x,y,z,id);}   // arrow slits on the inner face
+    if(r<45.4||r>47.6){if(Math.abs(Math.sin(a*60))>0.5)set(x,top,z,B.STONEBRICK);}else set(x,top-1,z,B.STONEBRICK);
+    // banners hanging from the inner face
+    if(r<44.9){const bn=((a/(Math.PI*2)*16)%1+1)%1;if(bn>0.47&&bn<0.53){const red=Math.floor((a/(Math.PI*2)+1)*16)%2===0;for(let y=G+11;y<=G+18;y++)set(x,y,z,red?B.WOOL_R:(B.WOOL_B!==undefined?B.WOOL_B:B.LAPIS_BLOCK));}}
+    return;}
+  // outside the walls: grass and some trees
+  set(x,G-1,z,B.GRASS);
+  const gx=Math.floor(wx/9),gz=Math.floor(wz/9);
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const cx=gx+dx,cz=gz+dz;if(hash2(cx,cz,1421)>0.45)continue;
+    const tx=cx*9+2+((hash2(cx,cz,1422)*5)|0),tz=cz*9+2+((hash2(cx,cz,1423)*5)|0);if(Math.hypot(tx,tz)<52)continue;
+    const ddx=wx-tx,ddz=wz-tz,th=4+((hash2(cx,cz,1424)*3)|0);if(Math.abs(ddx)>2||Math.abs(ddz)>2)continue;
+    if(ddx===0&&ddz===0)for(let y=G;y<G+th;y++)set(x,y,z,B.LOG);
+    for(let y=G+th-2;y<=G+th+1;y++){const d=Math.hypot(ddx,(y-(G+th))*1.3,ddz);if(d<2.5&&!(ddx===0&&ddz===0&&y<G+th)&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}}
+  if(BL[bidx(x,G,z)]===0&&hash3(wx,1,wz,1425)<0.08)set(x,G,z,B.TALLGRASS);
+}
+{const _gen=World.prototype.generate;World.prototype.generate=function(c){
+  if(!this.arena)return _gen.call(this,c);
+  this.genArena(c);const ed=this.edits.get(ckey(c.cx,c.cz));if(ed)for(const[i,id]of ed)c.blocks[i]=id;this.finalize(c);};}
+
+// ---------------------------------------------------------------- network: a 'duel' channel on both kinds of rooms
+(function(){
+  if(typeof Online!=='undefined'){
+    const hr=Online._hostRecv,gr=Online._guestRecv;
+    Online._hostRecv=function(c,m){if(m&&m.t==='dl'){if(!this.players[c.peer])return;this._bcast(m,c.peer);duelRecv(m);return;}return hr.call(this,c,m);};
+    Online._guestRecv=function(m){if(m&&m.t==='dl'){duelRecv(m);return;}return gr.call(this,m);};
+    Online.duel=function(m){const msg=Object.assign({t:'dl'},m);if(this.isHost)this._bcast(msg);else this._toHost(msg);};
+  }
+  if(typeof RoomNet!=='undefined'){
+    const op=RoomNet._open;
+    RoomNet._open=async function(code,name){const r=await op.call(this,code,name);try{this.room.on('duel',m=>{if(m.sameTab)return;duelRecv(m.data||{});});}catch(e){}return r;};
+    RoomNet.duel=function(m){if(this.room)this.room.emit('duel',m).catch(()=>{});};
+  }
+})();
+function duelSend(m){if(typeof MP!=='undefined'&&MP.active){const n=mpNet();if(n&&n.duel)n.duel(Object.assign({n:myName()},m));}}
+
+// ---------------------------------------------------------------- the match
+const DUEL={on:false,host:false,phase:'off',t:0,round:0,me:0,opp:0,oppHp:20,oppName:'',spawn:null,goT:0,ui:null,hpSendT:0,lastHp:-1,rules:null,res:null};
+function duelSetup(host){
+  DUEL.on=true;DUEL.host=host;DUEL.phase='wait';DUEL.round=0;DUEL.me=0;DUEL.opp=0;DUEL.oppHp=20;DUEL.oppName='';DUEL.goT=0;
+  if(!DUEL.rules)DUEL.rules=Object.assign({},gameRules);
+  Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:false,keepInventory:true,mobGriefing:false});
+  mode='survival';dayTime=0.25;if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;}
+  DUEL.spawn=host?[-22.5,AR.G+44,0.5]:[22.5,AR.G+44,0.5];DUEL.yaw=host?Math.PI/2:-Math.PI/2;
+  resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;player.pitch=-0.35;spawnPoint=player.pos.slice();
+}
+function duelExit(){
+  if(!DUEL.on)return;DUEL.on=false;DUEL.phase='off';if(DUEL.rules){Object.assign(gameRules,DUEL.rules);DUEL.rules=null;}
+  document.body.classList.remove('duel-hidehp','duel-on');if(DUEL.ui)DUEL.ui.root.style.display='none';
+}
+// random gear: a sword, an axe, blocks, something to heal, and two extras
+const DUEL_KIT={
+  sword:[['WOOD_SWORD',2],['STONE_SWORD',5],['COPPER_SWORD',4],['GOLD_SWORD',3],['IRON_SWORD',5],['DIAMOND_SWORD',2],['FANG_SWORD',2]],
+  axe:[['WOOD_AXE',2],['STONE_AXE',5],['COPPER_AXE',4],['GOLD_AXE',3],['IRON_AXE',4],['DIAMOND_AXE',2]],
+  block:[['COBBLE',32,5],['PLANKS',32,5],['STONEBRICK',24,3],['SANDSTONE',32,3],['WOOL_W',32,3],['GLASS',16,2]],
+  heal:[['GOLDEN_APPLE',2,3],['GOLDEN_APPLE',1,4],['COOKED_BEEF',5,4],['BREAD',8,4],['PORK_COOKED',5,3],['APPLE',6,2]],
+  extra:[['BOW',1,5,'ARROW',16],['CROSSBOW',1,3,'ARROW',12],['SHIELD',1,5],['SNOWBALL',16,4],['SHADOW_PEARL',2,3],['FISHING_ROD',1,3],['WATER_BUCKET',1,3],['LAVA_BUCKET',1,2],
+    ['TRIDENT',1,2],['COBWEB',4,2],['TNT',3,2,'FLINT_STEEL',1],['IRON_CHEST',1,3],['IRON_HELMET',1,3],['DIAMOND_CHEST',1,1],['CHAIN_LEGS',1,2]],
+};
+function idOf(k){return I[k]!==undefined?I[k]:B[k];}
+function kitPick(list,wi){const L=list.filter(e=>idOf(e[0])!==undefined);let s=0;for(const e of L)s+=e[wi]||1;let r=Math.random()*s;for(const e of L){r-=e[wi]||1;if(r<=0)return e;}return L[0];}
+function duelLoadout(){
+  inv.fill(null);ARMOR.fill(null);sel=0;const give=(id,n)=>{if(id===undefined)return;const it=ITEMS[id];
+    if(it&&it.armor&&!ARMOR[it.armor.part]){ARMOR[it.armor.part]={id,n:1,d:0};return;}if(it&&it.shield&&!ARMOR[4]){ARMOR[4]={id,n:1,d:0};return;}
+    const i=inv.findIndex(s=>!s);if(i>=0)inv[i]={id,n:Math.min(n,maxStack(id)),d:0};};
+  const sw=kitPick(DUEL_KIT.sword,1),ax=kitPick(DUEL_KIT.axe,1),bl=kitPick(DUEL_KIT.block,2),he=kitPick(DUEL_KIT.heal,2);
+  give(idOf(sw[0]),1);give(idOf(ax[0]),1);give(idOf(bl[0]),bl[1]);give(idOf(he[0]),he[1]);
+  const ex=[];for(let k=0;k<2;k++){let e;let tries=0;do{e=kitPick(DUEL_KIT.extra,2);tries++;}while(ex.includes(e)&&tries<10);ex.push(e);give(idOf(e[0]),e[1]);if(e[3])give(idOf(e[3]),e[4]);}
+  invChanged();renderHotbar&&renderHotbar();
+  const names=[sw,ax,bl,he,...ex].map(e=>itemName(idOf(e[0])));addChat('','配られた装備: '+names.join('、'),true);
+}
+function duelUI(){
+  if(DUEL.ui)return DUEL.ui;
+  const st=document.createElement('style');st.textContent=`body.duel-hidehp #stats{visibility:hidden}
+   #duel-root{position:fixed;inset:0;pointer-events:none;z-index:6;font-family:inherit;color:#fff;text-shadow:2px 2px 0 #000}
+   #duel-count{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:min(22vw,150px);font-weight:bold;letter-spacing:.05em}
+   #duel-msg{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-size:20px;background:rgba(0,0,0,.45);padding:6px 14px;border-radius:6px;white-space:nowrap}
+   #duel-vs{position:absolute;left:50%;top:calc(var(--tb,64px)*0.68 + 18px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;font-size:14px;background:rgba(0,0,0,.4);padding:6px 12px;border-radius:6px;white-space:nowrap}#duel-vs span{max-width:7em;overflow:hidden;text-overflow:ellipsis}
+   body.duel-on #hint{display:none}
+   #duel-vs .bar{width:min(18vw,150px);height:10px;background:#300;border:1px solid #000;border-radius:3px;overflow:hidden}#duel-vs .bar div{height:100%;background:linear-gradient(#ff6a6a,#c22)}
+   #duel-res{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(16,20,26,.92);border:3px solid #556;border-radius:8px;padding:20px 28px;text-align:center;pointer-events:auto;min-width:260px}
+   #duel-res h2{font-size:42px;margin:0 0 6px}#duel-res .sc{font-size:18px;margin-bottom:14px}#duel-res button{margin:4px;min-width:120px}`;
+  document.head.appendChild(st);
+  const root=document.createElement('div');root.id='duel-root';root.innerHTML='<div id="duel-msg"></div><div id="duel-count"></div><div id="duel-vs" style="display:none"></div><div id="duel-res" style="display:none"></div>';
+  document.body.appendChild(root);DUEL.ui={root,msg:root.querySelector('#duel-msg'),count:root.querySelector('#duel-count'),vs:root.querySelector('#duel-vs'),res:root.querySelector('#duel-res')};return DUEL.ui;
+}
+function duelStartCount(r){
+  DUEL.round=r;DUEL.phase='count';DUEL.t=3;DUEL.landed=false;DUEL.oppHp=20;
+  resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;player.pitch=-0.35;duelLoadout();sfx.click&&sfx.click();
+}
+function duelReset(){
+  // the arena goes back to how it was made
+  world.edits.clear();world.tiles.clear();for(const c of world.chunks.values()){freeMesh(c.solid);freeMesh(c.water);}world.chunks.clear();
+  items.length=0;projs.length=0;if(typeof mprojs!=='undefined')mprojs.length=0;mobs.length=0;particles.length=0;if(typeof MP!=='undefined')MP.pending=[];
+  resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;DUEL.phase='wait';DUEL.goT=0;if(DUEL.ui)DUEL.ui.res.style.display='none';
+}
+function duelEnd(won){
+  if(DUEL.phase!=='fight'&&DUEL.phase!=='fall')return;DUEL.phase='end';if(won)DUEL.me++;else DUEL.opp++;
+  const u=duelUI();u.res.style.display='block';
+  u.res.innerHTML=`<h2 style="color:${won?'#ffd23a':'#9ab'}">${won?'勝利！':'敗北…'}</h2><div class="sc">${myName()} <b>${DUEL.me}</b> − <b>${DUEL.opp}</b> ${DUEL.oppName||'相手'}</div>`+
+    (DUEL.host?'<button id="duel-again">もう一度</button>':'<div style="color:#9ab;font-size:13px;margin-bottom:8px">ホストが「もう一度」を押すと次の試合が始まります</div>')+'<button id="duel-quit">やめる</button>';
+  if(DUEL.host)u.res.querySelector('#duel-again').onclick=()=>{duelSend({k:'reset'});duelReset();};
+  u.res.querySelector('#duel-quit').onclick=()=>{u.res.style.display='none';quitToTitle();};
+  if(isLocked())document.exitPointerLock();
+  if(won){sfx.levelUp&&sfx.levelUp();}else sfx.hurt&&sfx.hurt();
+  player.invuln=9999;
+}
+function duelRecv(m){
+  if(!DUEL.on||!m||typeof m.k!=='string')return;
+  if(typeof m.n==='string')DUEL.oppName=cleanName(m.n);
+  if(m.k==='go'&&(DUEL.phase==='wait'||DUEL.phase==='end')){if(DUEL.phase==='end')duelReset();duelStartCount(m.r|0);}
+  else if(m.k==='hit'&&DUEL.phase==='fight'&&!player.dead){const d=clamp(+m.d||0,0,40),src=Array.isArray(m.s)&&m.s.length===3&&m.s.every(Number.isFinite)?m.s:null;
+    if(hurt(d,'pvp',src)){if(m.h)message('頭に命中！',900);if(m.c)message('クリティカルをうけた！',900);}duelSendHp(true);}
+  else if(m.k==='hp'){DUEL.oppHp=clamp(+m.v||0,0,40);}
+  else if(m.k==='dead'&&(DUEL.phase==='fight'||DUEL.phase==='fall')){DUEL.oppHp=0;duelEnd(true);}
+  else if(m.k==='reset'&&!DUEL.host)duelReset();
+}
+function duelSendHp(now){DUEL.hpSendT-=now?99:0;const v=Math.max(0,Math.ceil(player.hp));if(v!==DUEL.lastHp||now){DUEL.lastHp=v;duelSend({k:'hp',v});}}
+// hitting the other player
+function duelOpp(){if(typeof MP==='undefined'||!MP.active)return null;for(const r of MP.remotes.values())if((r.d|0)===curDim)return r;return null;}
+function pvpOn(){return DUEL.on&&DUEL.phase==='fight';}
+if(typeof pickTarget==='function'){const _pt=pickTarget;pickTarget=function(o,d){const res=_pt.apply(this,arguments);
+  if(!pvpOn())return res;const r=duelOpp();if(!r)return res;const reach=heldReach?heldReach():3.5;
+  const t=rayBox(o,d,r.pos[0]-0.32,r.pos[1],r.pos[2]-0.32,r.pos[0]+0.32,r.pos[1]+(r.sneak?1.5:1.85),r.pos[2]+0.32,reach);
+  if(t>=0&&(!res||t<res.t))return{ent:{isRemote:true,id:r.id,pos:r.pos,hw:0.32,hh:1.85,deathT:0,hp:DUEL.oppHp,fx:{},def:{name:DUEL.oppName||'相手',kind:'player'},type:'player'},t};
+  return res;};}
+if(typeof attack==='function'){const _atk2=attack;attack=function(m){
+  if(!m||!m.isRemote)return _atk2.apply(this,arguments);
+  if(atkCD>0||!pvpOn())return;const k=kindOf(heldId());atkCD=k==='spear'?0.5:k==='mace'?0.6:0.35;startSwing();sfx.swing();
+  const t=toolOf(heldId()),f=[0,0,0];dirVectors(player.yaw,0,f,[0,0,0],[0,0,0]);const b=meleeBonus(m,t?t.dmg:1);
+  const dmg=Math.max(0,b.dmg+3*fxLvl('strength')-4*fxLvl('weakness'));
+  duelSend({k:'hit',d:Math.round(dmg*10)/10,c:b.crit?1:0,s:player.pos.map(v=>Math.round(v*100)/100)});
+  if(t)damageTool();player.exh+=0.1;sfx.hit&&sfx.hit(B.WOOL_W,m.pos);if(typeof POPS!=='undefined')POPS.push({x:m.pos[0],y:m.pos[1]+2.1,z:m.pos[2],v:Math.round(dmg*10)/10,t:0,crit:b.crit});};}
+function pvpProjCheck(q,np){
+  if(!pvpOn()||!(q.kind==='arrow'||q.kind==='trident'||(q.kind==='thrown'&&!q.bobber)))return false;const r=duelOpp();if(!r||q.hit.has('pvp'))return false;
+  const p=r.pos,hh=r.sneak?1.5:1.85;if(!(np[0]>p[0]-0.4&&np[0]<p[0]+0.4&&np[2]>p[2]-0.4&&np[2]<p[2]+0.4&&np[1]>p[1]-0.1&&np[1]<p[1]+hh+0.1))return false;
+  q.hit.add('pvp');const head=np[1]>p[1]+hh*0.8,thrown=q.kind==='thrown',d=thrown?(q.kind2==='snow'||q.kind2==='egg'?0.5:0):q.dmg*(head?1.75:1);
+  if(thrown&&typeof thrownHit==='function'&&q.kind2!=='snow'&&q.kind2!=='egg')thrownHit(q,np,null);
+  duelSend({k:'hit',d:Math.round(d*10)/10,h:head&&!thrown?1:0,s:[np[0]-q.vel[0]*0.05,np[1],np[2]-q.vel[2]*0.05].map(v=>Math.round(v*100)/100)});
+  if(head&&!thrown&&typeof POPS!=='undefined')POPS.push({x:p[0],y:p[1]+2.3,z:p[2],t:0,text:'ヘッドショット！',col:'#ff6a5a'});
+  sfx.arrowHit?sfx.arrowHit(np):0;return true;
+}
+// you go down: in a duel that is the end of the round, not a death screen
+if(typeof die==='function'){const _die2=die;die=function(cause){if(DUEL.on){player.hp=0;if(DUEL.phase==='fight'||DUEL.phase==='fall'){duelSend({k:'dead'});duelEnd(false);}else{player.hp=20;}return;}return _die2.apply(this,arguments);};}
+if(typeof updatePlayer==='function'){const _up=updatePlayer;updatePlayer=function(dt){
+  if(DUEL.on&&(DUEL.phase==='wait'||DUEL.phase==='count')){player.pos=DUEL.spawn.slice();player.vel=[0,0,0];player.fall=0;player.onGround=false;return;}
+  if(DUEL.on&&DUEL.phase==='end'){player.vel[0]*=0.8;player.vel[2]*=0.8;}
+  const r=_up.apply(this,arguments);if(DUEL.on)player.fall=0;return r;};}
+if(typeof saveGame==='function'){const _sg=saveGame;saveGame=function(){if(DUEL.on)return;return _sg.apply(this,arguments);};}
+if(typeof quitToTitle==='function'){const _qt=quitToTitle;quitToTitle=function(){const was=DUEL.on;const r=_qt.apply(this,arguments);if(was)duelExit();return r;};}
+// per frame
+XMOD_TICK.push(dt=>{
+  if(!DUEL.on||!world||state==='title'||state==='loading')return;
+  const u=duelUI();u.root.style.display='block';document.body.classList.add('duel-on');
+  const opp=duelOpp();if(opp&&!DUEL.oppName)DUEL.oppName=opp.name||'';
+  document.body.classList.toggle('duel-hidehp',DUEL.phase!=='fight'&&DUEL.phase!=='end');
+  let msg='';
+  if(DUEL.phase==='wait'){
+    msg=opp?'相手がそろいました。まもなく開始…':`相手を待っています（ルームコード ${MP.code}）`;u.count.textContent='';
+    if(DUEL.host&&opp){DUEL.goT+=dt;if(DUEL.goT>2){DUEL.goT=0;const r=DUEL.round+1;duelSend({k:'go',r});duelStartCount(r);}}else DUEL.goT=0;}
+  else if(DUEL.phase==='count'){DUEL.t-=dt;const n=Math.ceil(DUEL.t);u.count.textContent=n>0?String(n):'';msg=`第${DUEL.round}試合`;
+    if(n!==DUEL.lastN){DUEL.lastN=n;if(n>0)sfx.click&&sfx.click();}
+    if(DUEL.t<=0){DUEL.phase='fall';u.count.textContent='スタート！';setTimeout(()=>{if(u.count.textContent==='スタート！')u.count.textContent='';},900);sfx.levelUp&&sfx.levelUp();}}
+  else if(DUEL.phase==='fall'){msg='';if(player.onGround||player.inWater){DUEL.phase='fight';DUEL.landed=true;duelSendHp(true);renderStats();}}
+  else if(DUEL.phase==='fight'){DUEL.hpSendT-=dt;if(DUEL.hpSendT<=0){DUEL.hpSendT=0.25;duelSendHp(false);}if(!opp)msg='相手との接続を待っています…';}
+  if(u.msg._t!==msg){u.msg._t=msg;u.msg.textContent=msg;u.msg.style.display=msg?'block':'none';}
+  // both health bars, once you are on the ground
+  const show=DUEL.phase==='fight'||DUEL.phase==='end';u.vs.style.display=show?'flex':'none';
+  if(show){const me=Math.max(0,Math.ceil(player.hp)),op=Math.ceil(DUEL.oppHp),key=me+'/'+op+'/'+DUEL.oppName+DUEL.me+DUEL.opp;
+    if(u.vs._k!==key){u.vs._k=key;u.vs.innerHTML=`<span>${myName()}</span><div class="bar"><div style="width:${me/20*100}%"></div></div><b>${me}</b><span style="color:#ffd23a">${DUEL.me} − ${DUEL.opp}</span><b>${op}</b><div class="bar"><div style="width:${op/20*100}%;margin-left:auto"></div></div><span>${(DUEL.oppName||'相手').replace(/</g,'&lt;')}</span>`;}}
+});
+// ---------------------------------------------------------------- the 1v1 button, under "ルームを作る"
+(function(){
+  const host=document.getElementById('mp-host');if(!host)return;
+  const b=document.createElement('button');b.id='mp-duel';b.style.cssText='width:100%;margin-top:8px';b.textContent='1v1モード';
+  const note=document.createElement('p');note.className='note';note.style.textAlign='left';note.textContent='円形のアリーナで1対1の対戦。武器・ブロック・回復アイテムはランダムに配られます。相手は下の「ルームに参加」からルームコードを入れて参加します。';
+  host.parentNode.insertBefore(note,host.nextSibling);host.parentNode.insertBefore(b,note);
+  b.onclick=async()=>{
+    initAudio();settings.name=cleanName($('mp-name').value);saveSettings();
+    $('mp-status').textContent='1v1ルームを準備中…';b.disabled=true;
+    curWorldId=null;newWorld((Math.random()*2147483647)|0);world.arena=true;duelSetup(true);
+    const net=mpNet();wireNet(net);const code=Online.genCode();if(MP.kind==='peer')Online.maxP=2;
+    try{await net.host(code,myName());}catch(e){$('mp-status').textContent=(e&&e.message)||'接続できませんでした';b.disabled=false;try{net.leave();}catch(_){ }duelExit();return;}
+    b.disabled=false;MP.active=true;MP.isHost=true;MP.code=code;
+    beginLoading('1v1ルーム '+code+' を開きました。アリーナを準備中…');
+    addChat('','1v1ルームコード: '+code+'（相手に伝えてください）',true);
+  };
+})();
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
