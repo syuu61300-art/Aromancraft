@@ -346,7 +346,7 @@
     <div class="modhead"><span class="modtag">MOD</span><h2>リアルMod</h2></div>
     <p class="note" style="text-align:left;margin-top:0">世界全体をリアルにします。太陽と月の影、やわらかい雲と空、透き通る水、深い海の大きなうねりと白波、波に揺られるボート、風で揺れる草木、まぶしい光のにじみ、光の筋、明るさに目が慣れる効果。後ろの景色ですぐに確かめられます。</p>
     <div class="setrow2"><span>リアルMod</span><div class="seg"><button id="m-on" class="small">オン</button><button id="m-off" class="small">オフ</button></div></div>
-    <div class="setrow2"><span>画質</span><div class="seg"><button id="m-q0" class="small">軽い</button><button id="m-q1" class="small">ふつう</button><button id="m-q2" class="small">きれい</button></div></div>
+    <div class="setrow2"><span>画質</span><div class="seg"><button id="m-q0" class="small">軽い</button><button id="m-q1" class="small">ふつう</button><button id="m-q2" class="small">きれい</button><button id="m-q3" class="small">最高</button><button id="m-q4" class="small">最大</button></div></div>
     <div class="setrow2"><span>影</span><div class="seg"><button id="m-shadow-on" class="small">オン</button><button id="m-shadow-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>揺れる草木</span><div class="seg"><button id="m-wave-on" class="small">オン</button><button id="m-wave-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>水面の波と反射</span><div class="seg"><button id="m-water-on" class="small">オン</button><button id="m-water-off" class="small">オフ</button></div></div>
@@ -7281,7 +7281,7 @@ const pEye=[0,0,0],pFw=[0,0,0],tmpA=[0,0,0],tmpB=[0,0,0];
 let cssW=0,cssH=0,camYaw=0,camPitch=0;
 function resize(){
   // draw at (up to) the screen's real pixel density so the picture is sharp on phones; the Real Mod quality picks the limit
-  const cap=typeof realOn==='function'&&realOn()?MOD_Q[clamp(settings.mod.q|0,0,2)].dpr:2;
+  const cap=typeof realOn==='function'&&realOn()?modQ().dpr:2;
   const dpr=Math.min(window.devicePixelRatio||1,cap);
   const w=Math.floor(innerWidth*dpr),h=Math.floor(innerHeight*dpr);
   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
@@ -7524,11 +7524,16 @@ function render(){
 const MOD_DEFAULT={unlocked:false,on:true,q:1,shadow:true,wave:true,water:true,bloom:true,rays:true,bump:true,ocean:true,oh:1};
 settings.mod=Object.assign({},MOD_DEFAULT,settings.mod||{});
 if(settings.mod.q===undefined)settings.mod.q=1;
-const MOD_Q=[ // light / normal / beautiful  (dpr: the most screen pixels per CSS pixel the frame is drawn at)
+const MOD_Q=[ // 軽い / ふつう / きれい / 最高 / 最大
+  // dpr: the most screen pixels per CSS pixel the frame is drawn at; scale>1 draws extra pixels and shrinks them (supersampling)
+  // S: how far around you shadows reach (half-size in blocks); shadow: shadow map size; taps: shadow softening samples
   {scale:0.8,dpr:1.5,shadow:1024,S:34,taps:4,fxaa:true,bloomLv:1},
   {scale:1.0,dpr:2,shadow:2048,S:50,taps:9,fxaa:true,bloomLv:2},
   {scale:1.0,dpr:3,shadow:4096,S:68,taps:16,fxaa:true,bloomLv:2},
+  {scale:1.0,dpr:3,shadow:4096,S:84,taps:16,fxaa:true,bloomLv:3},
+  {scale:1.4,dpr:3,shadow:6144,S:110,taps:16,fxaa:true,bloomLv:3},
 ];
+const modQ=()=>MOD_Q[clamp(settings.mod.q|0,0,MOD_Q.length-1)];
 const REAL={ready:false,failed:false,hdr:false,outScale:1,exposure:1,lastT:0,progs:null,tg:{},shadow:null,shadowSize:0,flagsTex:null};
 function realOn(){return !!(settings.mod&&settings.mod.unlocked&&settings.mod.on&&!REAL.failed);}
 
@@ -7871,8 +7876,12 @@ function realTargets(Q){
   }
   if(REAL.shadowSize!==Q.shadow){
     if(REAL.shadow){gl.deleteFramebuffer(REAL.shadow.fb);gl.deleteTexture(REAL.shadow.tex);}
-    const s=Math.min(Q.shadow,gl.getParameter(gl.MAX_TEXTURE_SIZE)),t={fb:gl.createFramebuffer(),tex:gl.createTexture(),size:s};
-    gl.bindTexture(gl.TEXTURE_2D,t.tex);gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,s,s,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
+    // big shadow maps can run out of memory on phones: step down until one fits
+    let s=Math.min(Q.shadow,gl.getParameter(gl.MAX_TEXTURE_SIZE));const t={fb:gl.createFramebuffer(),tex:gl.createTexture(),size:s};
+    gl.bindTexture(gl.TEXTURE_2D,t.tex);
+    for(;;){while(gl.getError()!==gl.NO_ERROR){}gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,s,s,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
+      if(gl.getError()===gl.NO_ERROR||s<=1024)break;s=s>4096?4096:s>>1;}
+    t.size=s;
     for(const[k,v]of[[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE],
       [gl.TEXTURE_COMPARE_MODE,gl.COMPARE_REF_TO_TEXTURE],[gl.TEXTURE_COMPARE_FUNC,gl.LEQUAL]])gl.texParameteri(gl.TEXTURE_2D,k,v);
     gl.bindFramebuffer(gl.FRAMEBUFFER,t.fb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,t.tex,0);gl.drawBuffers([gl.NONE]);gl.readBuffer(gl.NONE);
@@ -7889,7 +7898,7 @@ function toView(v){return[rt[0]*v[0]+rt[1]*v[1]+rt[2]*v[2],up[0]*v[0]+up[1]*v[1]
 
 // ---------------------------------------------------------------- frame
 function renderReal(){
-  const M=settings.mod,Q=MOD_Q[clamp(M.q|0,0,2)],P=REAL.progs;
+  const M=settings.mod,Q=modQ(),P=REAL.progs;
   const now=performance.now(),dt=Math.min(0.1,REAL.lastT?(now-REAL.lastT)/1000:0.016);REAL.lastT=now;
   if(document.visibilityState!=='hidden')dynResTick(dt);
   resize();realTargets(Q);
@@ -8040,6 +8049,9 @@ function renderReal(){
       pass(P.blur,g.b2,u=>{tex(0,g.b2b.tex,u.uSrc);gl.uniform2f(u.uDir,0,1.5/g.b2b.h);});
       pass(P.blur,g.b2b,u=>{tex(0,g.b2.tex,u.uSrc);gl.uniform2f(u.uDir,2/g.b2.w,0);});
       pass(P.blur,g.b2,u=>{tex(0,g.b2b.tex,u.uSrc);gl.uniform2f(u.uDir,0,2/g.b2b.h);});
+      if(Q.bloomLv>2){ // 最高・最大: an extra wide, smooth glow around bright lights and the sun
+        pass(P.blur,g.b2b,u=>{tex(0,g.b2.tex,u.uSrc);gl.uniform2f(u.uDir,3/g.b2.w,0);});
+        pass(P.blur,g.b2,u=>{tex(0,g.b2b.tex,u.uSrc);gl.uniform2f(u.uDir,0,3/g.b2b.h);});}
     }else{gl.bindFramebuffer(gl.FRAMEBUFFER,g.b2.fb);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);}
   }
   // light shafts: march from each pixel toward the sun through the sky mask
@@ -9017,11 +9029,11 @@ function syncModUI(){
   const seg=(a,b,v)=>{$(a).classList.toggle('on',!!v);$(b).classList.toggle('on',!v);};
   seg('m-on','m-off',M.on);seg('m-shadow-on','m-shadow-off',M.shadow);seg('m-wave-on','m-wave-off',M.wave);seg('m-water-on','m-water-off',M.water);
   seg('m-bump-on','m-bump-off',M.bump);seg('m-ocean-on','m-ocean-off',M.ocean!==false);for(let i=0;i<3;i++)$('m-oh'+i).classList.toggle('on',(M.oh===undefined?1:M.oh|0)===i);seg('m-bloom-on','m-bloom-off',M.bloom);seg('m-rays-on','m-rays-off',M.rays);
-  for(let i=0;i<3;i++)$('m-q'+i).classList.toggle('on',(M.q|0)===i);
+  for(let i=0;i<MOD_Q.length;i++)$('m-q'+i).classList.toggle('on',(M.q|0)===i);
   let info='';
   if(REAL.failed)info='この端末ではリアルModのシェーダーを動かせなかったため、ふつうの表示に戻しています。';
   else if(REAL.ready&&!REAL.hdr)info='この端末は HDR に対応していないため、明るさの幅をしぼって表示しています。';
-  else if(on)info='重く感じたら「画質」を「軽い」にするか、影を切ってください。';
+  else if(on)info=(M.q|0)>=3?'「最高」「最大」はとてもきれいですが重い設定です（新しいスマホやパソコン向け）。重いときは自動で少し解像度を下げます。カクカクする場合は「きれい」以下にしてください。':'重く感じたら「画質」を「軽い」にするか、影を切ってください。';
   $('mod-info').textContent=info;if(typeof syncXmod==='function')syncXmod();
   $('mod-done').textContent=modFrom==='pause'?'戻る':'タイトルへ';
 }
@@ -9048,7 +9060,7 @@ $('mod-ok').onclick=tryModWord;
 $('mod-pass').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();tryModWord();}e.stopPropagation();});
 {const bind=(id,fn)=>{$(id).onclick=()=>{fn();saveSettings();syncModUI();};};const M=()=>settings.mod;
   bind('m-on',()=>{M().on=true;REAL.failed=false;});bind('m-off',()=>{M().on=false;});
-  for(let i=0;i<3;i++)bind('m-q'+i,()=>{M().q=i;});
+  for(let i=0;i<MOD_Q.length;i++)bind('m-q'+i,()=>{M().q=i;});
   for(let i=0;i<3;i++)bind('m-oh'+i,()=>{M().oh=i;});
   for(const k of['shadow','wave','water','bump','bloom','rays','ocean']){bind('m-'+k+'-on',()=>{M()[k]=true;});bind('m-'+k+'-off',()=>{M()[k]=false;});}
   bind('mod-lock',()=>{M().unlocked=false;M().on=false;toast('リアルMod をロックしました');showScreen(modFrom==='pause'?'pause':'title');});
