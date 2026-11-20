@@ -442,6 +442,8 @@
     <div class="setrow2"><span>オートジャンプ</span><div class="seg"><button id="s-aj-on" class="small">オン</button><button id="s-aj-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>オートダッシュ</span><div class="seg"><button id="s-auto-on" class="small">オン</button><button id="s-auto-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>右上に時刻を表示</span><div class="seg"><button id="s-clock-on" class="small">オン</button><button id="s-clock-off" class="small">オフ</button></div></div>
+    <div class="setrow2"><span>FPS表示<small style="display:block;color:#9ab;font-size:11px;margin-top:2px">右上に1秒あたりの描画回数を表示</small></span><div class="seg"><button id="s-fps-on" class="small">オン</button><button id="s-fps-off" class="small">オフ</button></div></div>
+    <div class="setrow2"><span>パフォーマンス機能<small style="display:block;color:#9ab;font-size:11px;margin-top:2px">FPS・処理時間のグラフ・描画量・解像度・メモリなどを表示</small></span><div class="seg"><button id="s-perfp-on" class="small">オン</button><button id="s-perfp-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>夜の明るさ自動調整</span><div class="seg"><button id="s-adapt-on" class="small">オン</button><button id="s-adapt-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>歩くときの揺れ</span><div class="seg"><button id="s-bob-on" class="small">オン</button><button id="s-bob-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>クリックで全画面</span><div class="seg"><button id="s-fs-on" class="small">オン</button><button id="s-fs-off" class="small">オフ</button></div></div>
@@ -4146,7 +4148,7 @@ function boxVisible(x0,y0,z0,x1,y1,z1,pl){
 const SAVE_KEY='voxelcraft.save.v2',SAVE_V1='voxelcraft.save.v1',SET_KEY='voxelcraft.settings.v1',MP_KEY='voxelcraft.mp.';
 function store(){try{return window.localStorage;}catch(e){return null;}}
 const isTouch=('ontouchstart' in window)||(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
-const settings={damage:true,autoSprint:false,autoJump:true,moveCtl:'dpad',nightAdapt:true,showClock:false,bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
+const settings={damage:true,autoSprint:false,autoJump:true,moveCtl:'dpad',nightAdapt:true,showClock:false,showFps:false,perfPanel:false,bob:true,fs:true,rd:isTouch?4:6,fov:75,sens:6,vol:70,music:50,amb:60,fx:85,ui:60,day:12,btn:64,name:'',skin:0,peaceful:false};
 try{const s=store();const j=s&&s.getItem(SET_KEY);if(j)Object.assign(settings,JSON.parse(j));}catch(e){}
 settings.skin=clamp(settings.skin|0,0,5);
 // ---- key bindings (2 keys per action, editable in Settings) ----
@@ -7660,6 +7662,7 @@ function drawWorldChunks(R,maxD){
     if(c.solid){gl.bindVertexArray(c.solid.vao);gl.drawElements(gl.TRIANGLES,c.solid.count,gl.UNSIGNED_INT,0);drawnChunks++;perfTris+=c.solid.count/3;}
     if(c.water)waters.push([d2,c.water,null]);
   }
+  if(typeof drawCastleMesh==='function')drawCastleMesh();
   return waters;
 }
 function drawWaterList(waters){
@@ -7676,17 +7679,26 @@ function perfRenderTick(){
 }
 function perfDprScale(){return perfOn()&&!(typeof realOn==='function'&&realOn())?DYNRES.k:1;}
 
-// ---- FPS read-out
-const FPSBOX={el:null,t:0};
+// ---- FPS read-out (設定「FPS表示」) and the performance panel (設定「パフォーマンス機能」)
+const FPSBOX={el:null,cv:null,t:0,last:0,ft:new Float32Array(120),fi:0,worst:0};
 function tickFpsBox(dt){
-  const show=perfOn()&&state!=='title'&&state!=='loading'&&!document.body.classList.contains('nohud');
+  const now=performance.now();if(FPSBOX.last){const ms=Math.min(250,now-FPSBOX.last);FPSBOX.ft[FPSBOX.fi]=ms;FPSBOX.fi=(FPSBOX.fi+1)%FPSBOX.ft.length;}FPSBOX.last=now;
+  const full=!!settings.perfPanel,show=(full||!!settings.showFps)&&state!=='title'&&state!=='loading'&&!document.body.classList.contains('nohud');
   if(!FPSBOX.el){if(!show)return;const e=document.createElement('div');e.id='fpsbox';
-    e.style.cssText='position:absolute;right:10px;top:calc(var(--tb,64px) + 40px);z-index:3;pointer-events:none;font-size:12px;color:#e8ffe0;background:rgba(0,0,0,0.38);padding:2px 7px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:pre;text-align:right';
-    document.body.appendChild(e);FPSBOX.el=e;}
+    e.style.cssText='position:absolute;right:10px;top:calc(var(--tb,64px) + 40px);z-index:3;pointer-events:none;font-size:12px;color:#e8ffe0;background:rgba(0,0,0,0.42);padding:3px 8px;border-radius:5px;font-variant-numeric:tabular-nums;white-space:pre;text-align:right';
+    const tx=document.createElement('div');const cv=document.createElement('canvas');cv.width=150;cv.height=34;cv.style.cssText='display:block;margin:3px 0 1px auto;width:150px;height:34px';
+    e.appendChild(tx);e.appendChild(cv);document.body.appendChild(e);FPSBOX.el=e;FPSBOX.tx=tx;FPSBOX.cv=cv;}
   FPSBOX.el.style.display=show?'block':'none';if(!show)return;
-  FPSBOX.t-=dt;if(FPSBOX.t>0)return;FPSBOX.t=0.5;
-  const res=Math.round(canvas.width/Math.max(1,cssW)*100)/100;
-  FPSBOX.el.textContent=`FPS ${fps}\n描画 ${drawnChunks}チャンク・${(perfTris/10000).toFixed(1)}万面\n解像度 ×${res}`;
+  FPSBOX.cv.style.display=full?'block':'none';
+  // the frame-time graph: one bar per frame, green under 16.7 ms (60 FPS), yellow under 33 ms, red above
+  if(full){const g=FPSBOX.cv.getContext('2d'),W=150,Hh=34,N=FPSBOX.ft.length;g.clearRect(0,0,W,Hh);g.fillStyle='rgba(255,255,255,0.12)';g.fillRect(0,Hh-Hh*16.7/50,W,1);g.fillRect(0,Hh-Hh*33.3/50,W,1);
+    for(let i=0;i<N;i++){const ms=FPSBOX.ft[(FPSBOX.fi+i)%N];if(!ms)continue;const h=Math.min(Hh,Hh*ms/50);g.fillStyle=ms<=17.5?'#6be36b':ms<=34?'#ffd23a':'#ff5a5a';g.fillRect(i*W/N,Hh-h,W/N+0.3,h);}}
+  if(now-(FPSBOX.tu||0)<500)return;FPSBOX.tu=now;
+  if(!full){FPSBOX.tx.textContent=`FPS ${fps}`;return;}
+  let sum=0,n=0,worst=0;for(const v of FPSBOX.ft)if(v){sum+=v;n++;if(v>worst)worst=v;}
+  const res=Math.round(canvas.width/Math.max(1,cssW)*100)/100,real=typeof realOn==='function'&&realOn();
+  const mem=performance.memory?`\nメモリ ${Math.round(performance.memory.usedJSHeapSize/1048576)}MB`:'';
+  FPSBOX.tx.textContent=`FPS ${fps}\n1フレーム 平均${(sum/Math.max(1,n)).toFixed(1)}ms・最大${worst.toFixed(0)}ms\n描画 ${drawnChunks}チャンク・${(perfTris/10000).toFixed(1)}万面\n読込 ${world?world.chunks.size:0}チャンク・距離${settings.rd}\nモブ ${mobs.length}・アイテム ${items.length}・粒子 ${particles.length}\n解像度 ×${res}・${real?'リアルMod（'+['軽い','ふつう','きれい','最高','最大'][settings.mod.q|0]+'）':'ふつうの描画'}${mem}`;
 }
 
 // ================================================================ リアルMod: a second, "realistic" rendering path
@@ -8155,6 +8167,7 @@ function renderReal(){
       gl.bindVertexArray(c.solid.vao);gl.drawElements(gl.TRIANGLES,c.solid.count,gl.UNSIGNED_INT,0);
     }
     if(dynMesh){gl.bindVertexArray(dynMesh.vao);gl.drawElements(gl.TRIANGLES,dynMesh.count,gl.UNSIGNED_INT,0);}
+    if(typeof drawCastleMesh==='function')drawCastleMesh(true);
     // in first person your own body is not drawn, but it still casts a shadow
     if(camMode===0&&state!=='title'&&!player.dead){const p=player;SELF.reset();
       drawHumanoid(SELF,settings.skin,p.pos[0],p.pos[1],p.pos[2],{yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
@@ -8402,7 +8415,7 @@ function mobAuraFx(dt){
 const XMOD_PANELS=['settings','help','inventory','container','keybinds','modlock','modscreen','cmdscreen','death','character'];
 function xmodPanelOpen(){for(const id of XMOD_PANELS){const e=document.getElementById(id);if(e&&!e.classList.contains('hidden'))return true;}return false;}
 // ================================================================ extra Mods (unlocked together with the Real Mod): minimap, timber & vein mining, dynamic light, health bars, zoom
-const XMOD_LIST=[['perf','軽量化（描画）','見えない洞窟や画面の外を描かずにFPSを上げる。重いと解像度を自動調整・FPSを表示'],['shaderpack','シェーダーパック','リアルModの見た目をパックで切り替え（幻想的・シネマ・レトロ・鮮やか・トゥーン・モノクロ）。選ぶのは上の「シェーダーパック」'],['minimap','ミニマップ','画面の左上に周りの地図・座標・向きを表示'],['timber','木こり・一括採掘','原木を切ると木が丸ごと倒れ、鉱石は鉱脈ごと掘れる（しゃがむと1つずつ）'],
+const XMOD_LIST=[['perf','軽量化（描画）','見えない洞窟や画面の外を描かずにFPSを上げる。重いと解像度を自動調整'],['shaderpack','シェーダーパック','リアルModの見た目をパックで切り替え（幻想的・シネマ・レトロ・鮮やか・トゥーン・モノクロ）。選ぶのは上の「シェーダーパック」'],['minimap','ミニマップ','画面の左上に周りの地図・座標・向きを表示'],['timber','木こり・一括採掘','原木を切ると木が丸ごと倒れ、鉱石は鉱脈ごと掘れる（しゃがむと1つずつ）'],
   ['dynlight','動的ライト','たいまつやランタンを手に持つだけで周りが明るくなる'],['hpbar','体力バー','モブの頭上に体力を表示し、与えたダメージの数字が飛ぶ'],['zoom','ズーム','Zキー（スマホは🔍ボタン）を押している間だけ望遠']];
 function xmodOn(k){const M=settings.mod;return!!(M&&M.unlocked&&M.x&&M.x[k]!==false);}
 if(settings.mod&&!settings.mod.x)settings.mod.x={};
@@ -8609,6 +8622,7 @@ function syncSettingsUI(){
   seg('s-aj-on','s-aj-off','autoJump');
   seg('s-adapt-on','s-adapt-off','nightAdapt');
   seg('s-clock-on','s-clock-off','showClock');
+  seg('s-fps-on','s-fps-off','showFps');seg('s-perfp-on','s-perfp-off','perfPanel');
   const mcSync=()=>{$('s-mc-dpad').classList.toggle('on',settings.moveCtl!=='stick');$('s-mc-stick').classList.toggle('on',settings.moveCtl==='stick');};mcSync();
   $('s-mc-dpad').onclick=()=>{settings.moveCtl='dpad';saveSettings();mcSync();applyMoveCtl();};
   $('s-mc-stick').onclick=()=>{settings.moveCtl='stick';saveSettings();mcSync();applyMoveCtl();};
@@ -11156,77 +11170,90 @@ World.prototype.genArena=function(c){
     // the ground of the island
     const top=G-1;   // a level floor: the obstacles give the shape
     for(let y=1;y<=top;y++)set(x,y,z,y<top-3?B.STONE:y<top?B.DIRT:B.GRASS);
-    if(r>AR.R){ // the visible ring wall, then the invisible fence and ceiling
-      if(r<=AR.WALL){for(let y=G;y<=G+1;y++)set(x,y,z,hash3(wx,y,wz,1401)<0.2?B.MOSSY_STONEBRICK:B.STONEBRICK);
-        const a=Math.atan2(wz,wx);if(Math.abs(((a/(Math.PI*2)*24)%1+1)%1-0.5)>0.42)set(x,G+2,z,B.LANTERN);}
-      else for(let y=G;y<=AR.TOP;y++)set(x,y,z,B.BARRIER);
+    const A=arBlocks();
+    if(r>AR.R){ // the visible ring wall (brick, a thin wall on top, lanterns on posts), then the invisible fence and ceiling
+      if(r<=AR.WALL){set(x,G,z,B.DS_BRICKS!==undefined?B.DS_BRICKS:B.STONEBRICK);set(x,G+1,z,hash3(wx,G+1,wz,1401)<0.25?B.MOSSY_STONEBRICK:B.STONEBRICK);
+        if(r<=AR.R+0.9)set(x,G+2,z,hash3(wx,0,wz,1405)<0.3?A.msWall:A.sbWall);
+        const a=Math.atan2(wz,wx);if(r<=AR.R+0.9&&Math.abs(((a/(Math.PI*2)*24)%1+1)%1-0.5)>0.44)set(x,G+3,z,B.LANTERN);}
+      else{for(let y=G;y<=AR.TOP;y++)set(x,y,z,B.BARRIER);const gb=Math.abs(wx+0.5)>Math.abs(wz+0.5)&&Math.abs(wz+0.5)<2.2;
+        set(x,G-3,z,B.STONEBRICK);set(x,G-2,z,B.WATER);set(x,G-1,z,gb?B.SPRUCE_PLANKS:B.WATER);}
       set(x,AR.TOP,z,B.BARRIER);continue;}
     set(x,AR.TOP,z,B.BARRIER);
-    // centre plaza with four lantern pillars
-    if(r<7.5){set(x,top,z,(Math.floor(wx)+Math.floor(wz))%3===0?B.CHISELED_STONEBRICK:B.STONEBRICK);
-      if(r<4.2)set(x,G,z,B.STONEBRICK);
-      if(Math.abs(wx)===5&&Math.abs(wz)===5){for(let y=G;y<G+5;y++)set(x,y,z,B.STONEBRICK);set(x,G+5,z,B.LANTERN);}
+    // centre plaza: patterned floor, a two-step dais, four pillars on plinths with lanterns
+    if(r<7.6){const ax=Math.abs(wx+0.5),az=Math.abs(wz+0.5);
+      set(x,top,z,r>6.6?B.MOSSY_STONEBRICK:(Math.floor(ax)+Math.floor(az))%3===0?B.CHISELED_STONEBRICK:B.STONEBRICK);
+      if(r<2.4)set(x,G,z,B.CHISELED_STONEBRICK);else if(r<3.4)set(x,G,z,B.STONEBRICK);else if(r<4.4)set(x,G,z,A.sbSlab);
+      const px=Math.abs(wx<0?-wx-1:wx),pz=Math.abs(wz<0?-wz-1:wz);
+      if(px===5&&pz===5){for(let y=G;y<G+4;y++)set(x,y,z,B.STONEBRICK);set(x,G+4,z,B.CHISELED_STONEBRICK);set(x,G+5,z,A.sbWall);set(x,G+6,z,B.LANTERN);}
+      else if(px>=4&&px<=6&&pz>=4&&pz<=6)set(x,G,z,A.sbSlab);
       continue;}
+    // a ring path around the plaza
+    if(r<8.7){set(x,top,z,hash3(wx,0,wz,1406)<0.2?A.coarse:A.path);continue;}
     // obstacles, laid out the same on both players' sides (mirror symmetric), see arenaObstacles
     arenaObstacles(x,z,wx,wz,top,set,BL);
     // grass and flowers
-    if(BL[bidx(x,top,z)]===B.GRASS&&BL[bidx(x,top+1,z)]===0){const h=hash3(wx,0,wz,1404);if(h<0.1)set(x,top+1,z,B.TALLGRASS);else if(h<0.125)set(x,top+1,z,h<0.112?B.FLOWER_Y:B.FLOWER_R);}
+    if(BL[bidx(x,top,z)]===B.GRASS&&BL[bidx(x,top+1,z)]===0){const h=hash3(wx,0,wz,1404);if(h<0.09)set(x,top+1,z,B.TALLGRASS);else if(h<0.125){const f=[B.FLOWER_Y,B.FLOWER_R,B.FLOWER_B,B.FLOWER_PINK].filter(v=>v!==undefined);set(x,top+1,z,f[((h-0.09)/0.035*f.length)|0]||B.FLOWER_Y);}}
   }
   c.spawns=[];
 };
+// finer pieces (slabs, stairs, thin walls, fences) looked up once
+let ARB=null;
+function arBlocks(){if(ARB)return ARB;const F=k=>FAMILY[B[k]]||{},st=k=>{const s=F(k).stairs;return s&&BLOCKS[s].vars?BLOCKS[s].vars:[B[k],B[k],B[k],B[k]];};
+  const sl=k=>F(k).slab||B[k],slt=k=>{const b=F(k).slab;return b&&SLABMAT[b]?SLABMAT[b].top:B[k];};
+  ARB={sbSlab:sl('STONEBRICK'),sbTop:slt('STONEBRICK'),sbSt:st('STONEBRICK'),sbWall:F('STONEBRICK').wall||B.STONEBRICK,msWall:F('MOSSY_STONEBRICK').wall||F('STONEBRICK').wall||B.STONEBRICK,
+    msSlab:sl('MOSSY_STONEBRICK'),spSlab:sl('SPRUCE_PLANKS'),spTop:slt('SPRUCE_PLANKS'),spSt:st('SPRUCE_PLANKS'),spFence:B.SPRUCE_FENCE||B.OAK_FENCE,
+    path:B.DIRT_PATH!==undefined?B.DIRT_PATH:B.GRAVEL,coarse:B.COARSE_DIRT!==undefined?B.COARSE_DIRT:B.DIRT,log:B.DARK_OAK_LOG!==undefined?B.DARK_OAK_LOG:B.LOG};
+  return ARB;}
 // ---- obstacles inside the arena (q = position folded into one quarter, so every piece appears four times / mirrored)
 function arenaObstacles(x,z,wx,wz,top,set,BL){
-  const G=AR.G,qx=wx<0?-wx-1:wx,qz=wz<0?-wz-1:wz,brick=(y,k)=>{const v=hash3(wx,y,wz,k);return v<0.25?B.MOSSY_STONEBRICK:v<0.4?B.CRACKED_STONEBRICK:B.STONEBRICK;};
+  const G=AR.G,A=arBlocks(),qx=wx<0?-wx-1:wx,qz=wz<0?-wz-1:wz,north=wz>=0,brick=(y,k)=>{const v=hash3(wx,y,wz,k);return v<0.25?B.MOSSY_STONEBRICK:v<0.4?B.CRACKED_STONEBRICK:B.STONEBRICK;};
   const col=(h,id)=>{for(let y=top+1;y<=top+h;y++)set(x,y,z,typeof id==='function'?id(y):id);};
-  // 1. low cover walls around the plaza (waist high: hide by crouching, jump over to chase)
-  if((qz===3&&qx>=10&&qx<=13)||(qx===3&&qz>=10&&qz<=13)){col(qx===13||qz===13?1:2,y=>brick(y,1501));return;}
-  // 2. ponds on the path from each start point to the middle, with a plank bridge across
-  {const pr=Math.hypot(qx-12,qz+0.5);if(pr<3.3){if(qz===0){set(x,top,z,B.PLANKS);set(x,top-1,z,B.WATER);}else{set(x,top,z,B.WATER);set(x,top-1,z,B.WATER);}set(x,top-2,z,B.SAND);return;}
-    if(pr<4.2&&qz>0){set(x,top,z,B.SAND);return;}}
-  // 3. two lookout towers (north and south): four posts, a plank deck at 4 high with a railing, block steps up from the middle side
-  if(qx<=1&&qz>=19&&qz<=22){const post=(qx===1)&&(qz===19||qz===22);
-    if(post)col(5,B.STONEBRICK);else{set(x,top+4,z,B.SPRUCE_PLANKS);if((qz===22||qx===1)&&B.OAK_FENCE!==undefined)set(x,top+5,z,B.OAK_FENCE);}
-    if(qx===0&&qz===19)set(x,top+5,z,0);return;}
-  if(qx===0&&qz>=15&&qz<=18){col(qz-14,B.STONEBRICK);return;}
-  // 4. trees for cover, one in each quarter
-  {const dx=qx-18,dz=qz-12;if(dx===0&&dz===0){col(5,B.LOG);}
-    for(let y=top+3;y<=top+7;y++){const dy=y-(top+5),d=Math.hypot(dx,dy*1.2,dz);if(d<2.6&&!(dx===0&&dz===0&&y<=top+5)&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}
-    if(dx===0&&dz===0)return;}
-  // 5. stacks of crates and hay near the edges
-  if(qx>=20&&qx<=21&&qz>=5&&qz<=6){col(qx===20&&qz===5?2:1,y=>y===top+2?B.HAY||B.PLANKS:(B.BARREL!==undefined?B.BARREL:B.PLANKS));return;}
-  if(qx>=8&&qx<=9&&qz>=24&&qz<=25){col(qx===8&&qz===24?2:1,y=>y===top+2?(B.BARREL!==undefined?B.BARREL:B.PLANKS):(B.HAY||B.PLANKS));return;}
-  // 6. ruined stone pillars with a lantern
-  if((qx===16&&qz===26)||(qx===27&&qz===12)){col(4,y=>brick(y,1502));set(x,top+5,z,B.LANTERN);return;}
-  // 7. a broken arch in front of each start point, and low bushes
-  if(qx===27&&qz<=3){const h=qz===3?4:qz===2?2:qz===0?4:0;if(h)col(h,y=>brick(y,1503));if(qz<=3&&qz>=1)set(x,top+4,z,brick(top+4,1504));return;}
-  if((qx===23&&qz===16)||(qx===24&&qz===16)||(qx===11&&qz===17)){col(1,B.LEAVES);return;}
+  // 0. dirt paths from each start point to the bridge and on to the plaza
+  if(qz===0&&((qx>=9&&qx<=10)||(qx>=15&&qx<=25))){set(x,top,z,hash3(wx,0,wz,1507)<0.25?A.coarse:A.path);}
+  // 1. low cover walls around the plaza: a brick course with a thin wall on top, slab ends
+  if((qz===3&&qx>=10&&qx<=13)||(qx===3&&qz>=10&&qz<=13)){const end=qx===13||qz===13;
+    if(end){set(x,top+1,z,A.msSlab);return;}set(x,top+1,z,brick(top+1,1501));set(x,top+2,z,hash3(wx,0,wz,1508)<0.3?A.msWall:A.sbWall);return;}
+  // 2. ponds with a stone rim, and a fenced plank bridge across on the path
+  {const pr=Math.hypot(qx-12,qz+0.5);
+    if(pr<3.3){const bridge=qz<=1;set(x,top-2,z,B.SAND);set(x,top-1,z,B.WATER);
+      if(bridge){set(x,top,z,B.SPRUCE_PLANKS);if(qz===1)set(x,top+1,z,A.spFence);}else set(x,top,z,B.WATER);return;}
+    if(pr<4.3){set(x,top,z,hash3(wx,0,wz,1509)<0.35?B.MOSSY_STONEBRICK:B.STONEBRICK);if(qz>=2&&hash3(wx,1,wz,1510)<0.5)set(x,top+1,z,A.sbSlab);return;}}
+  // 3. two lookout towers (north and south): log posts, plank deck at 4 high with a fence railing, a slab roof, stair steps up from the middle
+  if(qx<=1&&qz>=19&&qz<=22){const corner=qx===1&&(qz===19||qz===22);
+    if(corner){col(7,A.log);set(x,top+8,z,A.spSlab);return;}
+    for(let y=top+1;y<=top+3;y++)if(qz===22&&qx===0&&y===top+2)set(x,y,z,B.LANTERN);
+    set(x,top+4,z,B.SPRUCE_PLANKS);set(x,top+8,z,A.spSlab);
+    if(qz===22||qx===1)set(x,top+5,z,A.spFence);return;}
+  if(qx===0&&qz>=15&&qz<=18){const h=qz-14;for(let y=top+1;y<top+h;y++)set(x,y,z,B.STONEBRICK);set(x,top+h,z,A.sbSt[north?2:3]);return;}
+  if(qx===1&&qz>=15&&qz<=18){const h=qz-14;for(let y=top+1;y<=top+h;y++)set(x,y,z,y===top+h?A.sbSlab:B.STONEBRICK);return;}
+  // 4. trees for cover, one in each quarter, with a few roots of coarse dirt
+  {const dx=qx-18,dz=qz-12;if(dx===0&&dz===0){col(5,B.LOG);return;}
+    for(let y=top+3;y<=top+7;y++){const dy=y-(top+5),d=Math.hypot(dx,dy*1.2,dz)+hash3(wx,y,wz,1511)*0.5;if(d<2.7&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}
+    if(Math.abs(dx)+Math.abs(dz)===1)set(x,top,z,A.coarse);}
+  // 5. crates: barrels, a hay bale and a slab lid, near the edges
+  if(qx>=20&&qx<=21&&qz>=5&&qz<=6){if(qx===20&&qz===5){set(x,top+1,z,B.BARREL||B.PLANKS);set(x,top+2,z,B.HAY||B.PLANKS);set(x,top+3,z,A.spSlab);}else if(qx===21&&qz===6)set(x,top+1,z,A.spSlab);else set(x,top+1,z,B.BARREL||B.PLANKS);return;}
+  if(qx>=8&&qx<=9&&qz>=24&&qz<=25){if(qx===8&&qz===24){set(x,top+1,z,B.HAY||B.PLANKS);set(x,top+2,z,B.BARREL||B.PLANKS);}else if(qx===9&&qz===25)set(x,top+1,z,A.spSlab);else set(x,top+1,z,B.HAY||B.PLANKS);return;}
+  // 6. ruined pillars: a plinth of slabs, a broken shaft, a lantern on a post
+  {const P=[[16,26],[27,12]];for(const[px,pz]of P){const dx=qx-px,dz=qz-pz;
+    if(!dx&&!dz){col(3,y=>brick(y,1502));set(x,top+4,z,A.sbWall);set(x,top+5,z,B.LANTERN);return;}
+    if(Math.abs(dx)<=1&&Math.abs(dz)<=1&&(dx===0||dz===0)){set(x,top+1,z,A.sbSlab);return;}}}
+  // 7. a ruined archway behind each start point
+  if(qx===27&&qz<=3){if(qz===2){col(4,y=>brick(y,1503));set(x,top+5,z,A.sbSlab);}else if(qz===3){col(2,y=>brick(y,1504));set(x,top+3,z,A.sbSlab);}else{set(x,top+5,z,qz===1?B.STONEBRICK:A.sbTop);}return;}
+  // 8. low bushes
+  if((qx===23&&qz===16)||(qx===24&&qz===16)||(qx===11&&qz===17)||(qx===12&&qz===17)){set(x,top+1,z,B.LEAVES);return;}
 }
-// ---- the castle around the arena: stepped stands for spectators, a tall wall with battlements, eight towers, banners;
-// beyond the walls, quiet grassland with trees (you see it from the sky at the start)
+// ---- the castle around the arena is a detailed mesh of its own (89j_castle.js). Here: only the ground it stands on,
+// a rocky shore round its feet, and beyond that open sea out to the edge of the view.
 function arenaCastle(c,x,z,wx,wz,r,set){
-  const G=AR.G,BL=c.blocks;for(let y=1;y<G-4;y++)set(x,y,z,B.STONE);for(let y=G-4;y<G-1;y++)set(x,y,z,B.DIRT);
-  const a=Math.atan2(wz,wx),stone=y=>{const v=hash3(wx,y,wz,1411);return v<0.16?B.MOSSY_STONEBRICK:v<0.28?B.CRACKED_STONEBRICK:B.STONEBRICK;};
-  // towers: eight of them standing in the wall
-  let tower=null;for(let k=0;k<8;k++){const ta=(k+0.5)*Math.PI/4,tx=Math.cos(ta)*47,tz=Math.sin(ta)*47,d=Math.hypot(wx+0.5-tx,wz+0.5-tz);if(d<5){tower=d;break;}}
-  if(tower!==null){const top=G+30;set(x,G-1,z,B.STONEBRICK);
-    if(tower>3.9){for(let y=G;y<top;y++)set(x,y,z,(y-G)%9===5&&Math.abs(Math.sin(a*16))<0.3?B.DS_BRICKS:stone(y));if(((wx+wz)&1)===0)set(x,top,z,B.STONEBRICK);}
-    else{set(x,top-1,z,B.STONEBRICK);if(tower<0.8)set(x,top,z,B.LANTERN);}
-    for(let y=G;y<top-1&&tower<=3.9;y++)if((y-G)%10===0)set(x,y,z,B.STONEBRICK);
-    return;}
-  if(r<=44.2){ // stands, one step up per block, with wooden seat rows and lanterns along the front
-    const step=Math.max(0,Math.floor(r-38));for(let y=G-1;y<=G+step;y++)set(x,y,z,y===G+step&&step%2===1?B.DARK_OAK_PLANKS:B.STONEBRICK);
-    if(step===0&&Math.abs(((a/(Math.PI*2)*32)%1+1)%1-0.5)>0.44)set(x,G+1,z,B.LANTERN);return;}
-  if(r<=48.5){ // the great wall
-    const top=G+21;for(let y=G-1;y<top;y++){let id=stone(y);if(y<G+2)id=B.DS_BRICKS;if(y===G+8||y===G+16)id=B.CHISELED_STONEBRICK;
-        if(r<45.2&&(y-G)%8>=3&&(y-G)%8<=5&&Math.abs(Math.sin(a*36))<0.12)id=B.DS_BRICKS;set(x,y,z,id);}   // arrow slits on the inner face
-    if(r<45.4||r>47.6){if(Math.abs(Math.sin(a*60))>0.5)set(x,top,z,B.STONEBRICK);}else set(x,top-1,z,B.STONEBRICK);
-    // banners hanging from the inner face
-    if(r<44.9){const bn=((a/(Math.PI*2)*16)%1+1)%1;if(bn>0.47&&bn<0.53){const red=Math.floor((a/(Math.PI*2)+1)*16)%2===0;for(let y=G+11;y<=G+18;y++)set(x,y,z,red?B.WOOL_R:(B.WOOL_B!==undefined?B.WOOL_B:B.LAPIS_BLOCK));}}
-    return;}
-  // outside the walls: open sea, deepening away from the castle (the island itself is filled in above)
-  for(let y=1;y<G-1;y++)set(x,y,z,0);
-  const floor=r<54?G-6:r<70?G-9:G-14;for(let y=1;y<floor-2;y++)set(x,y,z,B.STONE);for(let y=floor-2;y<floor;y++)set(x,y,z,hash3(wx,0,wz,1426)<0.2?B.GRAVEL||B.SAND:B.SAND);
-  for(let y=floor;y<=G-2;y++)set(x,y,z,B.WATER);
+  const G=AR.G,ax=wx+0.5,az=wz+0.5;
+  let tw=99;for(const t of CAS_TOW){const d=Math.hypot(ax-t.x,az-t.z);if(d<tw)tw=d;}
+  const gate=Math.abs(ax)>Math.abs(az)&&Math.abs(az)<3.2&&r<58.3;   // the drawbridge pier
+  for(let y=1;y<G-12;y++)set(x,y,z,B.STONE);
+  if(r<=48.6||tw<=6.0){for(let y=G-12;y<G-1;y++)set(x,y,z,y<G-4?B.STONE:B.DIRT);set(x,G-1,z,B.STONEBRICK);return;}
+  // the sea bed falls away from the walls; rocks pile up round the foot of the walls and towers
+  const floor=r<56?G-9:r<72?G-11:G-15;for(let y=G-12;y<floor;y++)set(x,y,z,B.STONE);for(let y=floor;y<floor+2;y++)set(x,y,z,hash3(wx,y,wz,1426)<0.25?B.GRAVEL:B.SAND);
+  const beyond=Math.min(r-48.6,tw-6.0),rock=G-3-Math.floor(beyond*1.35+hash3(wx,0,wz,1427)*2.2);
+  for(let y=floor+2;y<=G-2;y++){if(y<=rock&&!gate){const h=hash3(wx,y,wz,1428);set(x,y,z,h<0.3?B.MOSSY_STONEBRICK:h<0.55?B.COBBLE:h<0.62&&B.MOSSY_COBBLE!==undefined?B.MOSSY_COBBLE:B.STONE);}else set(x,y,z,B.WATER);}
 }
 {const _gen=World.prototype.generate;World.prototype.generate=function(c){
   if(!this.arena)return _gen.call(this,c);
@@ -11259,7 +11286,7 @@ function duelSetup(host){
   resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;player.pitch=-0.35;spawnPoint=player.pos.slice();
 }
 function duelExit(){
-  if(!DUEL.on)return;DUEL.on=false;DUEL.phase='off';if(DUEL.rules){Object.assign(gameRules,DUEL.rules);DUEL.rules=null;}
+  if(!DUEL.on)return;if(typeof freeCastleMesh==='function')freeCastleMesh();DUEL.on=false;DUEL.phase='off';if(DUEL.rules){Object.assign(gameRules,DUEL.rules);DUEL.rules=null;}
   document.body.classList.remove('duel-hidehp','duel-on');if(DUEL.ui)DUEL.ui.root.style.display='none';
 }
 // random gear: a sword, an axe, blocks, something to heal, and two extras
@@ -11298,8 +11325,13 @@ function duelUI(){
   const root=document.createElement('div');root.id='duel-root';root.innerHTML='<div id="duel-msg"></div><div id="duel-count"></div><div id="duel-vs" style="display:none"></div><div id="duel-res" style="display:none"></div>';
   document.body.appendChild(root);DUEL.ui={root,msg:root.querySelector('#duel-msg'),count:root.querySelector('#duel-count'),vs:root.querySelector('#duel-vs'),res:root.querySelector('#duel-res')};return DUEL.ui;
 }
+// A match is best of three (first to two round wins). Between rounds both players stay on the arena floor for a moment;
+// once both are standing on the ground they are sent back up to their start points and the next countdown begins.
+const DUEL_WIN=2,DUEL_MAX=3;
 function duelStartCount(r){
-  DUEL.round=r;DUEL.phase='count';DUEL.t=3;DUEL.landed=false;DUEL.oppHp=20;
+  DUEL.round=r;DUEL.phase='count';DUEL.t=3;DUEL.landed=false;DUEL.oppHp=20;DUEL.readyMe=false;DUEL.readyOpp=false;DUEL.sentReady=false;
+  if(DUEL.ui)DUEL.ui.res.style.display='none';
+  if(state==='overlay'&&OVL.id==='duel-none'){state='play';OVL.id=null;requestLock();}
   resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;player.pitch=-0.35;duelLoadout();sfx.click&&sfx.click();
 }
 function duelReset(){
@@ -11308,26 +11340,35 @@ function duelReset(){
   items.length=0;projs.length=0;if(typeof mprojs!=='undefined')mprojs.length=0;mobs.length=0;particles.length=0;if(typeof MP!=='undefined')MP.pending=[];
   resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;DUEL.phase='wait';DUEL.goT=0;if(DUEL.ui)DUEL.ui.res.style.display='none';
 }
+function duelNewMatch(){DUEL.me=0;DUEL.opp=0;DUEL.round=0;}
+// one round is over
 function duelEnd(won){
-  if(DUEL.phase!=='fight'&&DUEL.phase!=='fall')return;DUEL.phase='end';if(won)DUEL.me++;else DUEL.opp++;
-  const u=duelUI();u.res.style.display='block';
-  u.res.innerHTML=`<h2 style="color:${won?'#ffd23a':'#9ab'}">${won?'勝利！':'敗北…'}</h2><div class="sc">${myName()} <b>${DUEL.me}</b> − <b>${DUEL.opp}</b> ${DUEL.oppName||'相手'}</div>`+
-    (DUEL.host?'<button id="duel-again">もう一度</button>':'<div style="color:#9ab;font-size:13px;margin-bottom:8px">ホストが「もう一度」を押すと次の試合が始まります</div>')+'<button id="duel-quit">やめる</button>';
-  if(DUEL.host)u.res.querySelector('#duel-again').onclick=()=>{duelSend({k:'reset'});duelReset();};
-  u.res.querySelector('#duel-quit').onclick=()=>{u.res.style.display='none';quitToTitle();};
-  if(isLocked())document.exitPointerLock();
+  if(DUEL.phase!=='fight'&&DUEL.phase!=='fall')return;if(won)DUEL.me++;else DUEL.opp++;
+  player.hp=20;player.invuln=9999;player.fx={};if(typeof renderEffects==='function')renderEffects();renderStats();
   if(won){sfx.levelUp&&sfx.levelUp();}else sfx.hurt&&sfx.hurt();
-  player.invuln=9999;
+  const over=DUEL.me>=DUEL_WIN||DUEL.opp>=DUEL_WIN||DUEL.round>=DUEL_MAX;
+  if(!over){DUEL.phase='inter';DUEL.interT=2.5;DUEL.readyMe=false;DUEL.readyOpp=false;DUEL.sentReady=false;
+    DUEL.banner=`第${DUEL.round}試合：${won?'勝ち！':'負け…'}（${DUEL.me} − ${DUEL.opp}）`;return;}
+  // the match is decided
+  DUEL.phase='end';const wonAll=DUEL.me>DUEL.opp;
+  const u=duelUI();u.res.style.display='block';
+  u.res.innerHTML=`<div style="font-size:13px;color:#9ab">3本勝負</div><h2 style="color:${wonAll?'#ffd23a':'#9ab'}">${wonAll?'勝利！':'敗北…'}</h2><div class="sc">${myName()} <b>${DUEL.me}</b> − <b>${DUEL.opp}</b> ${(DUEL.oppName||'相手').replace(/</g,'&lt;')}</div>`+
+    (DUEL.host?'<button id="duel-again">もう一度（3本勝負）</button>':'<div style="color:#9ab;font-size:13px;margin-bottom:8px">ホストが「もう一度」を押すと次の勝負が始まります</div>')+'<button id="duel-quit">やめる</button>';
+  if(DUEL.host)u.res.querySelector('#duel-again').onclick=()=>{duelNewMatch();duelSend({k:'go',r:1,nm:1});duelReset();duelStartCount(1);};
+  u.res.querySelector('#duel-quit').onclick=()=>{u.res.style.display='none';if(state==='overlay'){state='play';OVL.id=null;}quitToTitle();};
+  // show the result as a panel (not the pause menu): the mouse is set free for the buttons
+  if(state==='play'){stopActions();state='overlay';OVL.id='duel-none';OVL.onClose=null;}
+  if(isLocked())document.exitPointerLock();
 }
 function duelRecv(m){
   if(!DUEL.on||!m||typeof m.k!=='string')return;
   if(typeof m.n==='string')DUEL.oppName=cleanName(m.n);
-  if(m.k==='go'&&(DUEL.phase==='wait'||DUEL.phase==='end')){if(DUEL.phase==='end')duelReset();duelStartCount(m.r|0);}
+  if(m.k==='go'&&(DUEL.phase==='wait'||DUEL.phase==='inter'||DUEL.phase==='end')){if(m.nm)duelNewMatch();if(DUEL.phase!=='wait')duelReset();duelStartCount(m.r|0);}
   else if(m.k==='hit'&&DUEL.phase==='fight'&&!player.dead){const d=clamp(+m.d||0,0,40),src=Array.isArray(m.s)&&m.s.length===3&&m.s.every(Number.isFinite)?m.s:null;
     if(hurt(d,'pvp',src)){if(m.h)message('頭に命中！',900);if(m.c)message('クリティカルをうけた！',900);}duelSendHp(true);}
   else if(m.k==='hp'){DUEL.oppHp=clamp(+m.v||0,0,40);}
   else if(m.k==='dead'&&(DUEL.phase==='fight'||DUEL.phase==='fall')){DUEL.oppHp=0;duelEnd(true);}
-  else if(m.k==='reset'&&!DUEL.host)duelReset();
+  else if(m.k==='ready')DUEL.readyOpp=true;
 }
 function duelSendHp(now){DUEL.hpSendT-=now?99:0;const v=Math.max(0,Math.ceil(player.hp));if(v!==DUEL.lastHp||now){DUEL.lastHp=v;duelSend({k:'hp',v});}}
 // hitting the other player
@@ -11367,19 +11408,24 @@ XMOD_TICK.push(dt=>{
   if(!DUEL.on||!world||state==='title'||state==='loading')return;
   const u=duelUI();u.root.style.display='block';document.body.classList.add('duel-on');
   const opp=duelOpp();if(opp&&!DUEL.oppName)DUEL.oppName=opp.name||'';
-  document.body.classList.toggle('duel-hidehp',DUEL.phase!=='fight'&&DUEL.phase!=='end');
+  document.body.classList.toggle('duel-hidehp',DUEL.phase!=='fight'&&DUEL.phase!=='end'&&DUEL.phase!=='inter');
   let msg='';
   if(DUEL.phase==='wait'){
     msg=opp?'相手がそろいました。まもなく開始…':`相手を待っています（ルームコード ${MP.code}）`;u.count.textContent='';
-    if(DUEL.host&&opp){DUEL.goT+=dt;if(DUEL.goT>2){DUEL.goT=0;const r=DUEL.round+1;duelSend({k:'go',r});duelStartCount(r);}}else DUEL.goT=0;}
-  else if(DUEL.phase==='count'){DUEL.t-=dt;const n=Math.ceil(DUEL.t);u.count.textContent=n>0?String(n):'';msg=`第${DUEL.round}試合`;
+    if(DUEL.host&&opp){DUEL.goT+=dt;if(DUEL.goT>2){DUEL.goT=0;duelNewMatch();duelSend({k:'go',r:1,nm:1});duelStartCount(1);}}else DUEL.goT=0;}
+  else if(DUEL.phase==='inter'){
+    // the round is over: once you stand on the ground (and the other player too), everyone goes back up for the next round
+    DUEL.interT-=dt;msg=DUEL.banner+(DUEL.interT>0?'':player.onGround?'　次の試合を準備中…':'　地面に降りてください');
+    if(DUEL.interT<=0&&player.onGround&&!DUEL.sentReady){DUEL.sentReady=true;if(DUEL.host)DUEL.readyMe=true;else duelSend({k:'ready'});}
+    if(DUEL.host&&DUEL.readyMe&&DUEL.readyOpp&&opp){const r=DUEL.round+1;duelSend({k:'go',r});duelReset();duelStartCount(r);}}
+  else if(DUEL.phase==='count'){DUEL.t-=dt;const n=Math.ceil(DUEL.t);u.count.textContent=n>0?String(n):'';msg=`3本勝負　第${DUEL.round}試合（${DUEL.me} − ${DUEL.opp}）`;
     if(n!==DUEL.lastN){DUEL.lastN=n;if(n>0)sfx.click&&sfx.click();}
     if(DUEL.t<=0){DUEL.phase='fall';u.count.textContent='スタート！';setTimeout(()=>{if(u.count.textContent==='スタート！')u.count.textContent='';},900);sfx.levelUp&&sfx.levelUp();}}
   else if(DUEL.phase==='fall'){msg='';if(player.onGround||player.inWater){DUEL.phase='fight';DUEL.landed=true;duelSendHp(true);renderStats();}}
   else if(DUEL.phase==='fight'){DUEL.hpSendT-=dt;if(DUEL.hpSendT<=0){DUEL.hpSendT=0.25;duelSendHp(false);}if(!opp)msg='相手との接続を待っています…';}
   if(u.msg._t!==msg){u.msg._t=msg;u.msg.textContent=msg;u.msg.style.display=msg?'block':'none';}
   // both health bars, once you are on the ground
-  const show=DUEL.phase==='fight'||DUEL.phase==='end';u.vs.style.display=show?'flex':'none';
+  const show=DUEL.phase==='fight'||DUEL.phase==='end'||DUEL.phase==='inter';u.vs.style.display=show?'flex':'none';
   if(show){const me=Math.max(0,Math.ceil(player.hp)),op=Math.ceil(DUEL.oppHp),key=me+'/'+op+'/'+DUEL.oppName+DUEL.me+DUEL.opp;
     if(u.vs._k!==key){u.vs._k=key;u.vs.innerHTML=`<span>${myName()}</span><div class="bar"><div style="width:${me/20*100}%"></div></div><b>${me}</b><span style="color:#ffd23a">${DUEL.me} − ${DUEL.opp}</span><b>${op}</b><div class="bar"><div style="width:${op/20*100}%;margin-left:auto"></div></div><span>${(DUEL.oppName||'相手').replace(/</g,'&lt;')}</span>`;}}
 });
@@ -11400,6 +11446,290 @@ XMOD_TICK.push(dt=>{
     addChat('','1v1ルームコード: '+code+'（相手に伝えてください）',true);
   };
 })();
+
+// ================================================================ 1v1: the castle around the arena, drawn as one detailed mesh (not blocks)
+// Round towers on battered bases with corbelled parapets and slate spires, a curtain wall with a covered wall-walk,
+// machicolations and arrow slits, stepped stands with wooden benches and aisles, two gatehouses (portcullis on the arena
+// side, a lowered drawbridge on the sea side), a royal box under a striped canopy, hanging banners and flags.
+// It lies wholly outside the barrier, so it is scenery only. All textures are our own, painted here.
+MODHOOK.tex.push(()=>{
+  const ashlar=(name,seed,base,o={})=>{const rr=mulberry32(seed),J=[],TN=[],ch=o.course||4,mort=o.mortar||[118,111,100];
+    for(let row=0;row<16/ch;row++){const js=[];let x=(rr()*6)|0;while(x<16){js.push(x);x+=(o.min||5)+((rr()*(o.var||5))|0);}J.push(js);
+      const tn=[];for(let k=0;k<9;k++)tn.push(0.85+rr()*0.25);TN.push(tn);}
+    P(name,(x,y,r)=>{const row=(y/ch)|0,iy=y%ch;if(iy===ch-1||J[row].includes(x))return nz(mort,r,10);
+      let k=0;for(const j of J[row])if(x>j)k++;if(k===J[row].length)k=0;let t=TN[row][k];
+      if(iy===0)t*=1.07;else if(iy===ch-2)t*=0.94;
+      const n=(r()-0.5)*(o.noise||12);let c=[base[0]*t+n,base[1]*t+n,base[2]*t+n];
+      if(o.streak&&hash3(x,0,seed,77)<0.22)c=sh(c,0.84+0.1*(y/16));
+      if(o.moss&&r()<o.moss*(0.3+y/16))c=[c[0]*0.72,c[1]*0.86,c[2]*0.6];
+      return c;});};
+  ashlar('CA_A',611,[178,170,154]);ashlar('CA_B',612,[170,163,149]);ashlar('CA_C',613,[183,174,157],{streak:1});
+  ashlar('CA_D',614,[158,151,139],{streak:1});ashlar('CA_LOW',615,[130,128,114],{moss:0.55,mortar:[94,92,82]});
+  ashlar('CA_PALE',616,[202,194,176],{course:8,min:7,var:6,noise:8,mortar:[152,144,130]});
+  ashlar('CA_FLAGS',617,[148,144,136],{course:8,min:5,var:7,noise:14,mortar:[102,98,92]});
+  P('CA_DARK',(x,y,r)=>nz([18+y*0.7,16+y*0.7,20+y*0.7],r,5));
+  P('CA_SLATE',(x,y,r)=>{const row=y>>2,iy=y&3,sx=x+(row&1)*2;if(iy===3)return nz([36,40,50],r,6);
+    const v=hash3(sx>>2,row,0,618),t=0.8+v*0.32,n=(r()-0.5)*8;let c=[72*t+n,80*t+n,95*t+n];
+    if((sx&3)===0)c=sh(c,0.78);if(iy===0)c=sh(c,1.1);if(v>0.92)c=[c[0]*1.12,c[1]*1.06,c[2]*0.94];return c;});
+  P('CA_COPPER',(x,y,r)=>r()<0.2?[66,116,100]:nz([96,160,138],r,18));
+  P('CA_WOOD',(x,y,r)=>{if((x&3)===3)return nz([56,40,28],r,6);const g=Math.sin((y+hash3(x>>2,0,0,619)*16)*0.9)*6;return nz([116+g,84+g,56+g*0.6],r,8);});
+  P('CA_IRON',(x,y,r)=>nz([50,50,55],r,10));
+  const GOLDC=[226,180,58],SILV=[228,230,234];
+  const cloth=(name,c,draw)=>P(name,(x,y,r)=>{const w=((x+y)&1)?1.03:0.97,f=0.93+0.07*Math.sin(x*0.8);const b=(draw&&draw(x,y))||c;return nz([b[0]*w*f,b[1]*w*f,b[2]*w*f],r,6);});
+  cloth('CA_RED',[164,30,34]);cloth('CA_BLUE',[34,58,142]);cloth('CA_PURPLE',[92,38,118]);cloth('CA_GOLD',[208,164,48]);cloth('CA_WHITE',[226,222,208]);
+  // emblems (our own): a sun for the red side, a crescent moon and stars for the blue side, a crown for the royal box
+  cloth('CA_EMB_R',[164,30,34],(x,y)=>{const dx=x-7.5,dy=y-7.5,d=Math.hypot(dx,dy),a=Math.atan2(dy,dx);if(d<3.4)return GOLDC;if(d<6.8&&d>4.3&&Math.abs(((a/(Math.PI*2)*8)%1+1)%1-0.5)>0.34)return GOLDC;return null;});
+  cloth('CA_EMB_B',[34,58,142],(x,y)=>{const d1=Math.hypot(x-7.5,y-7.5),d2=Math.hypot(x-9.8,y-6.2);if(d1<5.4&&d2>4.4)return SILV;if((x===12&&y===11)||(x===3&&y===3)||(x===12&&y===3)||(x===11&&y===12)||(x===13&&y===11)||(x===12&&y===10))return SILV;return null;});
+  cloth('CA_EMB_P',[92,38,118],(x,y)=>{if(y>=10&&y<=11&&x>=3&&x<=12)return GOLDC;if(y>=8&&y<10&&x>=3&&x<=12)return GOLDC;
+    if(y>=5&&y<8&&x>=3&&x<=12&&[3.5,7.5,11.5].some(px=>Math.abs(x-px)<=(8-y)*0.5+0.6))return GOLDC;if(y===12&&x>=4&&x<=11&&(x&1))return [196,40,48];return null;});
+  P('CA_FRINGE',(x,y,r)=>{if(y<4)return nz(GOLDC,r,14);if((x&1)===0&&y<15-((x>>1)&1)*2)return nz(sh(GOLDC,0.95-y*0.02),r,10);return CLEAR;});
+  const scal=(name,c)=>P(name,(x,y,r)=>{const cx=(x&7)-3.5;if(y===1)return nz(GOLDC,r,10);if(y<6||y<6+Math.sqrt(Math.max(0,19-cx*cx)))return nz(c,r,8);return CLEAR;});
+  scal('CA_SCAL_P',[92,38,118]);scal('CA_SCAL_Y',[208,164,48]);
+});
+
+const CAS={mesh:null,tris:0,G:40,WT:60};
+// ---- low-level: one textured quad (corners bottom-left, bottom-right, top-right, top-left; v=0 is the tile's top row)
+function caQ(p,t,uv,ao,bl){const M=CAS.buf;M.ensure(4);const b=M.nv,u0=uv[0],v0=uv[1],u1=uv[2],v1=uv[3];const A=Array.isArray(ao)?ao:[ao,ao,ao,ao];
+  M.vert(p[0][0],p[0][1],p[0][2],t,u0,v1,A[0],1,bl||0);M.vert(p[1][0],p[1][1],p[1][2],t,u1,v1,A[1],1,bl||0);
+  M.vert(p[2][0],p[2][1],p[2][2],t,u1,v0,A[2],1,bl||0);M.vert(p[3][0],p[3][1],p[3][2],t,u0,v0,A[3],1,bl||0);
+  // file the quad under one of 16 slices round the arena, so that slices off screen are not drawn
+  const sc=Math.min(15,Math.floor((Math.atan2(p[0][2]+p[2][2],p[0][0]+p[2][0])+Math.PI)/(Math.PI*2)*16)),S=CAS.sec[sc];
+  S.i.push(b,b+1,b+2,b,b+2,b+3);for(const q of p){if(q[0]<S.b[0])S.b[0]=q[0];if(q[1]<S.b[1])S.b[1]=q[1];if(q[2]<S.b[2])S.b[2]=q[2];if(q[0]>S.b[3])S.b[3]=q[0];if(q[1]>S.b[4])S.b[4]=q[1];if(q[2]>S.b[5])S.b[5]=q[2];}}
+function caTri(a,b,c,t,ao){caQ([a,b,c,c],t,[0,0,1,1],ao==null?1:ao);}
+function caStone(i,j,s){const L=[T.CA_A,T.CA_B,T.CA_C,T.CA_A,T.CA_D,T.CA_B,T.CA_C];return L[(hash3(i,j,s|0,620)*L.length)|0];}
+// a flat rectangle cut into cells of ts metres: o = bottom-left corner, U along the width, V "up" along the height
+function caPlane(o,U,V,w,h,ts,tile,ao,seed){if(w<=1e-4||h<=1e-4)return;
+  const nx=Math.max(1,Math.ceil(w/ts-1e-6)),ny=Math.max(1,Math.ceil(h/ts-1e-6)),P=(x,y)=>[o[0]+U[0]*x+V[0]*y,o[1]+U[1]*x+V[1]*y,o[2]+U[2]*x+V[2]*y];
+  for(let j=0;j<ny;j++){const y0=j*ts,y1=Math.min(h,(j+1)*ts);
+    for(let i=0;i<nx;i++){const x0=i*ts,x1=Math.min(w,(i+1)*ts);const t=typeof tile==='function'?tile(i+(seed||0)*7,j):tile;
+      const a=typeof ao==='function'?[ao(y0),ao(y0),ao(y1),ao(y1)]:(ao==null?1:ao);
+      caQ([P(x0,y0),P(x1,y0),P(x1,y1),P(x0,y1)],t,[0,0,(x1-x0)/ts,(y1-y0)/ts],a);}}}
+// a surface of revolution round (cx,cz) between angles a0..a1; prof = [[radius,y],...] from the bottom up
+function caRev(cx,cz,prof,a0,a1,tile,o={}){const ts=o.ts||2,rmax=Math.max(...prof.map(p=>p[0]));
+  const segs=o.segs||Math.max(3,Math.ceil(rmax*Math.abs(a1-a0)/ts));
+  for(let s=0;s<segs;s++){const aa=a0+(a1-a0)*s/segs,ab=a0+(a1-a0)*(s+1)/segs,ca=Math.cos(aa),sa=Math.sin(aa),cb=Math.cos(ab),sb=Math.sin(ab);
+    for(let k=0;k<prof.length-1;k++){const[r0,y0]=prof[k],[r1,y1]=prof[k+1];const t=typeof tile==='function'?tile(s,k):tile;
+      const len=Math.hypot(r1-r0,y1-y0),u=Math.min(1,Math.max(r0,r1)*Math.abs(ab-aa)/ts);
+      const a=o.ao?(typeof o.ao==='function'?[o.ao(y0),o.ao(y0),o.ao(y1),o.ao(y1)]:o.ao):1;
+      caQ([[cx+ca*r0,y0,cz+sa*r0],[cx+cb*r0,y0,cz+sb*r0],[cx+cb*r1,y1,cz+sb*r1],[cx+ca*r1,y1,cz+sa*r1]],t,[0,0,u,Math.min(1,len/ts)],a);}}}
+// rows of a straight wall profile every ts metres (r may lean from r0 at y0 to r1 at y1)
+function caRows(r0,r1,y0,y1,ts){const n=Math.max(1,Math.ceil((y1-y0)/ts-1e-6)),out=[];for(let k=0;k<=n;k++){const y=Math.min(y1,y0+k*ts);out.push([r0+(r1-r0)*(y-y0)/(y1-y0),y]);}return out;}
+// a flat ring at height y (r0 may be 0: a disc)
+function caAnn(cx,cz,r0,r1,y,a0,a1,tile,o={}){const ts=o.ts||2,segs=o.segs||Math.max(3,Math.ceil(r1*Math.abs(a1-a0)/ts)),nr=Math.max(1,Math.ceil((r1-r0)/ts-1e-6));
+  for(let s=0;s<segs;s++){const aa=a0+(a1-a0)*s/segs,ab=a0+(a1-a0)*(s+1)/segs,ca=Math.cos(aa),sa=Math.sin(aa),cb=Math.cos(ab),sb=Math.sin(ab);
+    for(let k=0;k<nr;k++){const ra=r0+(r1-r0)*k/nr,rb=r0+(r1-r0)*(k+1)/nr;const t=typeof tile==='function'?tile(s,k):tile;
+      caQ([[cx+ca*ra,y,cz+sa*ra],[cx+cb*ra,y,cz+sb*ra],[cx+cb*rb,y,cz+sb*rb],[cx+ca*rb,y,cz+sa*rb]],t,[0,0,Math.min(1,rb*Math.abs(ab-aa)/ts),Math.min(1,(rb-ra)/ts)],o.ao==null?1:o.ao);}}}
+// a box in the frame of angle a about (ox,oz): r runs outward along the radius, t along the tangent
+function caFrame(a,ox,oz){const ca=Math.cos(a),sa=Math.sin(a);return{P:(r,t,y)=>[(ox||0)+ca*r-sa*t,y,(oz||0)+sa*r+ca*t],R:[ca,0,sa],Tn:[-sa,0,ca],Up:[0,1,0]};}
+function caBox(F,r0,r1,t0,t1,y0,y1,tile,o={}){const ts=o.ts||1,top=o.top||tile,ao=o.ao==null?1:o.ao;
+  caPlane(F.P(r0,t0,y0),F.Tn,F.Up,t1-t0,y1-y0,ts,tile,ao);caPlane(F.P(r1,t0,y0),F.Tn,F.Up,t1-t0,y1-y0,ts,tile,ao);
+  caPlane(F.P(r0,t0,y0),F.R,F.Up,r1-r0,y1-y0,ts,tile,ao);caPlane(F.P(r0,t1,y0),F.R,F.Up,r1-r0,y1-y0,ts,tile,ao);
+  if(!o.noTop)caPlane(F.P(r0,t0,y1),F.Tn,F.R,t1-t0,r1-r0,ts,top,o.topAo==null?1:o.topAo);
+  if(o.bottom)caPlane(F.P(r0,t0,y0),F.Tn,F.R,t1-t0,r1-r0,ts,o.bottom,0.55);}
+// two crossed quads (lanterns, chains)
+function caCross(x,y,z,s,h,tile,bl){const k=s*0.5/Math.SQRT2;for(const[dx,dz]of[[1,1],[1,-1]])caQ([[x-dx*k,y,z-dz*k],[x+dx*k,y,z+dz*k],[x+dx*k,y+h,z+dz*k],[x-dx*k,y+h,z-dz*k]],tile,[0,0,1,1],1,bl||0);}
+// cloth: a grid hung from its top edge; o = top-left corner, U across, D down, N the side it billows toward
+function caCloth(o,U,D,N,w,len,tile,o2={}){const nx=Math.max(1,Math.round(w/(o2.cell||1))),ny=Math.max(1,Math.round(len/(o2.cell||1))),amp=o2.amp==null?0.12:o2.amp,ph=o2.ph||0;
+  const P=(i,j)=>{const x=w*i/nx,y=len*j/ny,dsp=amp*Math.sin(x*1.9+y*0.45+ph)*Math.min(1,(o2.flag?x:y)/1.5);
+    return[o[0]+U[0]*x+D[0]*y+N[0]*dsp,o[1]+U[1]*x+D[1]*y+N[1]*dsp,o[2]+U[2]*x+D[2]*y+N[2]*dsp];};
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const t=typeof tile==='function'?tile(i,j,nx,ny):tile;caQ([P(i,j+1),P(i+1,j+1),P(i+1,j),P(i,j)],t,[0,0,1,1],o2.ao==null?1:o2.ao);}
+  return P;}
+
+// ---- the castle
+const CAS_TOW=[];for(let k=0;k<8;k++){const a=(k+0.5)*Math.PI/4;CAS_TOW.push({a,x:Math.cos(a)*47,z:Math.sin(a)*47,roof:k===0||k===3||k===4||k===7});}
+function casTeam(cosA){return cosA<0?{cloth:T.CA_RED,emb:T.CA_EMB_R}:{cloth:T.CA_BLUE,emb:T.CA_EMB_B};}
+function buildCastleMesh(){
+  if(!CAS.buf)CAS.buf=new MeshBuf(60000);CAS.buf.reset();CAS.sec=[];for(let k=0;k<16;k++)CAS.sec.push({i:[],b:[1e9,1e9,1e9,-1e9,-1e9,-1e9],o:0,n:0});
+  const G=AR.G,WT=G+20,TT=G+28,TAU=Math.PI*2;CAS.G=G;CAS.WT=WT;
+  const gateHalf=0.135,royHalf=0.17;   // angular half-widths of the gaps in the stands
+  const inGap=a=>{a=((a%TAU)+TAU)%TAU;const d=x=>Math.abs(((a-x)%TAU+TAU*1.5)%TAU-Math.PI);return d(0)<gateHalf||d(Math.PI)<gateHalf||d(Math.PI/2)<royHalf||d(Math.PI*1.5)<royHalf;};
+  const arcs=[[gateHalf,Math.PI/2-royHalf],[Math.PI/2+royHalf,Math.PI-gateHalf],[Math.PI+gateHalf,Math.PI*1.5-royHalf],[Math.PI*1.5+royHalf,TAU-gateHalf]];
+  const stoneF=s=>(i,j)=>caStone(i,j,s);
+  // ================= stands: a front parapet over the moat, six tiers with benches, aisles every 22.5°
+  const TR=i=>38.6+i,TY=i=>G+0.45+0.8*i;
+  for(const[a0,a1]of arcs){
+    caRev(0,0,[[38.0,G-1.6],[38.0,TY(0)+0.85]],a0,a1,stoneF(1),{ts:1.5});                    // front face of the parapet
+    caAnn(0,0,37.9,38.7,TY(0)+0.85,a0,a1,T.CA_PALE,{ts:1});caRev(0,0,[[37.9,TY(0)+0.65],[37.9,TY(0)+0.85]],a0,a1,T.CA_PALE,{ts:1});
+    caRev(0,0,[[38.7,TY(0)],[38.7,TY(0)+0.85]],a0,a1,stoneF(2),{ts:1});
+    for(let i=0;i<6;i++){
+      if(i>0)caRev(0,0,[[TR(i),TY(i-1)],[TR(i),TY(i)]],a0,a1,stoneF(3+i),{ts:1,ao:y=>y<=TY(i-1)+0.01?0.78:1});   // riser
+      caAnn(0,0,i===0?38.7:TR(i),TR(i)+1,TY(i),a0,a1,T.CA_FLAGS,{ts:1.4,ao:0.96});                          // tread
+      // benches between the aisles
+      const na=Math.max(1,Math.round((a1-a0)/(Math.PI/8)));
+      for(let s=0;s<na;s++){const b0=a0+(a1-a0)*s/na,b1=a0+(a1-a0)*(s+1)/na,gap=0.75/TR(i);
+        const c0=b0+(s===0?0.02:gap),c1=b1-(s===na-1?0.02:gap),rb0=TR(i)+0.42,rb1=TR(i)+0.86;
+        caAnn(0,0,rb0,rb1,TY(i)+0.46,c0,c1,T.CA_WOOD,{ts:1});caRev(0,0,[[rb0,TY(i)+0.34],[rb0,TY(i)+0.46]],c0,c1,T.CA_WOOD,{ts:1,ao:0.8});
+        caRev(0,0,[[rb0+0.1,TY(i)],[rb0+0.1,TY(i)+0.34]],c0,c1,T.CA_DARK,{ts:1,segs:Math.max(2,Math.round((c1-c0)*TR(i)/3))});
+        // a half step in the aisle at the end of each bench run
+        if(s<na-1&&i<5){const F=caFrame(b1);caBox(F,TR(i)+0.5,TR(i)+1,-0.62,0.62,TY(i),TY(i)+0.4,T.CA_FLAGS,{ts:1});}}
+    }
+    // lanterns on short posts along the parapet
+    const nl=Math.round((a1-a0)/(Math.PI/18));for(let s=1;s<nl;s++){const a=a0+(a1-a0)*s/nl,F=caFrame(a);caBox(F,38.1,38.5,-0.2,0.2,TY(0)+0.85,TY(0)+1.35,T.CA_PALE);
+      const p=F.P(38.3,0,TY(0)+1.35);caCross(p[0],p[1],p[2],0.6,0.6,T.LANTERN,1);}
+    // end walls where the stands stop (at the gates and the royal box)
+    for(const[ae,sg]of[[a0,-1],[a1,1]]){const F=caFrame(ae);caBox(F,38.0,44.4,sg>0?0:-0.7,sg>0?0.7:0,G-1,G+5.3,stoneF(9),{ts:1.5,top:T.CA_PALE});
+      const p=F.P(38.35,sg*0.35,G+5.3);caCross(p[0],p[1],p[2],0.6,0.6,T.LANTERN,1);}
+  }
+  // ================= the curtain wall (inner face 44.4, outer face 48.4, wall-walk at WT)
+  const ao_in=y=>y<G+5.2?0.72:y<G+6?0.86:1;
+  caRev(0,0,caRows(44.4,44.4,G+4.2,WT+1.1,2),0,TAU,stoneF(11),{ao:ao_in});                              // inner face (+ inner parapet)
+  caAnn(0,0,44.25,45.05,WT+1.25,0,TAU,T.CA_PALE,{ts:1});caRev(0,0,[[44.25,WT+1.05],[44.25,WT+1.25]],0,TAU,T.CA_PALE,{ts:1});
+  caRev(0,0,[[44.9,WT],[44.9,WT+1.05]],0,TAU,stoneF(12),{ts:1.2});
+  caAnn(0,0,44.9,47.9,WT,0,TAU,T.CA_FLAGS,{ts:1.5});                                                       // wall-walk
+  caRev(0,0,[[47.9,WT],[47.9,WT+1.6]],0,TAU,stoneF(13),{ts:1.6,ao:y=>y<=WT+0.01?0.8:1});                   // inside of the outer parapet
+  // outer face: a battered (sloping) base rising out of the sea, then straight up to the overhanging parapet
+  caRev(0,0,caRows(49.8,48.4,G-10,G+2,2),0,TAU,(s,k)=>k<4?T.CA_LOW:caStone(s,k,14),{});
+  caRev(0,0,caRows(48.4,48.4,G+2,WT-2.4,2),0,TAU,stoneF(15),{});
+  caRev(0,0,caRows(48.9,48.9,WT-1.2,WT+1.6,1.4),0,TAU,stoneF(16),{ts:1.4});
+  caAnn(0,0,48.4,48.9,WT-1.2,0,TAU,T.CA_DARK,{ts:1,ao:0.6});                                               // machicolation slots, seen from below
+  caAnn(0,0,47.9,48.95,WT+1.6,0,TAU,T.CA_PALE,{ts:1});                                                       // crenel sills
+  {const n=Math.round(TAU*48.4/1.6);for(let s=0;s<n;s++){const F=caFrame(TAU*(s+0.5)/n);                 // corbels under the parapet
+      caBox(F,48.4,48.62,-0.22,0.22,WT-2.4,WT-1.8,T.CA_PALE,{bottom:T.CA_PALE});caBox(F,48.4,48.9,-0.25,0.25,WT-1.8,WT-1.2,T.CA_PALE,{noTop:true,bottom:T.CA_PALE});}}
+  {const n=Math.round(TAU*48.4/2.3);for(let s=0;s<n;s++){const a=TAU*(s+0.5)/n,F=caFrame(a);               // merlons with a slit in every other one
+      caBox(F,47.9,48.9,-0.7,0.7,WT+1.6,WT+3.0,(i,j)=>caStone(s,i+j,17),{ts:1.4,top:T.CA_PALE});
+      if(s&1)caQ([F.P(48.92,-0.1,WT+1.9),F.P(48.92,0.1,WT+1.9),F.P(48.92,0.1,WT+2.7),F.P(48.92,-0.1,WT+2.7)],T.CA_DARK,[0,0,1,1],1);}}
+  // string courses
+  for(const y of[G+11,G+16.5]){caRev(0,0,[[44.25,y],[44.25,y+0.35]],0,TAU,T.CA_PALE,{ts:1});caAnn(0,0,44.25,44.4,y+0.35,0,TAU,T.CA_PALE,{ts:1});caAnn(0,0,44.25,44.4,y,0,TAU,T.CA_PALE,{ts:1,ao:0.7});}
+  caRev(0,0,[[48.55,G+9],[48.55,G+9.35]],0,TAU,T.CA_PALE,{ts:1});caAnn(0,0,48.4,48.55,G+9.35,0,TAU,T.CA_PALE,{ts:1});
+  // arrow slits on both faces (with a dressed-stone surround)
+  const nearTower=(a,rr,m)=>CAS_TOW.some(t=>Math.hypot(Math.cos(a)*rr-t.x,Math.sin(a)*rr-t.z)<5.2+m);
+  const slit=(F,r,y,h,inward)=>{const k=inward?-0.012:0.012;
+    caQ([F.P(r+k,-0.33,y-0.25),F.P(r+k,0.33,y-0.25),F.P(r+k,0.33,y+h+0.25),F.P(r+k,-0.33,y+h+0.25)],T.CA_PALE,[0,0,0.66,1],1);
+    caQ([F.P(r+2*k,-0.11,y),F.P(r+2*k,0.11,y),F.P(r+2*k,0.11,y+h),F.P(r+2*k,-0.11,y+h)],T.CA_DARK,[0,0,0.22,1],1);};
+  for(let s=0;s<48;s++){const a=TAU*(s+0.5)/48,F=caFrame(a);
+    if(!nearTower(a,44.4,1.2)&&!inGap(a)&&Math.abs(((a/TAU*16-0.5)%1+1)%1-0.5)>0.12){slit(F,44.4,G+7.4,1.5,true);slit(F,44.4,G+13,1.5,true);}
+    if(!nearTower(a,48.4,1.2)&&Math.abs(Math.cos(a))<0.985)slit(F,48.4,G+12,1.6,false);}
+  // ================= towers
+  for(const tw of CAS_TOW){const cx=tw.x,cz=tw.z,team=casTeam(Math.cos(tw.a));
+    caRev(cx,cz,caRows(6.1,5.2,G-10,G+3,2),0,TAU,(s,k)=>k<4?T.CA_LOW:caStone(s,k,21),{segs:30});
+    caRev(cx,cz,caRows(5.2,5.2,G+3,TT-2.2,2),0,TAU,(s,k)=>caStone(s,k,22),{segs:28});
+    for(const y of[G+12,G+21]){caRev(cx,cz,[[5.36,y],[5.36,y+0.35]],0,TAU,T.CA_PALE,{segs:28,ts:1.3});caAnn(cx,cz,5.2,5.36,y+0.35,0,TAU,T.CA_PALE,{segs:28});caAnn(cx,cz,5.2,5.36,y,0,TAU,T.CA_PALE,{segs:28,ao:0.7});}
+    // arched windows, four to a floor, turned so that one looks at the arena
+    for(const[y,n]of[[G+8,4],[G+16.5,4],[G+24,4]])for(let w=0;w<n;w++){const la=tw.a+Math.PI+w*TAU/n+(y>G+20?Math.PI/4:0),F=caFrame(la,cx,cz),r=5.22;
+      caQ([F.P(r,-0.62,y-0.35),F.P(r,0.62,y-0.35),F.P(r,0.62,y+1.6),F.P(r,-0.62,y+1.6)],T.CA_PALE,[0,0,1,1],1);
+      for(let q=0;q<6;q++){const b0=Math.PI*q/6,b1=Math.PI*(q+1)/6;caTri(F.P(r,0,y+1.6),F.P(r,Math.cos(b0)*0.62,y+1.6+Math.sin(b0)*0.62),F.P(r,Math.cos(b1)*0.62,y+1.6+Math.sin(b1)*0.62),T.CA_PALE);
+        caTri(F.P(r+0.012,0,y+1.6),F.P(r+0.012,Math.cos(b0)*0.36,y+1.6+Math.sin(b0)*0.36),F.P(r+0.012,Math.cos(b1)*0.36,y+1.6+Math.sin(b1)*0.36),T.CA_DARK);}
+      caQ([F.P(r+0.012,-0.36,y),F.P(r+0.012,0.36,y),F.P(r+0.012,0.36,y+1.6),F.P(r+0.012,-0.36,y+1.6)],T.CA_DARK,[0,0,0.72,1],1);
+      caBox(F,5.15,5.45,-0.5,0.5,y-0.32,y-0.12,T.CA_PALE,{bottom:T.CA_PALE});}
+    // corbels and the overhanging parapet
+    for(let s=0;s<22;s++){const F=caFrame(TAU*(s+0.5)/22,cx,cz);caBox(F,5.2,5.48,-0.22,0.22,TT-2.2,TT-1.7,T.CA_PALE,{bottom:T.CA_PALE});caBox(F,5.2,5.78,-0.26,0.26,TT-1.7,TT-1.2,T.CA_PALE,{noTop:true,bottom:T.CA_PALE});}
+    caAnn(cx,cz,5.2,5.78,TT-1.2,0,TAU,T.CA_DARK,{segs:28,ao:0.6});
+    caRev(cx,cz,caRows(5.78,5.78,TT-1.2,TT+0.8,1),0,TAU,(s,k)=>caStone(s,k,23),{segs:30,ts:1.3});
+    if(tw.roof){ // a slate spire with flared eaves, a copper finial and a pennant
+      const base=TT+0.8,Hh=13.5,R0=6.35,prof=[];for(let k=0;k<=10;k++){const f=k/10,t=1-Math.pow(1-f,1.15);prof.push([Math.max(0.05,R0*Math.pow(1-t,1.3)),base+Hh*t]);}
+      caAnn(cx,cz,5.78,R0,base,0,TAU,T.CA_DARK,{segs:30,ao:0.55});caRev(cx,cz,prof,0,TAU,T.CA_SLATE,{segs:30,ts:1.6});
+      for(let k=1;k<4;k++){const F=caFrame(tw.a+Math.PI+(k-2)*0.75,cx,cz),pr=prof[2];   // three little dormers on the arena side
+        const dr=R0*Math.pow(1-(1-Math.pow(1-0.25,1.15)),1.3)+0.3;caBox(F,dr-1.0,dr,-0.5,0.5,base+2.2,base+3.4,T.CA_PALE,{noTop:true});
+        caQ([F.P(dr+0.01,-0.28,base+2.35),F.P(dr+0.01,0.28,base+2.35),F.P(dr+0.01,0.28,base+3.15),F.P(dr+0.01,-0.28,base+3.15)],T.CA_DARK,[0,0,1,1],1);
+        caTri(F.P(dr,-0.62,base+3.4),F.P(dr,0.62,base+3.4),F.P(dr,0,base+4.2),T.CA_SLATE);caTri(F.P(dr-1.1,-0.62,base+3.4),F.P(dr,-0.62,base+3.4),F.P(dr,0,base+4.2),T.CA_SLATE);caTri(F.P(dr-1.1,0.62,base+3.4),F.P(dr,0.62,base+3.4),F.P(dr,0,base+4.2),T.CA_SLATE);void pr;}
+      const ap=base+Hh;caRev(cx,cz,[[0.12,ap-0.6],[0.12,ap+2.6]],0,TAU,T.CA_IRON,{segs:6,ts:1});
+      caRev(cx,cz,[[0.05,ap+0.2],[0.32,ap+0.5],[0.32,ap+0.8],[0.05,ap+1.1]],0,TAU,T.CA_COPPER,{segs:8,ts:1});
+      const F=caFrame(tw.a,cx,cz);caCloth(F.P(0.1,0,ap+2.5),F.Tn,[0,-1,0],F.R,2.6,0.9,team.cloth,{flag:true,amp:0.22,ph:tw.a*3,cell:0.65});
+    }else{ // open top: merlons, a floor, a flagpole with the side's flag
+      caRev(cx,cz,[[5.28,TT],[5.28,TT+0.8]],0,TAU,(s,k)=>caStone(s,k,24),{segs:28,ts:1});caAnn(cx,cz,0,5.28,TT,0,TAU,T.CA_FLAGS,{segs:20,ts:2});
+      caAnn(cx,cz,5.28,5.78,TT+0.8,0,TAU,T.CA_PALE,{segs:30});
+      for(let s=0;s<12;s++){const F=caFrame(TAU*(s+0.25)/12,cx,cz);caBox(F,5.28,5.78,-0.62,0.62,TT+0.8,TT+2.1,(i,j)=>caStone(s,i+j,25),{ts:1.3,top:T.CA_PALE});}
+      caRev(cx,cz,[[0.1,TT],[0.1,TT+9]],0,TAU,T.CA_WOOD,{segs:6,ts:1});caRev(cx,cz,[[0.04,TT+9],[0.22,TT+9.2],[0.04,TT+9.45]],0,TAU,T.CA_COPPER,{segs:6,ts:1});
+      const F=caFrame(tw.a,cx,cz);caCloth(F.P(0.1,0,TT+8.8),F.Tn,[0,-1,0],F.R,3.4,2.0,team.cloth,{flag:true,amp:0.3,ph:tw.a*5,cell:0.7});
+    }
+  }
+  // ================= gatehouses on the two players' sides
+  for(const ga of[0,Math.PI]){const F=caFrame(ga),team=casTeam(Math.cos(ga)),GT=G+25,rI=43.2,rO=49.6,hw=5.6,aw=2.3,spr=G+4.6,apx=spr+aw;
+    // faces with an arched opening: side panels, the panel over the arch, and the spandrels round it
+    for(const[rf,out]of[[rI,false],[rO,true]]){const y0=out?G-10:G-1,st=stoneF(out?31:32);
+      caPlane(F.P(rf,-hw,y0),F.Tn,F.Up,hw-aw,GT-y0,2,st,1);caPlane(F.P(rf,aw,y0),F.Tn,F.Up,hw-aw,GT-y0,2,st,1);
+      caPlane(F.P(rf,-aw,apx+0.6),F.Tn,F.Up,aw*2,GT-apx-0.6,2,st,1);
+      if(out)caPlane(F.P(rf,-aw,y0),F.Tn,F.Up,aw*2,G-1-y0,2,T.CA_LOW,1);
+      for(let q=0;q<10;q++){const b0=Math.PI*q/10,b1=Math.PI*(q+1)/10,p0=[Math.cos(b0)*aw,spr+Math.sin(b0)*aw],p1=[Math.cos(b1)*aw,spr+Math.sin(b1)*aw];
+        caQ([F.P(rf,p0[0],p0[1]),F.P(rf,p1[0],p1[1]),F.P(rf,p1[0],apx+0.6),F.P(rf,p0[0],apx+0.6)],T.CA_A,[0,0,0.3,0.3],1);
+        // voussoirs: a band of dressed stone round the arch, a little proud of the face
+        const k=out?0.03:-0.03,q0=[Math.cos(b0)*(aw+0.5),spr+Math.sin(b0)*(aw+0.5)],q1=[Math.cos(b1)*(aw+0.5),spr+Math.sin(b1)*(aw+0.5)];
+        caQ([F.P(rf+k,p0[0],p0[1]),F.P(rf+k,p1[0],p1[1]),F.P(rf+k,q1[0],q1[1]),F.P(rf+k,q0[0],q0[1])],T.CA_PALE,[0,0,0.5,0.5],1);}
+      const k=out?0.03:-0.03;for(const sg of[-1,1])caQ([F.P(rf+k,sg*aw,G),F.P(rf+k,sg*(aw+0.5),G),F.P(rf+k,sg*(aw+0.5),spr),F.P(rf+k,sg*aw,spr)],T.CA_PALE,[0,0,0.5,1],1);
+      caBox(F,rf+(out?-0.05:-0.25),rf+(out?0.25:0.05),-0.42,0.42,apx+0.15,apx+1.0,T.CA_PALE);   // keystone
+    }
+    // the passage: walls and a barrel vault, kept dark; a portcullis near the arena end
+    caPlane(F.P(rI,-aw,G),F.R,F.Up,rO-rI,spr-G,2,T.CA_D,0.5);caPlane(F.P(rI,aw,G),F.R,F.Up,rO-rI,spr-G,2,T.CA_D,0.5);caPlane(F.P(rI,-aw,G),F.R,F.Tn,rO-rI,aw*2,2,T.CA_FLAGS,0.45);
+    for(let q=0;q<8;q++){const b0=Math.PI*q/8,b1=Math.PI*(q+1)/8;caQ([F.P(rI,Math.cos(b0)*aw,spr+Math.sin(b0)*aw),F.P(rO,Math.cos(b0)*aw,spr+Math.sin(b0)*aw),F.P(rO,Math.cos(b1)*aw,spr+Math.sin(b1)*aw),F.P(rI,Math.cos(b1)*aw,spr+Math.sin(b1)*aw)],T.CA_D,[0,0,1,1],0.42);}
+    const pr=rI+0.9,cols=8;for(let i=0;i<cols;i++){const t0=-aw+aw*2*i/cols,t1=t0+aw*2/cols,tc=(t0+t1)/2,top=spr+Math.sqrt(Math.max(0,aw*aw-tc*tc))-0.05;
+      for(let y=G;y<top;y+=1){const y1=Math.min(top,y+1);caQ([F.P(pr,t0,y),F.P(pr,t1,y),F.P(pr,t1,y1),F.P(pr,t0,y1)],T.IRON_BARS,[0,0,(t1-t0),(y1-y)],0.8);}}
+    caPlane(F.P(rO-0.6,-aw,G),F.Tn,F.Up,aw*2,apx-G,2,T.CA_DARK,0.5);   // the far end of the passage, in shadow
+    // sides and top with battlements, corner turrets on corbels with slate caps
+    caPlane(F.P(rI,-hw,G-1),F.R,F.Up,rO-rI,GT-G+1,2,stoneF(33),1);caPlane(F.P(rI,hw,G-1),F.R,F.Up,rO-rI,GT-G+1,2,stoneF(33),1);
+    caPlane(F.P(rI,-hw,GT),F.R,F.Tn,rO-rI,hw*2,2,T.CA_FLAGS,1);
+    {const per=[];for(let t=-hw+0.2;t<hw-0.6;t+=2.1){per.push([rI,t,0]);per.push([rO,t,0]);}for(let r=rI+1.4;r<rO-1.2;r+=2.1){per.push([r,-hw,1]);per.push([r,hw,1]);}
+      for(const[r,t,side]of per){if(side)caBox(F,r,r+1.1,t>0?t-0.5:t,t>0?t:t+0.5,GT,GT+1.5,T.CA_B,{top:T.CA_PALE});else caBox(F,r<rO-1?r:r-0.5,r<rO-1?r+0.5:r,t,t+1.1,GT,GT+1.5,T.CA_B,{top:T.CA_PALE});}}
+    for(const[r,t]of[[rI,-hw],[rI,hw],[rO,-hw],[rO,hw]]){const p=F.P(r,t,0),tx=p[0],tz=p[2];
+      caRev(tx,tz,[[0.2,GT-7.5],[1.0,GT-6.8],[1.55,GT-5.6]],0,TAU,T.CA_PALE,{segs:14,ts:1});
+      caRev(tx,tz,caRows(1.6,1.6,GT-5.6,GT+2.2,2),0,TAU,(s,k)=>caStone(s,k,34),{segs:14});
+      for(let w=0;w<4;w++){const Fw=caFrame(ga+w*Math.PI/2+Math.PI/4,tx,tz);caQ([Fw.P(1.62,-0.12,GT-2.2),Fw.P(1.62,0.12,GT-2.2),Fw.P(1.62,0.12,GT-0.8),Fw.P(1.62,-0.12,GT-0.8)],T.CA_DARK,[0,0,0.24,1],1);}
+      const cp=[];for(let k=0;k<=6;k++){const f=k/6;cp.push([Math.max(0.04,1.95*Math.pow(1-f,1.25)),GT+2.2+5.2*f]);}caAnn(tx,tz,1.6,1.95,GT+2.2,0,TAU,T.CA_DARK,{segs:14,ao:0.55});caRev(tx,tz,cp,0,TAU,T.CA_SLATE,{segs:14,ts:1.4});
+      caRev(tx,tz,[[0.05,GT+7.3],[0.2,GT+7.55],[0.05,GT+7.8]],0,TAU,T.CA_COPPER,{segs:6,ts:1});}
+    // the side's great banner over the inner arch, hung from a rod, with its emblem and a gold fringe
+    {const top=GT-2.5,len=10,w=3.6,o=F.P(rI-0.14,-w/2,top);
+      caBox(F,rI-0.3,rI-0.05,-w/2-0.35,w/2+0.35,top,top+0.22,T.CA_WOOD);
+      const Pc=caCloth(o,F.Tn,[0,-1,0],[-F.R[0],0,-F.R[2]],w,len,team.cloth,{amp:0.1,ph:ga,cell:0.9});
+      const e=(x,y)=>{const p=Pc(x,y);return[p[0]-F.R[0]*0.03,p[1],p[2]-F.R[2]*0.03];};const nx=Math.max(1,Math.round(w/0.9)),ny=Math.max(1,Math.round(len/0.9));
+      const ex0=Math.round(nx*0.12),ex1=nx-ex0,ey0=Math.round(ny*0.25),ey1=ey0+Math.round((ex1-ex0)*w/nx/(len/ny));
+      caQ([e(ex0,ey1),e(ex1,ey1),e(ex1,ey0),e(ex0,ey0)],team.emb,[0,0,1,1],1);
+      {const b0=e(0,ny),b1=e(nx,ny);caQ([[b0[0],b0[1]-0.7,b0[2]],[b1[0],b1[1]-0.7,b1[2]],b1,b0],T.CA_FRINGE,[0,0,3,1],1);}}
+    // lanterns either side of the arch, and the drawbridge on the sea side with chains and a stone pier
+    for(const sg of[-1,1]){const p=F.P(rI-0.3,sg*(aw+1.1),G+3.2);caBox(F,rI-0.42,rI,sg*(aw+1.1)-0.12,sg*(aw+1.1)+0.12,G+3.0,G+3.2,T.CA_IRON);caCross(p[0],p[1],p[2],0.6,0.6,T.LANTERN,1);}
+    caBox(F,rO,rO+6.8,-aw+0.15,aw-0.15,G-0.75,G-0.4,T.CA_WOOD,{ts:1,bottom:T.CA_WOOD});
+    caBox(F,rO+6.6,rO+8.2,-aw-0.3,aw+0.3,G-9,G-0.75,(i,j)=>j<4?T.CA_LOW:T.CA_D,{ts:2,top:T.CA_FLAGS});
+    for(const sg of[-1,1]){const a=F.P(rO+0.05,sg*(aw-0.25),spr+1.6),b=F.P(rO+6.6,sg*(aw-0.25),G-0.4),up=[0,0.09,0],sd=[F.Tn[0]*0.09,0,F.Tn[2]*0.09];
+      caQ([[a[0]-up[0],a[1]-up[1],a[2]],[b[0],b[1]-0.09,b[2]],[b[0],b[1]+0.09,b[2]],[a[0],a[1]+0.09,a[2]]],T.CA_IRON,[0,0,0.2,1],1);
+      caQ([[a[0]-sd[0],a[1],a[2]-sd[2]],[b[0]-sd[0],b[1],b[2]-sd[2]],[b[0]+sd[0],b[1],b[2]+sd[2]],[a[0]+sd[0],a[1],a[2]+sd[2]]],T.CA_IRON,[0,0,0.2,1],1);}
+  }
+  // ================= the royal box (north and south): arcaded base, a gallery, columns, a striped canopy, two thrones
+  for(const ra of[Math.PI/2,-Math.PI/2]){const F=caFrame(ra),hw=6.9,fl=G+4.2,r0=38.0,r1=44.4;
+    caPlane(F.P(r0,-hw,G-1.6),F.Tn,F.Up,hw*2,fl-G+1.6,1.5,stoneF(41),1);
+    caPlane(F.P(r0,-hw,G-1),F.R,F.Up,r1-r0,fl-G+1,1.5,stoneF(42),1);caPlane(F.P(r0,hw,G-1),F.R,F.Up,r1-r0,fl-G+1,1.5,stoneF(42),1);
+    for(const tc of[-4.2,0,4.2]){const aw=1.25,sp=G+2.0,k=-0.015;caQ([F.P(r0+k,tc-aw,G),F.P(r0+k,tc+aw,G),F.P(r0+k,tc+aw,sp),F.P(r0+k,tc-aw,sp)],T.CA_DARK,[0,0,1,1],1);
+      for(let q=0;q<8;q++){const b0=Math.PI*q/8,b1=Math.PI*(q+1)/8;caTri(F.P(r0+k,tc,sp),F.P(r0+k,tc+Math.cos(b0)*aw,sp+Math.sin(b0)*aw),F.P(r0+k,tc+Math.cos(b1)*aw,sp+Math.sin(b1)*aw),T.CA_DARK);
+        caQ([F.P(r0+2*k,tc+Math.cos(b0)*aw,sp+Math.sin(b0)*aw),F.P(r0+2*k,tc+Math.cos(b1)*aw,sp+Math.sin(b1)*aw),F.P(r0+2*k,tc+Math.cos(b1)*(aw+0.32),sp+Math.sin(b1)*(aw+0.32)),F.P(r0+2*k,tc+Math.cos(b0)*(aw+0.32),sp+Math.sin(b0)*(aw+0.32))],T.CA_PALE,[0,0,0.4,0.4],1);}}
+    caBox(F,r0-0.12,r1,-hw-0.12,hw+0.12,fl-0.2,fl,T.CA_PALE,{top:T.CA_WOOD,ts:1});
+    caPlane(F.P(r0+0.4,-1.1,fl+0.005),F.Tn,F.R,2.2,r1-r0-0.4,1,T.CA_RED,1);                                   // a red carpet to the thrones
+    caBox(F,r0,r0+0.35,-hw,hw,fl,fl+1.0,T.CA_PALE,{ts:1});caBox(F,r0-0.05,r0+0.4,-hw-0.05,hw+0.05,fl+1.0,fl+1.12,T.GOLD_BLOCK,{ts:1});
+    for(let t=-hw+0.9;t<hw-0.6;t+=1.4)caQ([F.P(r0-0.012,t,fl+0.22),F.P(r0-0.012,t+0.9,fl+0.22),F.P(r0-0.012,t+0.9,fl+0.82),F.P(r0-0.012,t,fl+0.82)],T.CA_PURPLE,[0,0,0.9,0.6],1);
+    for(const tc of[-hw+0.4,-2.4,2.4,hw-0.4]){const p=F.P(r0+0.2,tc,0);caBox(F,r0,r0+0.42,tc-0.22,tc+0.22,fl+1.12,fl+1.35,T.CA_PALE);
+      caRev(p[0],p[2],[[0.2,fl+1.35],[0.2,fl+5.4]],0,TAU,T.CA_PALE,{segs:8,ts:1.4});caBox(F,r0,r0+0.42,tc-0.24,tc+0.24,fl+5.4,fl+5.7,T.GOLD_BLOCK);}
+    // canopy: stripes of purple and gold, sloping back to the wall, with a scalloped valance and gold finials
+    {const fy=fl+5.75,by=fl+7.3,n=16;for(let i=0;i<n;i++){const t0=-hw-0.3+(hw*2+0.6)*i/n,t1=-hw-0.3+(hw*2+0.6)*(i+1)/n,tl=(i&1)?T.CA_GOLD:T.CA_PURPLE;
+        caQ([F.P(r0-0.3,t0,fy),F.P(r0-0.3,t1,fy),F.P(r1,t1,by),F.P(r1,t0,by)],tl,[0,0,1,1],0.92);
+        caQ([F.P(r0-0.31,t0,fy-0.75),F.P(r0-0.31,t1,fy-0.75),F.P(r0-0.31,t1,fy),F.P(r0-0.31,t0,fy)],(i&1)?T.CA_SCAL_Y:T.CA_SCAL_P,[0,0,1,0.75],1);}
+      for(const sg of[-1,1]){const p=F.P(r0-0.3,sg*(hw+0.3),fy);caRev(p[0],p[2],[[0.05,fy],[0.18,fy+0.25],[0.05,fy+0.5]],0,TAU,T.GOLD_BLOCK,{segs:6,ts:1});}}
+    // thrones
+    for(const tc of[-1.1,1.1]){caBox(F,r1-1.5,r1-0.6,tc-0.5,tc+0.5,fl,fl+0.55,T.CA_WOOD,{top:T.CA_RED});caBox(F,r1-0.75,r1-0.5,tc-0.55,tc+0.55,fl,fl+2.3,T.GOLD_BLOCK,{ts:1});
+      caBox(F,r1-0.78,r1-0.73,tc-0.38,tc+0.38,fl+0.6,fl+2.05,T.CA_RED,{ts:1});for(const sg of[-1,1])caBox(F,r1-1.5,r1-0.6,tc+sg*0.5-0.08,tc+sg*0.5+0.08,fl+0.55,fl+0.95,T.GOLD_BLOCK);
+      for(const sg of[-1,1]){const p=F.P(r1-0.62,tc+sg*0.5,0);caRev(p[0],p[2],[[0.04,fl+2.3],[0.12,fl+2.42],[0.04,fl+2.6]],0,TAU,T.GOLD_BLOCK,{segs:6,ts:1});}}
+    // lanterns hanging under the canopy, and the royal banner on the wall above it
+    for(const tc of[-4.6,4.6]){const p=F.P(r0+1.2,tc,fl+4.2);caCross(p[0],fl+4.9,p[2],0.1,0.85,T.CA_IRON);caCross(p[0],p[1],p[2],0.7,0.7,T.LANTERN,1);}
+    {const top=WT-1.2,len=6.6,w=3.4;caBox(F,r1-0.3,r1-0.05,-w/2-0.3,w/2+0.3,top,top+0.2,T.CA_WOOD);
+      const Pc=caCloth(F.P(r1-0.15,-w/2,top),F.Tn,[0,-1,0],[-F.R[0],0,-F.R[2]],w,len,T.CA_PURPLE,{amp:0.08,cell:0.85});
+      const e=(x,y)=>{const p=Pc(x,y);return[p[0]-F.R[0]*0.03,p[1],p[2]-F.R[2]*0.03];};caQ([e(0,6),e(4,6),e(4,2),e(0,2)],T.CA_EMB_P,[0,0,1,1],1);}
+  }
+  // ================= hanging banners along the inner face of the wall
+  for(let m=0;m<16;m++){const a=TAU*(m+0.5)/16;if(inGap(a)||nearTower(a,44.4,0.6))continue;
+    const F=caFrame(a),c=Math.cos(a),royal=Math.abs(c)<0.3,cl=royal?T.CA_PURPLE:casTeam(c).cloth,em=royal?T.CA_EMB_P:casTeam(c).emb;
+    const top=WT-0.8,len=8.5,w=2.7;caBox(F,44.1,44.4,-w/2-0.3,w/2+0.3,top,top+0.2,T.CA_WOOD);
+    const Pc=caCloth(F.P(44.25,-w/2,top),F.Tn,[0,-1,0],[-c,0,-Math.sin(a)],w,len,cl,{amp:0.1,ph:m,cell:0.9});
+    const nx=Math.round(w/0.9),ny=Math.round(len/0.9),e=(x,y)=>{const p=Pc(x,y);return[p[0]-c*0.03,p[1],p[2]-Math.sin(a)*0.03];};
+    caQ([e(0,4),e(nx,4),e(nx,1),e(0,1)],em,[0,0,1,1],1);
+    const b0=e(0,ny),b1=e(nx,ny);caQ([[b0[0],b0[1]-0.6,b0[2]],[b1[0],b1[1]-0.6,b1[2]],b1,b0],T.CA_FRINGE,[0,0,2,1],1);}
+  {const M=CAS.buf,tot=CAS.sec.reduce((a,S)=>a+S.i.length,0);if(M.i.length<tot)M.i=new Uint32Array(tot);let o=0;
+    for(const S of CAS.sec){M.i.set(S.i,o);S.o=o;S.n=S.i.length;o+=S.n;S.i=null;}M.ni=o;}
+  CAS.mesh=uploadMesh(CAS.mesh,CAS.buf,gl.STATIC_DRAW);CAS.tris=CAS.buf.ni/3;CAS.buf=null;
+}
+function drawCastleMesh(all){
+  if(!world||!world.arena)return;
+  if(!CAS.mesh){if(CAS.failed)return;try{buildCastleMesh();}catch(e){console.warn('castle',e);CAS.mesh=null;CAS.failed=true;}if(!CAS.mesh)return;}
+  const cf=gl.isEnabled(gl.CULL_FACE);if(cf)gl.disable(gl.CULL_FACE);
+  gl.bindVertexArray(CAS.mesh.vao);let n=0;
+  for(const S of CAS.sec){if(!S.n)continue;const b=S.b;if(!all&&!boxVisible(b[0],b[1],b[2],b[3],b[4],b[5]))continue;gl.drawElements(gl.TRIANGLES,S.n,gl.UNSIGNED_INT,S.o*4);n+=S.n;}
+  if(cf)gl.enable(gl.CULL_FACE);if(!all&&typeof perfTris!=='undefined')perfTris+=n/3;
+}
+function freeCastleMesh(){if(CAS.mesh){freeMesh(CAS.mesh);CAS.mesh=null;}}
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
@@ -11425,8 +11755,8 @@ let last=performance.now(),fpsAcc=0,fpsN=0,fps=0,dbgT=0,ctRefresh=0;
 const BIOME_NAMES=['草原','砂漠','雪原','高山'];
 function frame(now){
   requestAnimationFrame(frame);
-  const dt=Math.min(0.05,(now-last)/1000);last=now;
-  fpsAcc+=dt;fpsN++;if(fpsAcc>=0.5){fps=Math.round(fpsN/fpsAcc);fpsAcc=0;fpsN=0;}
+  const rawDt=Math.max(0,(now-last)/1000),dt=Math.min(0.05,rawDt);last=now;
+  fpsAcc+=Math.min(rawDt,1);fpsN++;if(fpsAcc>=0.5){fps=Math.round(fpsN/fpsAcc);fpsAcc=0;fpsN=0;}
   if(!world)return;
   const sky=skyState();
   if(state==='title'){
