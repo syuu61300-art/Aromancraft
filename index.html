@@ -4164,7 +4164,10 @@ const KEY_ACTIONS=[['forward','前へ進む'],['back','後ろへ下がる'],['le
 const DEFAULT_KEYS={forward:['KeyW','ArrowUp'],back:['KeyS','ArrowDown'],left:['KeyA','ArrowLeft'],right:['KeyD','ArrowRight'],jump:['Space',''],sprint:['ShiftLeft','ShiftRight'],
   sneak:['ControlLeft','KeyC'],inventory:['KeyE',''],drop:['KeyQ',''],chat:['KeyT','Enter'],command:['Slash',''],camera:['F5','KeyV'],fly:['KeyF',''],pick:['KeyG',''],debug:['F3','KeyI'],hud:['F1','']};
 {const k=settings.keys&&typeof settings.keys==='object'?settings.keys:{};settings.keys={};
-  for(const a in DEFAULT_KEYS){const v=k[a];settings.keys[a]=Array.isArray(v)?[String(v[0]||'').slice(0,24),String(v[1]||'').slice(0,24)]:DEFAULT_KEYS[a].slice();}}
+  for(const a in DEFAULT_KEYS){const v=k[a];settings.keys[a]=Array.isArray(v)?[String(v[0]||'').slice(0,24),String(v[1]||'').slice(0,24)]:DEFAULT_KEYS[a].slice();}
+  if((settings.keysV|0)<2){settings.keysV=2;settings.keys.sprint=['ShiftLeft','ShiftRight'];
+    for(const a in settings.keys)if(a!=='sprint')settings.keys[a]=settings.keys[a].map(c=>/^Shift/.test(c)?'':c);
+    if(!settings.keys.sneak[0]&&!settings.keys.sneak[1])settings.keys.sneak=DEFAULT_KEYS.sneak.slice();}}
 const keyDown=a=>{const k=settings.keys[a];return!!(k&&((k[0]&&keys[k[0]])||(k[1]&&keys[k[1]])));};
 function actionOf(code){if(!code)return null;for(const a in settings.keys){const k=settings.keys[a];if(k[0]===code||k[1]===code)return a;}return null;}
 function saveSettings(){try{const s=store();if(s)s.setItem(SET_KEY,JSON.stringify(settings));}catch(e){}}
@@ -4300,6 +4303,8 @@ function physStep(e,dt,edgeGuard){
 // ---------------------------------------------------------------- player update
 const fwdFlat=[0,0,0],rightV=[0,0,0];
 const touchIn={mx:0,my:0,jump:false,down:false,sneak:false,sprint:false,stickRun:false};
+// jump speed for a jump 1.25 blocks high under gravity 28 (v²=2gh)
+const JUMP_V=Math.sqrt(2*28*1.25),SPRINT_AIR=6.9;   // sprint-jump speed through the air
 function updatePlayer(dt){
   const p=player;
   const c=world.getChunk(Math.floor(p.pos[0])>>4,Math.floor(p.pos[2])>>4);
@@ -4332,7 +4337,7 @@ function updatePlayer(dt){
     m.ctl={x:wx,z:wz,j:jump};p.pos=[m.pos[0],m.pos[1]+m.def.ride.h*(m.baby?0.55:1),m.pos[2]];p.vel=[0,0,0];p.fall=0;p.onGround=true;p.walkAmp=0;p.inWater=false;p.headWater=false;p.sneak=false;return;}}
   const under=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.1),Math.floor(p.pos[2]));
   const fxSpd=(1+0.2*fxLvl('speed'))*Math.max(0.1,1-0.15*fxLvl('slowness'))*(SLOW[under]&&!p.flying?0.45:1)*(STICKY[under]&&!p.flying?0.4:1);
-  const speed=(p.flying?(p.sprint?21:10.5):p.inLava?1.6:p.inWater?3.0:p.sneak?1.4:p.sprint?5.8:4.4)*((eating.on||charge.on)&&!p.flying?0.35:1)*fxSpd;
+  const speed=(p.flying?(p.sprint?21:10.5):p.inLava?1.6:p.inWater?3.0:p.sneak?1.4:p.sprint?(p.sjump&&!p.onGround?SPRINT_AIR:6.1):4.4)*((eating.on||charge.on)&&!p.flying?0.35:1)*fxSpd;
   wx*=speed;wz*=speed;
   if(specMode){
     const k=1-Math.exp(-9*dt);p.vel[0]=lerp(p.vel[0],wx,k);p.vel[2]=lerp(p.vel[2],wz,k);p.vel[1]=lerp(p.vel[1],((jump?1:0)-(down?1:0))*speed*0.8,k);
@@ -4359,11 +4364,11 @@ function updatePlayer(dt){
         else if(boxFree(p.pos[0]-p.hw,p.pos[1]+p.hh,p.pos[2]-p.hw,p.pos[0]+p.hw,p.pos[1]+p.hh+0.6,p.pos[2]+p.hw))p.vel[1]=Math.max(p.vel[1],3.0);}
       if(p.vel[1]<-4)p.vel[1]=-4;p.fall=0;
     }else{
-      p.vel[1]-=28*dt;if(p.vel[1]<-55)p.vel[1]=-55;
+      p.vel[1]-=14*dt;p.halfG=true;if(p.vel[1]<-55)p.vel[1]=-55;
       if(fxLvl('levitation')){p.vel[1]=0.9*fxLvl('levitation');p.fall=0;}else if(fxLvl('slow_falling')&&p.vel[1]<-1.8){p.vel[1]=-1.8;p.fall=0;}
       const aj=!jump&&settings.autoJump!==false&&p.onGround&&!p.sneak&&wl>0.3&&!eating.on&&state==='play'&&(p.ajT||0)<=0&&autoJumpCheck(p,ajx,ajz);
       if(aj)p.ajT=0.25;
-      if((jump||aj)&&p.onGround){p.vel[1]=(STICKY[under]?4.6:8.7)+fxLvl('jump_boost')*1.6;p.onGround=false;p.exh+=p.sprint?0.2:0.05;sfx.jump(world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2])));}
+      if((jump||aj)&&p.onGround){const sw=Math.sin(p.walk||0);p.jumpLead=sw>0.15?1:sw<-0.15?-1:-(p.jumpLead||-1);p.vel[1]=(STICKY[under]?4.6:JUMP_V)+fxLvl('jump_boost')*1.6-14*dt;if(p.sprint&&jump&&wl>0.3){const u=speed*wl,cur=Math.hypot(p.vel[0],p.vel[2]),sp=Math.min(SPRINT_AIR*fxSpd,cur+0.9);if(u>0.01){p.vel[0]=wx/u*sp;p.vel[2]=wz/u*sp;}p.sjump=true;}p.onGround=false;p.exh+=p.sprint?0.2:0.05;sfx.jump(world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2])));}
     }
   }
   if(!p.flying&&!(p.inWater&&p.sprint)){
@@ -4381,7 +4386,7 @@ function updatePlayer(dt){
   p.swimAmt=lerp(p.swimAmt||0,p.swimFast||p.gliding?1:swimOK&&deep&&(moving||!p.onGround)?0.55:0,1-Math.exp(-6*dt));
   p.hh=p.swimFast?0.6:1.8;
   const wasGround=p.onGround,vyB=p.vel[1];
-  const dy=physStep(p,dt,p.sneak);
+  const dy=physStep(p,dt,p.sneak);if(p.halfG){p.halfG=false;if(!p.onGround)p.vel[1]-=14*dt;}if(p.onGround||p.inWater||p.flying)p.sjump=false;
   if(!p.onGround&&dy<0&&!liquid&&!p.flying)p.fall+=-dy;
   if(p.onGround&&!wasGround&&!p.sneak&&vyB<-3){const bb=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.2),Math.floor(p.pos[2]));
     if(BOUNCE[bb]){p.vel[1]=Math.min(-vyB*0.82,24);p.onGround=false;p.fall=0;sfx.slime&&sfx.slime(p.pos.slice(),2);}}
@@ -4391,7 +4396,7 @@ function updatePlayer(dt){
   const eyeB=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+1.62),Math.floor(p.pos[2]));p.headWater=eyeB===B.WATER;
   const hs=Math.hypot(p.vel[0],p.vel[2]);
   if(p.sprint&&p.onGround)p.exh+=hs*dt*0.1;
-  p.walkAmp=lerp(p.walkAmp,Math.min(1,hs/4.4),1-Math.exp(-8*dt));p.walk+=hs*dt*1.2;
+  p.walkAmp=lerp(p.walkAmp,Math.min(1,hs/4.4),1-Math.exp(-8*dt));p.walk+=hs*dt*(1.2+0.3*(p.runAmt||0));
   p.runAmt=lerp(p.runAmt||0,clamp((hs-4.7)/1.0,0,1),1-Math.exp(-6*dt));p.airAmt=lerp(p.airAmt||0,(!p.onGround&&!liquid&&!p.flying)?1:0,1-Math.exp(-10*dt));
   // view bobbing: phase follows distance walked (one step per half cycle), amplitude eases in/out
   const walking=p.onGround&&!p.flying&&!liquid&&hs>0.3;
@@ -5670,6 +5675,12 @@ function pushBox(buf,M,x0,y0,z0,x1,y1,z1,tiles,shMul,sk,bl){
     buf.quad(base,false);
   }
 }
+function pushBoxV(buf,M,x0,y0,z0,x1,y1,z1,tiles,shMul,sk,bl,vA,vB){
+  buf.ensure(24);const X=[x0,x1],Y=[y0,y1],Z=[z0,z1];
+  for(let f=0;f<6;f++){const fd=FACES[f],base=buf.nv,tile=tiles[f],side=f!==2&&f!==3;
+    for(let v=0;v<4;v++){const p=fd.v[v],x=X[p[0]],y=Y[p[1]],z=Z[p[2]],vv=side?vA+(vB-vA)*QUV[v][1]:QUV[v][1];
+      buf.vert(M[0]*x+M[1]*y+M[2]*z+M[3],M[4]*x+M[5]*y+M[6]*z+M[7],M[8]*x+M[9]*y+M[10]*z+M[11],tile,QUV[v][0],vv,shMul,sk,bl);}
+    buf.quad(base,false);}}
 function blockTiles(id){return[FT[id*6],FT[id*6+1],FT[id*6+2],FT[id*6+3],FT[id*6+4],FT[id*6+5]];}
 // a held / dropped thing: small cube for blocks, a thin card for items and plants
 // extruded pixel sprite: front/back faces plus a 1-pixel side wall wherever an opaque pixel meets a transparent one
@@ -5728,46 +5739,57 @@ function drawHumanoid(buf,skin,x,y,z,pose,sk,bl){
   const st=SKIN_TILES[skin]||SKIN_TILES[0];
   const flash=pose.hurt?1.9:1,sn=pose.sneak?1:0,amp=pose.amp||0,run=(pose.run||0)*amp,air=pose.fly?0:(pose.air||0),fly=pose.fly?1:0,t=pose.t||0,ph=pose.walk||0;
   const ground=1-Math.max(air,fly),idle=(1-amp)*ground;
-  // the body dips a little on every footfall, sinks when crouching
-  const dip=-Math.abs(Math.cos(ph))*(0.6+0.6*run)*amp*ground+(1-Math.abs(Math.cos(ph)))*0;
+  // walking: the body dips a little on every footfall. Running: it springs up off each foot (both feet leave the ground)
+  const dip=(-Math.abs(Math.cos(ph))*0.6*(1-run)+run*(Math.abs(Math.sin(ph))*1.5-0.6))*amp*ground;
   const swim=pose.swim||0,swT=t*(swim>0.75?6:4.2);
   // swimming: the body tips forward around the hips until it lies flat in the water
   const swimTilt=swim>0.75?(Math.PI/2-clamp(pose.pitch||0,-1,1)*0.9)*swim:swim*0.95;
   const root=mChain(mT(x,y,z),mRY(-pose.yaw),pose.lie?mChain(mT(0,0.14,0),mRX(Math.PI/2),mT(0,-0.95,0)):mT(0,0,0),mS(HUMAN_S),mT(0,dip-2.2*sn+swim*(swim>0.75?3:6),0),mT(0,12,0),mRX(-swimTilt),mT(0,-12,0));
-  // legs: long smooth stride, wider when running; in the air one leg forward, one back
-  const legAmp=(0.55+0.4*run)*amp*(sn?0.55:1)*ground;
+  // legs: a hip swing and a knee. Walking: a calm stride, the knee only softly bent as the leg swings through.
+  // Running: a long stride, the heel kicked up high behind as the leg comes forward, the front leg reaching out.
+  const legAmp=(0.5+0.5*run)*amp*(sn?0.55:1)*ground;
   let legL=Math.sin(ph)*legAmp*(1-swim),legR=-legL;
   if(swim>0){const kick=swim>0.75?Math.sin(swT*1.6)*0.45:(Math.sin(swT)*0.7);legL+=kick*swim;legR+=(swim>0.75?-kick:kick*0.9)*swim;}
-  legL+=0.38*air;legR-=0.3*air;legL+=0.12*fly;legR+=0.12*fly;
+  const lead=pose.lead===-1?-1:1;   // +1: the left leg leads (the right foot pushed off), -1: the right leg leads
+  legL+=air*(lead>0?0.62:-0.42);legR+=air*(lead>0?-0.42:0.62);legL+=0.12*fly;legR+=0.12*fly;
+  const kneeOf=c=>-(amp*ground*(1-swim)*((1-run)*0.38*Math.max(0,c)+run*(0.3+1.45*Math.max(0,c))))-sn*0.35;
+  const kneeL=kneeOf(Math.cos(ph))-air*(lead>0?0.5:1.05),kneeR=kneeOf(-Math.cos(ph))-air*(lead>0?1.05:0.5);
   const leg=[st.legS,st.legS,st.armT,st.legU,st.legS,st.legS];
   const lgL=mChain(root,mT(-2,12,4*sn),mRX(legL),mRZ(0.03*fly)),lgR=mChain(root,mT(2,12,4*sn),mRX(legR),mRZ(-0.03*fly));
-  pushBox(buf,lgL,-2,-12,-2,2,0,2,leg,flash,sk,bl);
-  pushBox(buf,lgR,-2,-12,-2,2,0,2,leg,flash,sk,bl);
-  // torso: crouch hunches the shoulders forward; running leans the whole body into the run
-  const runLean=-0.16*run*ground-0.1*fly;
+  const shL=mChain(lgL,mT(0,-6,0),mRX(kneeL),mT(0,6,0)),shR=mChain(lgR,mT(0,-6,0),mRX(kneeR),mT(0,6,0));
+  // (thigh and shin overlap round the knee, the shin a hair thinner, so a bent knee never opens a gap)
+  pushBoxV(buf,lgL,-2,-8,-2,2,0,2,leg,flash,sk,bl,0,8/12);pushBoxV(buf,shL,-1.96,-12,-1.96,1.96,-4.1,1.96,leg,flash,sk,bl,4.1/12,1);
+  pushBoxV(buf,lgR,-2,-8,-2,2,0,2,leg,flash,sk,bl,0,8/12);pushBoxV(buf,shR,-1.96,-12,-1.96,1.96,-4.1,1.96,leg,flash,sk,bl,4.1/12,1);
+  // torso: crouch hunches the shoulders forward; running leans the whole body well into the run
+  const runLean=-0.34*run*ground-0.1*fly;
   const bodyM=sn?mChain(root,mT(0,24,0),mRX(-0.5),mT(0,-24,0)):mChain(root,mT(0,12,0),mRX(runLean),mT(0,-12,0));
   pushBox(buf,bodyM,-4,12,-2,4,24,2,[st.bodyS,st.bodyS,st.bodyT,st.bodyT,st.bodyB,st.bodyF],flash,sk,bl);
   // arms swing against the legs; relaxed sway when standing; spread a little when jumping
-  const armAmp=(0.42+0.55*run)*amp*ground*(sn?0.6:1);
+  const armAmp=(0.42+0.5*run)*amp*ground*(sn?0.6:1);
   const breath=Math.sin(t*1.7)*0.035*idle;
   const sw=pose.swing>0?pose.swing:0;
   const punch=sw>0?Math.sin(Math.sqrt(sw)*Math.PI):0,chop=sw>0?Math.sin(sw*sw*Math.PI):0;
   const zombie=pose.reach?1.45:0,hunch=0.4*sn,spread=0.28*air+0.08*fly;
   const eat=pose.eat||0,chewA=eat?Math.abs(Math.sin(t*13))*0.14:0;
-  const armRx=lerp(Math.sin(ph)*armAmp+zombie+hunch+punch*1.25+chop*0.5+0.15*fly,1.35+chewA,eat),armLx=-Math.sin(ph)*armAmp+zombie+hunch+0.15*fly;
+  const armRx=lerp(Math.sin(ph)*armAmp+zombie+hunch+punch*1.25+chop*0.5+0.15*fly+air*0.55*lead,1.35+chewA,eat),armLx=-Math.sin(ph)*armAmp+zombie+hunch+0.15*fly-air*0.55*lead;
   const aim=pose.aim||0,raise=pose.raise||0,pit=clamp(pose.pitch||0,-1,1);
   // front crawl when sprint-swimming, a wide breaststroke otherwise
   const crawlR=swT,crawlL=swT+Math.PI,bs=Math.sin(swT);
   const swRx=swim>0.75?2.9+Math.sin(crawlR)*1.4:2.2+bs*0.7,swLx=swim>0.75?2.9+Math.sin(crawlL)*1.4:2.2+bs*0.7,swZ=swim>0.75?0.1:0.35+Math.cos(swT)*0.35;
   const armR=mChain(bodyM,mT(6,22-sn,0),mRY(-punch*0.35-0.55*eat-0.25*aim),mRX(lerp(lerp(lerp(armRx,1.55+pit,aim),2.9,raise),swRx,swim)),mRZ(lerp(lerp(0.06+breath+spread,-0.12,eat),swZ,swim)));
-  pushBox(buf,armR,-2,-10,-2,2,2,2,[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS],flash,sk,bl);
+  // elbows: nearly straight when walking, bent to about a right angle and pumping when running
+  const elbow=k=>(0.12*(1-run)*amp+run*(1.25+0.3*k))*ground*(1-swim)*(1-aim)*(1-raise)*(1-eat);
+  const aT=[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS];
+  const faR=mChain(armR,mT(0,-4,0),mRX(elbow(Math.sin(ph))+punch*0.2),mT(0,4,0));
+  pushBoxV(buf,armR,-2,-6,-2,2,2,2,aT,flash,sk,bl,0,8/12);pushBoxV(buf,faR,-1.96,-10,-1.96,1.96,-2.1,1.96,aT,flash,sk,bl,4.1/12,1);
   const armL=mChain(bodyM,mT(-6,22-sn,0),mRY(0.6*aim+(pose.shield?-0.5:0)),mRX(pose.shield?0.9:lerp(lerp(armLx,1.5+pit,aim),swLx,swim)),mRZ(lerp(-0.06-breath-spread,-swZ,swim)));
-  pushBox(buf,armL,-2,-10,-2,2,2,2,[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS],flash,sk,bl);
-  if(pose.held)pushThing(buf,mChain(armR,mT(0,-9,-3.5),mRX(-0.5),mS(1/HUMAN_S)),pose.held,0.32*((!isBlockId(pose.held)&&ITEMS[pose.held]&&ITEMS[pose.held].hs)||1),1,sk,bl);
+  const faL=mChain(armL,mT(0,-4,0),mRX(pose.shield?0:elbow(-Math.sin(ph))),mT(0,4,0));
+  pushBoxV(buf,armL,-2,-6,-2,2,2,2,aT,flash,sk,bl,0,8/12);pushBoxV(buf,faL,-1.96,-10,-1.96,1.96,-2.1,1.96,aT,flash,sk,bl,4.1/12,1);
+  if(pose.held)pushThing(buf,mChain(faR,mT(0,-9,-3.5),mRX(-0.5),mS(1/HUMAN_S)),pose.held,0.32*((!isBlockId(pose.held)&&ITEMS[pose.held]&&ITEMS[pose.held].hs)||1),1,sk,bl);
   // head stays level while the body leans, then turns/looks
   const headM=mChain(bodyM,mT(0,24-sn,0),mRX(sn?0.5:-runLean),mRY(-(pose.headYaw||0)),mRX(clamp(pose.pitch,-1.4,1.4)*(1-swim)+swimTilt*0.85));
   pushBox(buf,headM,-4,0,-4,4,8,4,[st.headS,st.headS,st.headT,st.headU,st.headB,st.headF],flash,sk,bl);
-  if(pose.armor||pose.shieldHeld)drawArmorOn(buf,pose,{lgL,lgR,bodyM,armR,armL,headM},flash,sk,bl);
+  if(pose.armor||pose.shieldHeld)drawArmorOn(buf,pose,{lgL,lgR,shL,shR,bodyM,armR,armL,faL,headM},flash,sk,bl);
 }
 function drawPig(buf,x,y,z,yaw,walk,amp,sk,bl,hurt,dying){
   const flash=hurt?1.9:1;
@@ -5788,8 +5810,8 @@ function drawArmorOn(buf,pose,M,flash,sk,bl){
   if(A[1]){if(A[1]===I.ELYTRA){const t=tl(A[1]),g=pose.swim>0.8?1:0;for(const s of[-1,1])pushBox(buf,mChain(M.bodyM,mT(s*1,23,2.4),mRZ(s*(0.25+g*1.0)),mRX(-0.15-g*0.2)),s<0?-5:0,-12,0,s<0?0:5,0,0.8,t,flash,sk,bl);}
     else{const t=tl(A[1]);pushBox(buf,M.bodyM,-4.6,11.8,-2.6,4.6,24.4,2.6,t,flash,sk,bl);pushBox(buf,M.armR,-2.5,-5,-2.5,2.5,2.5,2.5,t,flash,sk,bl);pushBox(buf,M.armL,-2.5,-5,-2.5,2.5,2.5,2.5,t,flash,sk,bl);}}
   if(A[2]){const t=tl(A[2]);pushBox(buf,M.bodyM,-4.4,11.4,-2.4,4.4,14.2,2.4,t,flash,sk,bl);pushBox(buf,M.lgL,-2.4,-8,-2.4,2.4,0.3,2.4,t,flash,sk,bl);pushBox(buf,M.lgR,-2.4,-8,-2.4,2.4,0.3,2.4,t,flash,sk,bl);}
-  if(A[3]){const t=tl(A[3]);pushBox(buf,M.lgL,-2.5,-12.3,-2.5,2.5,-8.4,2.5,t,flash,sk,bl);pushBox(buf,M.lgR,-2.5,-12.3,-2.5,2.5,-8.4,2.5,t,flash,sk,bl);}
-  if(pose.shieldHeld){const f=T.SHIELD_FACE,t=[f,f,f,f,f,f];pushBox(buf,M.armL,-3.2,-11,-5,-2.2,-1,5,t,flash,sk,bl);}
+  if(A[3]){const t=tl(A[3]);pushBox(buf,M.shL||M.lgL,-2.5,-12.3,-2.5,2.5,-8.4,2.5,t,flash,sk,bl);pushBox(buf,M.shR||M.lgR,-2.5,-12.3,-2.5,2.5,-8.4,2.5,t,flash,sk,bl);}
+  if(pose.shieldHeld){const f=T.SHIELD_FACE,t=[f,f,f,f,f,f];pushBox(buf,M.faL||M.armL,-3.2,-11,-5,-2.2,-1,5,t,flash,sk,bl);}
 }
 
 // ================================================================ creatures: registry, behaviour, spawning (all models and names are original designs)
@@ -7611,11 +7633,12 @@ function buildDynamic(){
   drawMobProjs(DYN);drawEyes(DYN);drawMarkers(DYN);pushWeather(DYN,rt,up);
   if(typeof MP!=='undefined')for(const r of MP.remotes.values()){
     if(!r.ready||(r.d|0)!==curDim)continue;const L=lightAt(r.pos[0],r.pos[1]+1,r.pos[2]);
-    drawHumanoid(DYN,r.skin,r.pos[0],r.pos[1],r.pos[2],{yaw:r.bodyYaw,headYaw:r.yaw-r.bodyYaw,pitch:r.pitch,walk:r.walk,amp:r.amp,run:r.run||0,air:r.air||0,swing:r.swing>0?1-r.swing:0,eat:r.eat?1:0,aim:r.aim?1:0,raise:r.raise?1:0,sneak:r.sneak,held:r.held,swim:r.swim||0,t:gameTime},L[0],L[1]);
+    {if((r.air||0)>0.5&&!r._inAir){r._inAir=true;const sw=Math.sin(r.walk||0);r.lead=sw>0.15?1:sw<-0.15?-1:-(r.lead||-1);}else if((r.air||0)<0.2)r._inAir=false;}
+    drawHumanoid(DYN,r.skin,r.pos[0],r.pos[1],r.pos[2],{lead:r.lead||1,yaw:r.bodyYaw,headYaw:r.yaw-r.bodyYaw,pitch:r.pitch,walk:r.walk,amp:r.amp,run:r.run||0,air:r.air||0,swing:r.swing>0?1-r.swing:0,eat:r.eat?1:0,aim:r.aim?1:0,raise:r.raise?1:0,sneak:r.sneak,held:r.held,swim:r.swim||0,t:gameTime},L[0],L[1]);
   }
   if(camMode>0&&state!=='title'&&!player.dead&&!specMode&&!(player.fx&&player.fx.invisibility)){
     const p=player;
-    const slp=p.sleeping;drawHumanoid(DYN,settings.skin,p.pos[0],p.pos[1],p.pos[2],{lie:!!slp,yaw:slp?Math.atan2(-FDIR[slp.f][0],FDIR[slp.f][1]):p.bodyYaw,headYaw:slp?0:p.yaw-p.bodyYaw,pitch:slp?0:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),hurt:p.hurtT>0,swim:p.swimAmt||0,t:gameTime,armor:ARMOR.slice(0,4).map(s=>s&&s.id),shield:shieldUp(),shieldHeld:!!holdingShield()},psk,pbl);
+    const slp=p.sleeping;drawHumanoid(DYN,settings.skin,p.pos[0],p.pos[1],p.pos[2],{lead:p.jumpLead||1,lie:!!slp,yaw:slp?Math.atan2(-FDIR[slp.f][0],FDIR[slp.f][1]):p.bodyYaw,headYaw:slp?0:p.yaw-p.bodyYaw,pitch:slp?0:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),hurt:p.hurtT>0,swim:p.swimAmt||0,t:gameTime,armor:ARMOR.slice(0,4).map(s=>s&&s.id),shield:shieldUp(),shieldHeld:!!holdingShield()},psk,pbl);
   }
   if(mining.active&&target&&!target.ent){
     const k=clamp(Math.floor(mining.prog*10),0,9),t=CRACK[k],e=0.004;
@@ -7904,7 +7927,7 @@ function tickFpsBox(dt){
   const now=performance.now();if(FPSBOX.last){const ms=Math.min(250,now-FPSBOX.last);FPSBOX.ft[FPSBOX.fi]=ms;FPSBOX.fi=(FPSBOX.fi+1)%FPSBOX.ft.length;}FPSBOX.last=now;
   const full=!!settings.perfPanel,show=(full||!!settings.showFps)&&state!=='title'&&state!=='loading'&&!document.body.classList.contains('nohud');
   if(!FPSBOX.el){if(!show)return;const e=document.createElement('div');e.id='fpsbox';
-    e.style.cssText='position:absolute;right:10px;top:calc(var(--tb,64px) + 40px);z-index:3;pointer-events:none;font-size:12px;color:#e8ffe0;background:rgba(0,0,0,0.42);padding:3px 8px;border-radius:5px;font-variant-numeric:tabular-nums;white-space:pre;text-align:right';
+    e.style.cssText='position:absolute;right:12px;top:calc(var(--tb,64px) + 40px);z-index:3;pointer-events:none;font-size:12px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);font-variant-numeric:tabular-nums;white-space:pre;text-align:right';
     const tx=document.createElement('div');const cv=document.createElement('canvas');cv.width=150;cv.height=34;cv.style.cssText='display:block;margin:3px 0 1px auto;width:150px;height:34px';
     e.appendChild(tx);e.appendChild(cv);document.body.appendChild(e);FPSBOX.el=e;FPSBOX.tx=tx;FPSBOX.cv=cv;}
   FPSBOX.el.style.display=show?'block':'none';if(!show)return;
@@ -8390,7 +8413,7 @@ function renderReal(){
     if(typeof drawCastleMesh==='function')drawCastleMesh(true);
     // in first person your own body is not drawn, but it still casts a shadow
     if(camMode===0&&state!=='title'&&!player.dead){const p=player;SELF.reset();
-      drawHumanoid(SELF,settings.skin,p.pos[0],p.pos[1],p.pos[2],{yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
+      drawHumanoid(SELF,settings.skin,p.pos[0],p.pos[1],p.pos[2],{lead:p.jumpLead||1,yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
       selfMesh=uploadMesh(selfMesh,SELF,gl.DYNAMIC_DRAW);if(selfMesh){gl.bindVertexArray(selfMesh.vao);gl.drawElements(gl.TRIANGLES,selfMesh.count,gl.UNSIGNED_INT,0);}}
     gl.disable(gl.POLYGON_OFFSET_FILL);
     SC.vp.set(lightVP);SC.eye=[eye[0],eye[1],eye[2]];SC.ld=[Ld[0],Ld[1],Ld[2]];SC.ok=true;
@@ -11523,7 +11546,7 @@ function duelUI(){
    #duel-root{position:fixed;inset:0;pointer-events:none;z-index:6;font-family:inherit;color:#fff;text-shadow:2px 2px 0 #000}
    #duel-count{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:min(22vw,150px);font-weight:bold;letter-spacing:.05em}
    #duel-msg{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-size:20px;background:rgba(0,0,0,.45);padding:6px 14px;border-radius:6px;white-space:nowrap}
-   #duel-vs{position:absolute;left:50%;top:calc(var(--tb,64px)*0.68 + 18px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;font-size:12px;background:rgba(0,0,0,.32);padding:3px 10px;border-radius:6px;white-space:nowrap}#duel-vs span{max-width:7em;overflow:hidden;text-overflow:ellipsis}
+   #duel-vs{position:absolute;right:12px;top:34px;display:flex;gap:8px;align-items:center;font-size:13px;color:#fff;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.55)}#duel-vs span{max-width:7em;overflow:hidden;text-overflow:ellipsis}
    body.duel-on #hint{display:none}
    #duel-vs .bar{width:min(18vw,150px);height:10px;background:#300;border:1px solid #000;border-radius:3px;overflow:hidden}#duel-vs .bar div{height:100%;background:linear-gradient(#ff6a6a,#c22)}
    #duel-res{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(16,20,26,.92);border:3px solid #556;border-radius:8px;padding:20px 28px;text-align:center;pointer-events:auto;min-width:260px}
@@ -12169,6 +12192,537 @@ function buildArenaInterior(){
       for(let k=0;k<n;k++){const u=wx+0.15+hash3(wx,k,wz,746)*0.7,v=wz+0.15+hash3(wx,k,wz,747)*0.7,s=0.42+hash3(wx,k,wz,748)*0.35,q=hash3(wx,k,wz,749);
         mCross(I,u,G-0.02,v,s*1.15,s,q<0.1?T.AR_FLOWERS:q<0.45?T.AR_TUFT_B:T.AR_TUFT_A,q*Math.PI*7);}}}
 }
+
+// ================================================================ アスレMOD: 150 levels of parkour on a map of its own
+// Turn the mod on and you are taken to the parkour map (creative rules: no damage or hunger; but no flying and no
+// building, since this is parkour). The course is laid out once, from a fixed seed, as one long corridor along +x:
+// level n starts on its checkpoint platform (an arch with the level number over it) and ends on the next one.
+// Every jump is checked against what the player can actually do (jump 1.25 blocks high; a sprint jump clears a
+// 4-block gap on the level with room to spare, never 5), with a safety margin that shrinks as the levels go up:
+// level 1 is easy, level 50 normal, and from level 100 it gets properly hard. Every 15 levels the scenery changes.
+const ATH_N=150,ATH_SEED=771120,ATH_FY=44,ATH_WTOP=92,ATH_ROOM=[-208,100,-8];   // floor height, wall top, clear room corner
+const ATH={on:false,lv:1,t:0,falls:0,done:false,L:null,cache:new Map(),hud:null,saveT:0,shownStart:false,rules:null,lvT:0,lvFalls:0};
+XMOD_LIST.push(['athletic','アスレMOD','オンにすると専用マップに移動して、だんだん難しくなる全150レベルのアスレに挑戦します（レベル1はかんたん、50でふつう、100から本格的に難しくなります）']);
+if(settings.mod&&settings.mod.x)settings.mod.x.athletic=false;   // never starts by itself when the page opens
+
+// ---- the ten sceneries, 15 levels each
+const ATH_TH=[
+  {name:'草原',time:0.24,floor:'GRASS',base:'DIRT',wa:'STONEBRICK',wb:'MOSSY_STONEBRICK',band:'CHISELED_STONEBRICK',pil:'LOG',top:'LEAVES',light:'LANTERN',plat:['GRASS','PLANKS'],slab:'STONEBRICK',fence:'OAK_FENCE',edge:'CHISELED_STONEBRICK',arch:'STONEBRICK',dig:'GOLD_BLOCK',deco:'plains'},
+  {name:'ジャングル',time:0.16,floor:'GRASS_LUSH',base:'DIRT',wa:'MOSSY',wb:'JUNGLE_PLANKS',band:'MOSSY_STONEBRICK',pil:'JUNGLE_LOG',top:'JUNGLE_LEAVES',light:'LANTERN',plat:['MOSS','JUNGLE_PLANKS'],slab:'JUNGLE_PLANKS',fence:'JUNGLE_FENCE',edge:'JUNGLE_LOG',arch:'JUNGLE_LOG',dig:'GLOWSTONE',deco:'jungle'},
+  {name:'砂漠',time:0.25,floor:'SAND',base:'SANDSTONE',wa:'SANDSTONE',wb:'CUT_SANDSTONE',band:'CHISELED_SANDSTONE',pil:'SMOOTH_SANDSTONE',top:'CUT_SANDSTONE',light:'LANTERN',plat:['SANDSTONE','SMOOTH_SANDSTONE'],slab:'SANDSTONE',fence:'ACACIA_FENCE',edge:'CHISELED_SANDSTONE',arch:'CUT_SANDSTONE',dig:'TERRA_ORANGE',deco:'desert',stripe:'TERRA_ORANGE'},
+  {name:'雪山',time:0.31,floor:'SNOW',base:'PACKED_ICE',wa:'PACKED_ICE',wb:'SNOW',band:'BLUE_ICE',pil:'SPRUCE_LOG',top:'SNOW',light:'LANTERN',plat:['SNOW','SPRUCE_PLANKS'],slab:'SPRUCE_PLANKS',fence:'SPRUCE_FENCE',edge:'SPRUCE_LOG',arch:'SPRUCE_LOG',dig:'LAPIS_BLOCK',deco:'snow'},
+  {name:'海',time:0.21,floor:'WATER',base:'SAND',wa:'PRISMARINE_BRICKS',wb:'PRISMARINE',band:'DARK_PRISMARINE',pil:'DARK_PRISMARINE',top:'PRISMARINE',light:'SEA_LANTERN',plat:['PRISMARINE','DARK_PRISMARINE'],slab:'PRISMARINE',fence:'MANGROVE_FENCE',edge:'SEA_LANTERN',arch:'PRISMARINE_BRICKS',dig:'SEA_LANTERN',deco:'ocean'},
+  {name:'荒野',time:0.4,floor:'RED_SAND',base:'RED_SANDSTONE',wa:'TERRACOTTA',wb:'TERRA_ORANGE',band:'TERRA_YELLOW',pil:'RED_SANDSTONE',top:'CUT_RED_SANDSTONE',light:'LANTERN',plat:['TERRACOTTA','RED_SANDSTONE'],slab:'RED_SANDSTONE',fence:'ACACIA_FENCE',edge:'CHISELED_RED_SANDSTONE',arch:'CUT_RED_SANDSTONE',dig:'TERRA_WHITE',deco:'badlands',bands:['TERRA_ORANGE','TERRA_YELLOW','TERRACOTTA','TERRA_RED','TERRA_WHITE','TERRA_BROWN']},
+  {name:'キノコの森',time:0.45,floor:'MYCELIUM',base:'DIRT',wa:'MUSH_STEM',wb:'MUSH_CAP_B',band:'MUSH_CAP_R',pil:'MUSH_STEM',top:'MUSH_CAP_R',light:'SHROOMLIGHT',plat:['MUSH_CAP_R','MUSH_CAP_B'],slab:'DARK_OAK_PLANKS',fence:'DARK_OAK_FENCE',edge:'SHROOMLIGHT',arch:'MUSH_STEM',dig:'SHROOMLIGHT',deco:'mushroom'},
+  {name:'洞窟',time:0.47,floor:'STONE',base:'STONE',wa:'DEEPSLATE',wb:'COBBLED_DEEPSLATE',band:'TUFF',pil:'P_DEEPSLATE',top:'DS_TILES',light:'LANTERN',plat:['COBBLED_DEEPSLATE','P_DEEPSLATE'],slab:'COBBLED_DEEPSLATE',fence:'DARK_OAK_FENCE',edge:'DS_TILES',arch:'DS_BRICKS',dig:'AMETHYST',deco:'cave',ores:['DS_DIAMOND','DS_GOLD','DS_IRON','DS_EMERALD','DS_LAPIS','DS_REDSTONE']},
+  {name:'ネザー',time:0.52,floor:'LAVA',base:'NETHERRACK',wa:'NETHER_BRICKS',wb:'RED_NETHER_BRICKS',band:'P_BLACKSTONE',pil:'P_BASALT',top:'CHISELED_NETHER_BRICKS',light:'GLOWSTONE',plat:['NETHERRACK','BLACKSTONE'],slab:'NETHER_BRICKS',fence:'CRIMSON_FENCE',edge:'GILDED_BS',arch:'NETHER_BRICKS',dig:'GLOWSTONE',deco:'nether'},
+  {name:'天空',time:0.04,floor:null,base:null,wa:'QUARTZ_BRICKS',wb:'SMOOTH_QUARTZ',band:'GOLD_BLOCK',pil:'QUARTZ_PILLAR',top:'CHISELED_QUARTZ',light:'END_ROD',plat:['PURPUR','END_BRICKS'],slab:'PURPUR',fence:'BIRCH_FENCE',edge:'GOLD_BLOCK',arch:'QUARTZ_PILLAR',dig:'GOLD_BLOCK',deco:'sky',win:'SGLASS_LIGHT_BLUE'},
+];
+function athB(k){const id=B[k];return id===undefined?B.STONE:id;}
+function athSlab(k){const F=FAMILY[athB(k)];return F&&F.slab?F.slab:(FAMILY[B.STONEBRICK]||{}).slab||B.STONEBRICK;}
+// ---- the two special blocks: checkpoint floor and goal floor
+MODHOOK.tex.push(()=>{
+  P('ATH_CP_T',(x,y,r)=>{const edge=x===0||y===0||x===15||y===15;if(edge)return nz([60,74,84],r,6);const cx=Math.abs(x-7.5),chev=Math.abs((y+cx)%8-3.5)<1.2&&cx<5.5;return nz(chev?[150,255,214]:[86,110,120],r,chev?4:8);});
+  P('ATH_GOAL_T',(x,y,r)=>{const c=((x>>2)+(y>>2))&1;const st=Math.abs(x-7.5)+Math.abs(y-7.5)<3.6;return nz(st?[255,250,190]:c?[250,206,60]:[250,248,236],r,6);});
+});
+MODHOOK.items.push(()=>{
+  mk('ATH_CP','アスレのチェックポイント',{tiles:T.ATH_CP_T,light:9,glow:true,hard:-1,inv:false,drop:null,cat:'build'});
+  mk('ATH_GOAL','アスレのゴール',{tiles:T.ATH_GOAL_T,light:14,glow:true,hard:-1,inv:false,drop:null,cat:'build'});
+});
+
+// ---- what the player can do (must match updatePlayer: gravity 28, jump 1.25 high, walk 4.4, sprint jump 6.9, hitbox 0.6 wide)
+const ATH_V0=Math.sqrt(70),ATH_GR=28;
+function athDiff(n){return n<=50?0.4*(n-1)/49:n<=100?0.4+0.2*(n-50)/50:0.6+0.4*(n-100)/50;}
+function athReach(s,dyS){const q=ATH_V0*ATH_V0-2*ATH_GR*dyS;return q<0?-1:s*(ATH_V0+Math.sqrt(q))/ATH_GR;}   // centre travel until the feet come down to dyS
+function athMargin(d){return d<=0.4?1.2-d:d<=0.6?0.8-(d-0.4):0.6-0.85*(d-0.6);}                      // 1.2 → 0.8 (Lv50) → 0.6 (Lv100) → 0.26 (Lv150)
+const ATH_SURF={block:1,slab:0.5,fence:1,ice:1,slime:1,cp:1};   // (a fence post is 1 block tall to stand on in this game)
+// the widest gap (edge to edge, in blocks) allowed for a jump of height dyS between two kinds of platform
+function athMaxGap(d,dyS,from,to,run){const s=d<0.2?4.4:SPRINT_AIR;let D=athReach(s,dyS)+0.6-athMargin(d);
+  if(to==='fence')D-=0.35;if(from==='fence')D-=0.6;if(from==='ice'||to==='ice')D-=0.15;if(run<2&&d<0.7)D=Math.min(D,2.2);
+  const cap=d<0.15?2:d<0.6?3:4;return Math.min(D,cap+0.001);}   // 4-block gaps only from level 100
+// ---- the course is built in 89m_athcourse.js (gimmicks, five phases, set pieces)
+function athLevelAt(x){const L=athLayout();let lo=0,hi=L.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(L[m].cp.x0<=x)lo=m;else hi=m-1;}return L[lo];}
+function athEndX(){const L=athLayout();return L[L.length-1].cp.x1;}
+// ---- the map
+function athWall(T,wx,y,inner,side){
+  if(y>ATH_WTOP)return y===ATH_WTOP+1&&(wx&1)?athB(T.top):0;
+  if(y===ATH_WTOP)return athB(T.top);
+  if((wx&7)===0)return athB(T.pil);
+  if(inner&&(wx&7)===4&&(y-ATH_FY)%8===6)return athB(T.light);
+  if(T.win&&inner&&y>ATH_FY+18&&y<ATH_WTOP-3&&(wx&7)>=2&&(wx&7)<=6&&(y-ATH_FY)%8<5)return athB(T.win);
+  if(T.bands)return athB(T.bands[((y>>1)+((wx>>4)&1))%T.bands.length]);
+  if((y-ATH_FY)%10===0)return athB(T.band);
+  if(T.ores&&hash3(wx,y,side,1501)<0.04)return athB(T.ores[(hash3(wx,y,side,1502)*T.ores.length)|0]);
+  if(T.stripe&&(y-ATH_FY)%10===5)return athB(T.stripe);
+  return hash3(wx,y,side,1503)<(y<ATH_FY+6?0.55:0.22)?athB(T.wb):athB(T.wa);}
+// structures on the floor, drawn column by column round anchor points (so they cross chunk edges cleanly)
+function athAnchors(wx,wz,grid,seed,p,fn){const gx=Math.floor(wx/grid),gz=Math.floor(wz/grid);
+  for(let i=gx-1;i<=gx+1;i++)for(let j=gz-1;j<=gz+1;j++){if(hash3(i,j,0,seed)>p)continue;const ax=i*grid+Math.floor(hash3(i,j,1,seed)*grid),az=j*grid+Math.floor(hash3(i,j,2,seed)*grid);
+    if(az<-6||az>5)continue;fn(wx-ax,wz-az,hash3(i,j,3,seed));}}
+function athDeco(T,wx,wz,set){const F=ATH_FY,h=hash3(wx,0,wz,1511);
+  const tree=(log,leaf,ht,rad)=>athAnchors(wx,wz,7,1512,0.7,(dx,dz,v)=>{const H=ht+Math.floor(v*2),r2=dx*dx+dz*dz;if(!dx&&!dz)for(let y=F+1;y<=F+H;y++)set(y,log);
+      for(let y=F+H-2;y<=F+H+1;y++){const rr=rad-(y>F+H-1?1:0);if(r2<=rr*rr&&(dx||dz||y>F+H))set(y,leaf);}});
+  switch(T.deco){
+    case'plains':if(h<0.12)set(F+1,B.TALLGRASS);else if(h<0.16)set(F+1,h<0.14?B.FLOWER_Y:B.FLOWER_R);tree(B.LOG,B.LEAVES,4,2);break;
+    case'jungle':if(h<0.15)set(F+1,B.FERN);else if(h<0.18){const t=3+Math.floor(h*60)%4;for(let y=F+1;y<=F+t;y++)set(y,B.BAMBOO);}tree(B.JUNGLE_LOG,B.JUNGLE_LEAVES,6,3);break;
+    case'desert':if(h<0.012){for(let y=F+1;y<=F+3;y++)set(y,B.CACTUS);}else if(h<0.04)set(F+1,B.DEAD_BUSH);break;
+    case'snow':tree(B.SPRUCE_LOG,B.SPRUCE_LEAVES,5,2);break;
+    case'ocean':if(h<0.1)set(F,[B.CORAL_TUBE,B.CORAL_BRAIN,B.CORAL_BUBBLE,B.CORAL_FIRE,B.CORAL_HORN][(h*50)|0]);else if(h<0.13)set(F,B.SEA_PICKLE);break;
+    case'badlands':if(h<0.03)set(F+1,B.DEAD_BUSH);athAnchors(wx,wz,9,1513,0.5,(dx,dz,v)=>{if(dx*dx+dz*dz<=1){const t=3+Math.floor(v*4);for(let y=F+1;y<=F+t;y++)set(y,athB(['TERRA_ORANGE','TERRA_RED','TERRA_YELLOW','TERRA_WHITE'][(y+Math.floor(v*4))%4]));}});break;
+    case'mushroom':if(h<0.05)set(F+1,h<0.025?B.MUSH_R:B.MUSH_B);athAnchors(wx,wz,8,1514,0.6,(dx,dz,v)=>{const H=4+Math.floor(v*3),r2=dx*dx+dz*dz;if(!dx&&!dz)for(let y=F+1;y<F+H;y++)set(y,B.MUSH_STEM);
+      if(r2<=5)set(F+H,v<0.5?B.MUSH_CAP_R:B.MUSH_CAP_B);else if(r2<=8)set(F+H-1,v<0.5?B.MUSH_CAP_R:B.MUSH_CAP_B);});break;
+    case'cave':if(h<0.05)set(F,B.GRAVEL);else if(h<0.065)set(F+1,B.AMETHYST_CLUSTER);athAnchors(wx,wz,9,1515,0.5,(dx,dz,v)=>{if(!dx&&!dz){const t=2+Math.floor(v*4);for(let y=F+1;y<=F+t;y++)set(y,y===F+t?B.POINTED_DRIPSTONE:B.DRIPSTONE);}});break;
+    case'nether':if(h<0.08)set(F,B.MAGMA);athAnchors(wx,wz,8,1516,0.55,(dx,dz,v)=>{if(dx*dx+dz*dz<=1){const t=2+Math.floor(v*6);for(let y=F;y<=F+t;y++)set(y,B.BASALT);}});break;
+    case'sky':athAnchors(wx,wz,11,1517,0.6,(dx,dz,v)=>{const rr=(dx*dx)/9+(dz*dz)/4;if(rr<=1){set(F-4,B.WOOL_W);if(rr<0.5)set(F-3,B.WOOL_W);}});break;
+  }}
+function athGen(w,c){
+  const BL=c.blocks,bx=c.cx*16,bz=c.cz*16,set=(x,y,z,id)=>{if(y>=0&&y<H)BL[bidx(x,y,z)]=id;};
+  const X0=-12,X1=athEndX()+14,[RX,RY,RZ]=ATH_ROOM;
+  for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z;
+    // the clear room, high up and far away
+    if(wx>=RX&&wx<=RX+16&&wz>=RZ&&wz<=RZ+16){athRoomCol(wx-RX,wz-RZ,(y,id)=>set(x,y,z,id));continue;}
+    if(wx<X0||wx>X1||wz<-10||wz>9)continue;
+    const T=ATH_TH[athLevelAt(Math.max(0,wx)).th],cs=(y,id)=>set(x,y,z,id);
+    const cap=wx===X0||wx===X1,wall=wz>=8||wz<=-9;
+    if(cap||wall){const inner=!cap&&(wz===8||wz===-9);for(let y=ATH_FY-4;y<=ATH_WTOP+1;y++)cs(y,athWall(T,wx,y,inner||cap,wz>0?1:2));continue;}
+    if(T.base){for(let y=ATH_FY-4;y<ATH_FY;y++)cs(y,athB(T.base));cs(ATH_FY,athB(T.floor));if(T.floor==='WATER'||T.floor==='LAVA')cs(ATH_FY-1,athB(T.base));}
+    athDeco(T,wx,wz,cs);
+  }
+  // the course itself
+  const L=athLayout();
+  for(const lv of L){if(lv.xmin>bx+15||lv.xmax<bx)continue;
+    const a=athBlocks(lv.n);for(let i=0;i<a.length;i+=4){const x=a[i]-bx,z=a[i+2]-bz;if(x>=0&&x<16&&z>=0&&z<16)set(x,a[i+1],z,a[i+3]);}}
+  c.spawns=[];
+}
+// the clear room: quartz and gold, glass roof, a beacon on a podium, lanterns, banners of every colour
+function athRoomCol(x,z,set){const Y=ATH_ROOM[1],edge=x===0||z===0||x===16||z===16;
+  set(Y,(x+z)&1?B.GOLD_BLOCK:B.QUARTZ_BRICKS);for(let y=Y-3;y<Y;y++)set(y,B.QUARTZ_BRICKS);
+  if(edge){for(let y=Y+1;y<=Y+7;y++)set(y,(x%4===0&&z%4===0)?B.QUARTZ_PILLAR:(y>=Y+3&&y<=Y+5&&(x+z)%4===2)?B.SGLASS_LIGHT_BLUE:B.QUARTZ_BRICKS);set(Y+8,B.CHISELED_QUARTZ);return;}
+  set(Y+8,B.GLASS);
+  if(Math.abs(x-8)<=1&&Math.abs(z-8)<=1){set(Y+1,B.DIAMOND_BLOCK);if(x===8&&z===8)set(Y+2,B.BEACON);}
+  if((x===2||x===14)&&(z===2||z===14)){set(Y+1,B.GOLD_BLOCK);set(Y+2,B.LANTERN);}
+  if((x===1||x===15)&&z%3===0)for(let y=Y+3;y<=Y+5;y++)set(y,[B.WOOL_R,B.WOOL_O,B.WOOL_Y,B.WOOL_G,B.WOOL_LB,B.WOOL_B,B.WOOL_P][(z/3+(x>8?3:0))%7|0]);
+}
+{const _gen=World.prototype.generate;World.prototype.generate=function(c){if(!this.parkour)return _gen.apply(this,arguments);
+  athGen(this,c);const ed=this.edits.get(ckey(c.cx,c.cz));if(ed)for(const[i,id]of ed)c.blocks[i]=id;this.finalize(c);};}
+
+// ---- playing
+function athSaveP(){try{const o=athLoadP();Object.assign(o,{lv:ATH.lv,t:ATH.t,falls:ATH.falls});localStorage.setItem('aro_ath',JSON.stringify(o));}catch(e){}}
+function athLoadP(){try{const o=JSON.parse(localStorage.getItem('aro_ath')||'{}');return{lv:Math.max(1,Math.min(ATH_N,o.lv|0||1)),t:+o.t||0,falls:o.falls|0,best:o.best||null,clears:o.clears|0};}catch(e){return{lv:1,t:0,falls:0,best:null,clears:0};}}
+function athCpPos(n){const cp=athLayout()[n-1].cp;return[cp.x0+2.5,cp.y+1.02,(cp.z0+cp.z1+1)/2];}
+function athPut(n){const p=player;p.pos=athCpPos(n);p.vel=[0,0,0];p.yaw=Math.PI/2;p.pitch=-0.12;p.fall=0;p.flying=false;spawnPoint=p.pos.slice();
+  dayTime=ATH_TH[athLayout()[n-1].th].time;}
+function athStart(){
+  if(ATH.on)return;
+  try{if(world&&curWorldId&&state!=='title'&&!(world.arena||world.parkour))saveGame();}catch(e){}
+  try{if(typeof MP!=='undefined'&&MP.active&&typeof mpLeave==='function')mpLeave(true);}catch(e){}
+  ATH.on=true;ATH.rules=Object.assign({},gameRules);Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:false,keepInventory:true,mobGriefing:false});
+  curWorldId=null;newWorld(ATH_SEED);world.parkour=true;mode='creative';if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;weather.thunder=0;}
+  const P=athLoadP();ATH.lv=P.lv;ATH.t=P.t;ATH.falls=P.falls;ATH.done=false;ATH.shownStart=false;ATH.lvT=0;ATH.lvFalls=0;
+  resetPlayer();for(let i=0;i<inv.length;i++)inv[i]=null;athPut(ATH.lv);
+  document.body.classList.add('ath-on');athUI();
+  beginLoading(ATH.lv>1?'アスレ：レベル'+ATH.lv+'から続けます…':'アスレのコースを準備中…');
+}
+function athCleanup(){if(!ATH.on)return;ATH.on=false;athSaveP();
+  if(ATH.rules){Object.assign(gameRules,ATH.rules);ATH.rules=null;}
+  if(settings.mod&&settings.mod.x){settings.mod.x.athletic=false;saveSettings();if(typeof syncXmod==='function')syncXmod();}
+  document.body.classList.remove('ath-on');if(ATH.hud)ATH.hud.root.style.display='none';
+  if(state==='overlay'&&OVL.id==='ath-res'){state='title';OVL.id=null;}
+  if(world&&world.parkour){try{const w=typeof worldsList==='function'&&worldsList().find(v=>!v.friend);newWorld(w?w.seed|0:seedFromString(''));titleCam.x=spawnPoint[0];titleCam.z=spawnPoint[2];titleCam.y=Math.max(spawnPoint[1]+18,SEA+30);}catch(e){console.warn(e);}}
+  resetPlayer();mode='survival';
+}
+function athStop(){if(!ATH.on)return;if(state==='title'||state==='loading'){athCleanup();showScreen('title');return;}quitToTitle();}
+function athRestart(){ATH.lv=1;ATH.t=0;ATH.falls=0;ATH.done=false;ATH.lvT=0;ATH.lvFalls=0;athSaveP();athPut(1);if(ATH.hud)ATH.hud.res.style.display='none';
+  if(state==='overlay'||state==='paused'){state='play';OVL.id=null;showScreen('hud');requestLock();}athTelop(1);}
+function athScore(){let base=0;for(let n=1;n<=ATH_N;n++)base+=100+Math.round(300*athDiff(n));return Math.max(0,base-ATH.falls*20-Math.floor(ATH.t/2));}
+function athRank(s){return s>=32000?'S':s>=27000?'A':s>=20000?'B':'C';}
+function athFmt(t){const m=Math.floor(t/60),s=t-m*60;return(m>=60?Math.floor(m/60)+':'+String(m%60).padStart(2,'0'):m)+':'+s.toFixed(1).padStart(4,'0');}
+function athClear(){ATH.done=true;const score=athScore(),P=athLoadP();ATH.final={score,t:ATH.t,falls:ATH.falls};const best=P.best;const nb=!best||score>best.score;
+  try{const o=JSON.parse(localStorage.getItem('aro_ath')||'{}');o.clears=(o.clears|0)+1;if(nb)o.best={score,t:ATH.t,falls:ATH.falls};o.lv=1;o.t=0;o.falls=0;localStorage.setItem('aro_ath',JSON.stringify(o));}catch(e){}
+  const[RX,RY,RZ]=ATH_ROOM;player.pos=[RX+8.5,RY+1.02,RZ+4.5];player.vel=[0,0,0];player.yaw=0;player.pitch=0;player.yaw=Math.PI;spawnPoint=player.pos.slice();dayTime=0.27;
+  const u=ATH.hud,b=best&&!nb?best:ATH.final;
+  u.res.innerHTML=`<div style="font-size:15px;letter-spacing:.2em;color:#ffe9a0">全${ATH_N}レベル クリア！</div><h2 style="margin:6px 0 2px;font-size:30px">おめでとう！</h2>
+    <div style="font-size:54px;font-weight:900;color:#ffd23a;line-height:1.1">${athRank(score)}</div>
+    <table style="margin:8px auto 12px;font-size:16px;border-spacing:14px 4px"><tr><td>スコア</td><td style="text-align:right;font-weight:bold">${score.toLocaleString()}</td></tr>
+    <tr><td>タイム</td><td style="text-align:right;font-weight:bold">${athFmt(ATH.final.t)}</td></tr><tr><td>落下回数</td><td style="text-align:right;font-weight:bold">${ATH.final.falls}</td></tr>
+    <tr><td>${nb?'自己ベスト更新！':'自己ベスト'}</td><td style="text-align:right">${b.score.toLocaleString()}（${athFmt(b.t)}）</td></tr></table>
+    <button id="ath-again">もう一度（レベル1から）</button> <button id="ath-quit">アスレをやめる</button>`;
+  u.res.style.display='block';u.res.querySelector('#ath-again').onclick=()=>athRestart();u.res.querySelector('#ath-quit').onclick=()=>{u.res.style.display='none';athStop();};
+  ATH.lv=1;ATH.t=0;ATH.falls=0;
+  ATH.fwT=0.3;setTimeout(()=>{if(ATH.on&&ATH.done&&state==='play'){stopActions&&stopActions();state='overlay';OVL.id='ath-res';OVL.onClose=null;if(isLocked())document.exitPointerLock();}},2200);
+}
+function athRespawn(kind){ATH.falls++;ATH.lvFalls++;const lv=athLayout()[ATH.lv-1];if(typeof athDynReset==='function')athDynReset(lv);athPut(ATH.lv);
+  athFlash((kind==='lava'?'溶岩に触れた！':kind==='water'?'水に落ちた！':'落下！')+' レベル'+ATH.lv+'のスタートへ');}
+// the telop names the level's gimmick (a preview), and the first time a gimmick appears a hint says how it works
+function athAnnounce(n,area){const lv=athLayout()[n-1],g=typeof athGimName==='function'?athGimName(lv):'';athTelop(n,[area,g].filter(Boolean).join('　'));
+  const P=lv.plan||[];if(P.intro&&ATH_GIM[P.intro]){const G=ATH_GIM[P.intro];setTimeout(()=>{if(ATH.on&&ATH.lv===n)message('はじめての仕掛け：'+G.name+(G.hint?'　'+G.hint:'')+'（下に足場があるので安心して試そう）',5200);},2100);}
+  else if(lv.color)setTimeout(()=>{if(ATH.on&&ATH.lv===n)message(lv.color+'のブロックだけが本物です',3600);},2100);}
+function athLevelUp(){ATH.lv++;ATH.lvT=0;ATH.lvFalls=0;
+  if(ATH.lv>ATH_N){ATH.lv=ATH_N;athTelop(0);athClear();return;}
+  const prevTh=athLayout()[ATH.lv-2].th,th=athLayout()[ATH.lv-1].th;dayTime=ATH_TH[th].time;spawnPoint=athCpPos(ATH.lv);
+  athAnnounce(ATH.lv,th!==prevTh?ATH_TH[th].name+'エリア':'');athSaveP();try{sfx.pop&&sfx.pop(player.pos.slice());}catch(e){}}
+// ---- the screen: the level telop, the HUD, the results panel, two buttons in the pause menu
+function athUI(){if(ATH.hud){ATH.hud.root.style.display='block';return;}
+  const st=document.createElement('style');st.textContent=`
+#ath-root{position:fixed;inset:0;pointer-events:none;z-index:5;font-family:inherit}
+#ath-telop{position:absolute;left:50%;top:15%;transform:translateX(-50%);color:#fff;font-weight:900;font-size:clamp(36px,7.5vw,72px);letter-spacing:.1em;white-space:nowrap;
+  text-shadow:0 3px 0 rgba(0,0,0,.35),0 0 22px rgba(0,0,0,.5);opacity:0;text-align:center}
+#ath-telop small{display:block;font-size:.34em;letter-spacing:.3em;margin-top:2px;font-weight:700}
+#ath-telop.go{animation:athTelop 2s cubic-bezier(.22,.9,.3,1) forwards}
+@keyframes athTelop{0%{opacity:0;transform:translate(-50%,-140px) scale(1.3)}15%{opacity:1;transform:translate(-50%,10px) scale(1)}24%{transform:translate(-50%,0) scale(1)}
+  82%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-34px) scale(.96)}}
+#ath-hud{position:absolute;right:12px;top:34px;text-align:right;font-size:13px;line-height:1.45;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums;
+  text-shadow:0 1px 3px rgba(0,0,0,.55)}
+#ath-hud b{font-size:15px}#ath-hud .dif{font-weight:bold}
+body.ath-on #fpsbox{top:calc(var(--tb,64px) + 104px)!important}
+#ath-flash{position:absolute;left:50%;top:40%;transform:translateX(-50%);color:#ffdddd;font-weight:bold;font-size:20px;text-shadow:0 2px 6px rgba(0,0,0,.7);opacity:0;transition:opacity .3s}
+#ath-res{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:30;display:none;pointer-events:auto;text-align:center;color:#fff;background:rgba(20,16,4,.82);border:2px solid #d6b24a;
+  border-radius:12px;padding:18px 26px;min-width:300px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+body.ath-on #hint{display:none}
+body.ath-on #msg{top:auto;bottom:22%;background:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}`;
+  document.head.appendChild(st);
+  const root=document.createElement('div');root.id='ath-root';root.innerHTML='<div id="ath-hud"></div><div id="ath-telop"></div><div id="ath-flash"></div><div id="ath-res"></div>';
+  document.body.appendChild(root);
+  ATH.hud={root,hud:root.querySelector('#ath-hud'),telop:root.querySelector('#ath-telop'),flash:root.querySelector('#ath-flash'),res:root.querySelector('#ath-res')};
+  // pause menu: start over / leave the parkour
+  const pan=document.querySelector('#pause .panel');if(pan){const a=document.createElement('button');a.id='btn-ath-restart';a.textContent='アスレを最初からやり直す';a.onclick=()=>athRestart();
+    const b=document.createElement('button');b.id='btn-ath-quit';b.textContent='アスレをやめる';b.onclick=()=>athStop();const q=document.getElementById('btn-quit');pan.insertBefore(a,q);pan.insertBefore(b,q);}
+}
+function athTelop(n,sub){const u=ATH.hud;if(!u)return;const e=u.telop;e.classList.remove('go');void e.offsetWidth;
+  e.innerHTML=n?`レベル ${n}${sub?`<small>${sub}</small>`:''}`:`ゴール！<small>全${ATH_N}レベル クリア</small>`;e.classList.add('go');}
+function athFlash(t){const u=ATH.hud;if(!u)return;u.flash.textContent=t;u.flash.style.opacity=1;clearTimeout(ATH.flT);ATH.flT=setTimeout(()=>{u.flash.style.opacity=0;},1300);}
+function athDifName(d){return d<0.2?['かんたん','#9cf08a']:d<0.45?['ふつう','#8fd2ff']:d<0.62?['むずかしい','#ffc46b']:['超むずかしい','#ff8a7a'];}
+XMOD_CHANGE.athletic=on=>{if(on)athStart();else athStop();};
+XMOD_TICK.push(dt=>{
+  if(!ATH.on){if(ATH.hud&&!ATH.hidBtns){ATH.hidBtns=true;for(const id of['btn-ath-restart','btn-ath-quit']){const b=document.getElementById(id);if(b)b.style.display='none';}
+      const m=document.getElementById('btn-open-mp');if(m)m.style.display='';}return;}
+  ATH.hidBtns=false;
+  const u=ATH.hud;if(u){const show=state!=='title'&&state!=='loading';u.root.style.display=show?'block':'none';
+    for(const id of['btn-ath-restart','btn-ath-quit']){const b=document.getElementById(id);if(b)b.style.display='';}
+    const btnMp=document.getElementById('btn-open-mp');if(btnMp)btnMp.style.display='none';}
+  if(state!=='play'||!world||!world.parkour)return;
+  const p=player;if(p.flying)p.flying=false;
+  if(!ATH.shownStart){ATH.shownStart=true;if(ATH.lv===1)setTimeout(()=>{if(ATH.on)message('ダッシュジャンプ（W＋Shift＋スペース）で先へ進もう。落ちたらそのレベルのスタートに戻ります',3600);},2300);athAnnounce(ATH.lv,ATH_TH[athLayout()[ATH.lv-1].th].name+'エリア');}
+  if(ATH.done){ATH.fwT-=dt;if(ATH.fwT<=0&&typeof wq==='function'){ATH.fwT=0.5+Math.random()*0.5;const[RX,RY,RZ]=ATH_ROOM,x=RX+3+Math.random()*11,z=RZ+3+Math.random()*11,
+      cols=[T.CONCRETE_RED,T.CONCRETE_YELLOW,T.CONCRETE_LIME,T.CONCRETE_LIGHT_BLUE,T.CONCRETE_MAGENTA,T.CONCRETE_ORANGE].filter(v=>v!==undefined),tl=cols[(Math.random()*cols.length)|0];
+      for(let i=0;i<22;i++){const a=Math.random()*Math.PI*2,e=Math.random()*1.4-0.2,sp=3+Math.random()*1.5;wq({x,y:RY+6.5,z,vx:Math.cos(a)*Math.cos(e)*sp,vy:Math.sin(e)*sp,vz:Math.sin(a)*Math.cos(e)*sp,g:4,dr:1.6,tile:tl,s:0.05,life:1.4,glow:true});}}
+    if(u)u.hud.innerHTML=`<div><b>クリア！</b></div><div>スコア ${ATH.final.score.toLocaleString()}</div><div>${athFmt(ATH.final.t)}</div>`;return;}
+  ATH.t+=dt;ATH.lvT+=dt;
+  const L=athLayout(),lv=L[ATH.lv-1],nx=L[ATH.lv].cp;
+  const hit=typeof athDynTick==='function'?athDynTick(dt):null;if(typeof athAmbient==='function')athAmbient(dt,lv.th);
+  if(hit)athRespawn(hit);
+  else if(p.onGround&&p.pos[0]>=nx.x0&&p.pos[0]<nx.x1+1&&p.pos[2]>=nx.z0&&p.pos[2]<nx.z1+1&&Math.abs(p.pos[1]-(nx.y+1))<0.3)athLevelUp();
+  else if(p.pos[1]<lv.minY-4||p.pos[1]<ATH_FY+1.5)athRespawn();
+  ATH.saveT-=dt;if(ATH.saveT<=0){ATH.saveT=5;athSaveP();}
+  if(u){const[dn,dc]=athDifName(lv.d);u.hud.innerHTML=`<div>レベル <b>${ATH.lv}</b> / ${ATH_N}</div><div>${ATH_TH[lv.th].name}・<span class="dif" style="color:${dc}">${dn}</span></div><div>${athFmt(ATH.t)}　落下 ${ATH.falls}</div>`;}
+});
+// ---- the rules of the parkour map: no building, no flying, no commands; leaving tidies everything up
+if(typeof placeBlock==='function'){const _pb=placeBlock;placeBlock=function(){if(world&&world.parkour)return false;return _pb.apply(this,arguments);};}
+if(typeof creativeBreak==='function'){const _cb=creativeBreak;creativeBreak=function(){if(world&&world.parkour)return;return _cb.apply(this,arguments);};}
+if(typeof useItemSpecial==='function'){const _ui=useItemSpecial;useItemSpecial=function(){if(world&&world.parkour)return false;return _ui.apply(this,arguments);};}
+if(typeof toggleFly==='function'){const _tf=toggleFly;toggleFly=function(){if(world&&world.parkour){toast('アスレ中は飛べません');return;}return _tf.apply(this,arguments);};}
+if(typeof execCommand==='function'){const _ec=execCommand;execCommand=function(){if(world&&world.parkour&&ATH.on){toast('アスレ中はコマンドを使えません');return;}return _ec.apply(this,arguments);};}
+if(typeof saveGame==='function'){const _sg=saveGame;saveGame=function(){if(world&&world.parkour){athSaveP();return;}return _sg.apply(this,arguments);};}
+if(typeof quitToTitle==='function'){const _qt=quitToTitle;quitToTitle=function(){const was=ATH.on;const r=_qt.apply(this,arguments);if(was)athCleanup();return r;};}
+// ---- easy to find: a button on the title screen, and the row at the very top of the Mod screen
+(function athEntry(){
+  // the Mod list may have been drawn before this mod joined it: draw it again so that アスレMOD is in it
+  {const host=document.getElementById('xmod-rows');if(host&&!document.getElementById('x-athletic-on')&&typeof buildXmodRows==='function'){host.innerHTML='';buildXmodRows();}}
+  const pan=document.querySelector('#title .panel');
+  if(pan&&!document.getElementById('btn-athletic')){const b=document.createElement('button');b.id='btn-athletic';
+    b.innerHTML='🏃 アスレMOD <small style="font-size:12px;opacity:.85">（全150レベル）</small>';
+    b.style.cssText='background:linear-gradient(180deg,#4a9a3c,#2f6e27);border-color:#9fe07a;color:#fff;font-weight:bold';
+    b.onclick=()=>{try{initAudio();}catch(e){}settings.mod=settings.mod||{};settings.mod.x=settings.mod.x||{};settings.mod.x.athletic=true;saveSettings();athStart();};
+    const after=document.getElementById('btn-multi');if(after&&after.nextSibling)pan.insertBefore(b,after.nextSibling);else pan.appendChild(b);}
+  if(typeof openModScreen==='function'){const _om=openModScreen;openModScreen=function(){const r=_om.apply(this,arguments);
+    try{if(typeof syncXmod==='function')syncXmod();const on=document.getElementById('x-athletic-on'),row=on&&on.closest('.setrow2');const head=document.querySelector('#modscreen .modhead');
+      if(row&&head&&!row.dataset.top){row.dataset.top='1';row.style.cssText='border:2px solid #d6b24a;border-radius:8px;padding:6px 8px;background:rgba(214,178,74,.12);margin:4px 0 10px';
+        head.parentNode.insertBefore(row,head.nextSibling);}
+      const x=settings.mod.x||{};if(on){on.classList.toggle('on',!!x.athletic);document.getElementById('x-athletic-off').classList.toggle('on',!x.athletic);}}catch(e){}
+    return r;};}
+})();
+
+// ================================================================ アスレ: the course — gimmicks in three strengths, laid out in five phases
+// Phases of 30 levels: 1 導入 (wide platforms, one gimmick at a time, each shown first in a safe version) · 2 応用 (narrower,
+// longer, normal versions) · 3 タイミング (moving, appearing, crumbling, doors, rising lava) · 4 組み合わせ (two gimmicks at
+// once) · 5 総合 (short bursts back to back, fewer checkpoints, a finale). Every level is a short run-up and one high point
+// (10-20 s), and its checkpoint sits right before it. The sceneries of 15 levels stay; each leans on its own gimmicks.
+const ATH_GIM={
+  jump:{name:'ジャンプ',at:1,th:[0]},
+  ladder:{name:'はしご',at:4,th:[1,7],hint:'はしごに向かって前へ進むと登れます'},
+  slime:{name:'スライム',at:7,th:[1,6],hint:'スライムに落ちると高く跳ね返ります（しゃがむと跳ねません）'},
+  ice:{name:'氷の滑走',at:10,th:[3],hint:'氷の上はよく滑ります。早めに力を抜こう'},
+  ceiling:{name:'低い天井',at:14,th:[7,2],hint:'天井が低いので高く跳べません。距離に注意'},
+  swim:{name:'水泳',at:18,th:[4],hint:'水の中はジャンプで浮き上がれます。岸に向かえば上がれます'},
+  branch:{name:'分かれ道',at:22,th:[0,3],hint:'緑はかんたんで長い道、赤はむずかしくて短い道'},
+  maze:{name:'迷路',at:26,th:[1,6],hint:'壁の向こうの出口を探そう'},
+  blink:{name:'消える足場',at:31,th:[2,9],hint:'足場は出たり消えたりします。オレンジに変わったらもうすぐ消えます'},
+  crumble:{name:'崩れる足場',at:35,th:[2,8],hint:'踏むと少しで崩れます。止まらずに進もう'},
+  color:{name:'色ブロック',at:40,th:[6,9],hint:''},
+  move:{name:'動く足場',at:44,th:[4,5,9],hint:'動く足場に乗ると一緒に運ばれます'},
+  elevator:{name:'水のエレベーター',at:50,th:[4],hint:'水の柱の中でジャンプを押し続けると上へ泳げます'},
+  door:{name:'開閉するドア',at:61,th:[5,8],hint:'ドアが開いている間に走り抜けよう'},
+  wreset:{name:'水に落ちたら戻る',at:64,th:[4],hint:'この区間は水に触れるとスタートに戻されます'},
+  lava:{name:'上がってくる溶岩',at:66,th:[8],hint:'溶岩が上がってくる前に、高い足場から高い足場へ渡ろう'},
+  gate:{name:'時間制限ドア',at:72,th:[5,9],hint:'金色の感圧板を踏むと奥のドアが開きます。閉まる前に駆け抜けよう'},
+  dark:{name:'暗いトンネル',at:80,th:[7],hint:'光る足場を頼りに進もう'},
+};
+// a 3x5 pixel font for the level numbers built over each checkpoint
+const ATH_FONT={'0':['111','101','101','101','111'],'1':['010','110','010','010','111'],'2':['111','001','111','100','111'],'3':['111','001','111','001','111'],'4':['101','101','111','001','001'],
+  '5':['111','100','111','001','111'],'6':['111','100','111','101','111'],'7':['111','001','010','010','010'],'8':['111','101','111','101','111'],'9':['111','101','111','001','111'],
+  'G':['111','100','101','101','111'],'O':['111','101','101','101','111'],'A':['010','101','111','101','101'],'L':['100','100','100','100','111']};
+const ATH_COLORS=[['白','CONCRETE_WHITE','ATH_FAKE_W'],['赤','CONCRETE_RED','ATH_FAKE_R'],['青','CONCRETE_BLUE','ATH_FAKE_B'],['黄','CONCRETE_YELLOW','ATH_FAKE_Y'],['緑','CONCRETE_LIME','ATH_FAKE_L']];
+// ---- special blocks for the gimmicks: look-alike blocks you fall through, a warning block, a pressure pad, a dim glowing pad
+MODHOOK.tex.push(()=>{
+  P('ATH_WARN_T',(x,y,r)=>nz(((x+y)>>2)&1?[255,150,40]:[230,90,20],r,8));
+  P('ATH_PLATE_T',(x,y,r)=>{const e=x<2||y<2||x>13||y>13;const c=Math.abs(x-7.5)+Math.abs(y-7.5)<4;return nz(e?[150,110,30]:c?[255,240,150]:[230,180,50],r,6);});
+  P('ATH_PLATE_ON_T',(x,y,r)=>{const e=x<2||y<2||x>13||y>13;return nz(e?[90,160,60]:[150,255,140],r,6);});
+  P('ATH_DIM_T',(x,y,r)=>{const d=Math.hypot(x-7.5,y-7.5);return nz(d<3?[170,220,255]:d<6?[60,90,120]:[30,40,52],r,6);});
+});
+MODHOOK.items.push(()=>{
+  const A={hard:-1,inv:false,drop:null,cat:'build'};
+  for(const[,real,fake]of ATH_COLORS){const id=B[real];const t=id!==undefined?FT[id*6]:T.CA_DARK;mk(fake,'アスレの偽ブロック',Object.assign({tiles:t,solid:false,opaque:false},A));}
+  mk('ATH_WARN','アスレの消える足場',Object.assign({tiles:T.ATH_WARN_T,light:6,glow:true},A));
+  mk('ATH_PLATE','アスレの感圧板',Object.assign({tiles:T.ATH_PLATE_T,light:7,glow:true},A));
+  mk('ATH_PLATE_ON','アスレの感圧板（作動中）',Object.assign({tiles:T.ATH_PLATE_ON_T,light:10,glow:true},A));
+  mk('ATH_DIM','アスレのほの光る足場',Object.assign({tiles:T.ATH_DIM_T,light:7,glow:true},A));
+});
+function athSlabTop(k){const s=athSlab(k);return(SLABMAT[s]&&SLABMAT[s].top)||s;}
+
+// ---- building one level
+function athBuild(lv,R,plan){
+  const T=ATH_TH[lv.th],bl=lv.blocks=[],dyn=lv.dyn=[],reg=lv.regions=[],ph=lv.ph,d=lv.d;
+  const P=(x,y,z,id)=>{bl.push(x,y,z,id);},fill=(x0,x1,y0,y1,z0,z1,id)=>{for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)P(x,y,z,id);};
+  const pl=T.plat.map(athB),wa=athB(T.wa),pil=athB(T.pil),glass=B.GLASS;
+  const style=lv.style;let mat=0;
+  // a platform, dressed in this level's style: floating, on a pillar to the ground, mossy rim, or with a lantern on a corner
+  const plat=(x0,x1,y,z0,z1,k,id)=>{const big=(x1-x0)>=2&&(z1-z0)>=2;id=id||(k==='slab'?athSlab(T.slab):k==='fence'?athB(T.fence):k==='ice'?(d>=0.75?B.BLUE_ICE:B.PACKED_ICE):pl[(mat++)&1]);
+    for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){let b=id;if(style==='rim'&&k==='block'&&big&&(x===x0||x===x1||z===z0||z===z1))b=athB(T.edge);P(x,y,z,b);}
+    if(style==='pillar'&&k!=='fence')for(let y2=ATH_FY+1;y2<y;y2++)P(Math.round((x0+x1)/2),y2,Math.round((z0+z1)/2),pil);
+    if(style==='lamp'&&big&&k==='block')P(x1,y+1,z1,B.LANTERN);
+    if(style==='under'&&k==='block')P(Math.round((x0+x1)/2),y-1,Math.round((z0+z1)/2),athB(T.light));
+    lv.minY=Math.min(lv.minY,y);};
+  const cz=c=>Math.round((c.z0+c.z1)/2);
+  // ---- an ordinary hop: the landing size and the gap follow the phase; every gap is checked against the player's reach
+  const hop=(cur,o={})=>{
+    const size=o.size||(ph===0?3:ph===1?2:ph===2?(R()<0.5?2:1):ph===3?(R()<0.3?2:1):1),k=o.kind||'block';
+    const up=cur.y<60?0.5:cur.y>76?0.03:0.25,dn=cur.y>70?0.4:0.18;let r=R()*(up+0.4+dn),dy=o.dy!==undefined?o.dy:r<up?1:r<up+0.4?0:-1;
+    let ny=Math.max(54,Math.min(80,cur.y+dy)),dyS=ny+ATH_SURF[k]-(cur.y+ATH_SURF[cur.k]);while(dyS>1.0001){ny--;dyS-=1;}
+    const run=cur.x1-cur.x0+1,D=athMaxGap(o.d!==undefined?o.d:d,dyS,cur.k,k,run);
+    let gx=1;if(D>=2){const top=Math.floor(D+1e-6),u=Math.pow(R(),1.25-1.0*d);gx=1+Math.min(top-1,Math.floor(u*top));}
+    if(o.gap)gx=Math.max(1,Math.min(o.gap,Math.floor(D+1e-6)));
+    let gz=0;if(o.lat!==false&&R()<0.15+0.35*d)for(const c of[2,1])if(Math.hypot(gx,c)<=D+1e-6){gz=c;break;}
+    const c=cz(cur),side=c>2?-1:c<-3?1:(R()<0.5?-1:1),lo=o.zmin!==undefined?o.zmin:-6,hi=o.zmax!==undefined?o.zmax:5;
+    let z0=gz>0?(side>0?cur.z1+gz+1:cur.z0-gz-size):c+Math.round((R()-0.5)*2)-Math.floor(size/2);z0=Math.max(lo,Math.min(hi-size+1,z0));
+    const z1=z0+size-1,rgz=Math.max(0,z0-cur.z1-1,cur.z0-z1-1),x0=cur.x1+gx+1,n={x0,x1:x0+(k==='ice'?1:size-1),y:ny,z0,z1,k};
+    plat(n.x0,n.x1,n.y,n.z0,n.z1,k);lv.jumps.push({gx,gz:rgz,dyS,from:cur.k,to:k,d:o.d!==undefined?o.d:d,run});return n;};
+  // the safe version of a gimmick seen for the first time: a floor under it, with steps up to where it ends
+  const safety=(x0,x1,y,z0,z1,exit)=>{fill(x0,x1,y-3,y-3,z0,z1,athB(T.edge));if(exit){for(let s=0;s<3;s++)fill(exit.x0-1-s,exit.x0-1-s,y-3,exit.y-s,exit.z0,exit.z0,pl[0]);}lv.minY=Math.min(lv.minY,y-3);};
+  const SP={
+    jump:(cur,v)=>{const n=2+v+(ph>=3?1:0);for(let i=0;i<n;i++)cur=hop(cur,v===2?{size:1}:{});return cur;},
+    ladder:(cur,v,demo)=>{const z=Math.max(-6,Math.min(5,cz(cur))),lad=BLOCKS[B.LADDER].vars?BLOCKS[B.LADDER].vars[0]:B.LADDER,x=cur.x1+1;let y=cur.y;
+      const h1=3+(v>0?0:R()<0.5?1:0);for(let yy=y-1;yy<=y+h1;yy++){P(x,yy,z,lad);P(x+1,yy,z,pil);}
+      if(v===0){plat(x+1,x+2,y+h1,z-1>=-6?z-1:z,z-1>=-6?z:z+1,'block');return{x0:x+1,x1:x+2,y:y+h1,z0:z-1>=-6?z-1:z,z1:z-1>=-6?z:z+1,k:'block'};}
+      if(v===1){ // the ladder stops: walk sideways along a ledge to where it goes on
+        const s=z<=1?1:-1,z2=z+2*s;fill(x,x,y+h1,y+h1,Math.min(z,z2),Math.max(z,z2),pil);for(let zz=Math.min(z,z2);zz<=Math.max(z,z2);zz++)P(x+1,y+h1,zz,pil);
+        const h2=3;for(let yy=y+h1+1;yy<=y+h1+h2;yy++){P(x,yy,z2,lad);P(x+1,yy,z2,pil);}plat(x+1,x+1,y+h1+h2,z2,z2,'block');return{x0:x+1,x1:x+1,y:y+h1+h2,z0:z2,z1:z2,k:'block'};}
+      // hard: from the top of the first ladder jump across into a second one
+      plat(x+1,x+1,y+h1,z,z,'block');const x2=x+3;for(let yy=y+h1-1;yy<=y+h1+3;yy++){P(x2,yy,z,lad);P(x2+1,yy,z,pil);}plat(x2+1,x2+1,y+h1+3,z,z,'block');
+      lv.jumps.push({ladder:2});return{x0:x2+1,x1:x2+1,y:y+h1+3,z0:z,z1:z,k:'block'};},
+    slime:(cur,v,demo)=>{if(cur.y<62){cur=hop(cur,{dy:1,gap:1,size:2});cur=hop(cur,{dy:1,gap:1,size:2});}
+      const z0=Math.max(-6,Math.min(3,cz(cur)-1)),L=3,W=v===0?3:2,x=cur.x1+2;fill(x,x+L-1,cur.y-6,cur.y-6,z0,z0+W-1,B.SLIME_BLOCK);
+      lv.minY=Math.min(lv.minY,cur.y-6);const n={x0:x+L+2,x1:x+L+3,y:cur.y-3,z0,z1:z0+(v===2?0:1),k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');lv.jumps.push({slime:true});return n;},
+    ice:(cur,v,demo)=>{const ice=v===2?B.BLUE_ICE:B.PACKED_ICE,c=Math.max(-5,Math.min(4,cz(cur)));
+      if(v===0){const W=ph===0?3:2,z0=Math.max(-6,Math.min(6-W,c-1)),x=cur.x1+1;fill(x,x+7,cur.y,cur.y,z0,z0+W-1,ice);const n={x0:x+8,x1:x+9,y:cur.y+1,z0,z1:z0+W-1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;}
+      if(v===1){const x=cur.x1+1,y=cur.y,s=c<=0?1:-1,za=s>0?c:c-1,zb=za+1,z1=za+4*s,zc=Math.min(z1,z1+s),zd=Math.max(z1,z1+s),e=athB(T.edge);
+        fill(x,x+5,y,y,za,zb,ice);fill(x+6,x+6,y,y+1,za,zb,e);                                   // run in, bumper ahead
+        fill(x+4,x+5,y,y,Math.min(za,zd),Math.max(zb,zc),ice);for(let xx=x+4;xx<=x+5;xx++)P(xx,y+1,s>0?zd+1:zc-1,e);   // turn, bumper at the side
+        fill(x+4,x+9,y,y,zc,zd,ice);
+        return hop({x0:x+9,x1:x+9,y,z0:zc,z1:zd,k:'ice'},{gap:1,dy:0,size:2,lat:false});}
+      let n=cur;for(let i=0;i<3;i++){n=hop(n,{kind:'ice',size:1,dy:0,gap:i===0?2:1,lat:false});n.x1=n.x0+2;fill(n.x0,n.x1,n.y,n.y,n.z0,n.z1,ice);}return hop(n,{size:2,dy:0,gap:1});},
+    ceiling:(cur,v,demo)=>{const top=athSlabTop('STONEBRICK');let n=cur;const pts=[cur];for(let i=0;i<2+v;i++){n=hop(n,{dy:0,gap:v===0?1:2,size:v===2?1:2,lat:false});pts.push(n);}
+      for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],z0=Math.min(a.z0,b.z0)-1,z1=Math.max(a.z1,b.z1)+1;fill(a.x0,b.x1,a.y+3,a.y+3,z0,z1,top);}return n;},
+    swim:(cur,v,demo)=>{const W=v===0?3:2,c=Math.max(-5,Math.min(4,cz(cur))),z0=Math.max(-6,Math.min(6-W,c-1)),z1=z0+W-1,x0=cur.x1+1,L=9+v*2,y=cur.y,deep=v>0?3:2;
+      fill(x0,x0+L-1,y-deep,y-1,z0,z1,B.WATER);fill(x0,x0+L-1,y,y,z0,z1,B.WATER);fill(x0,x0+L-1,y-deep-1,y-deep-1,z0-1,z1+1,wa);fill(x0,x0+L-1,y-deep,y+1,z0-1,z0-1,wa);fill(x0,x0+L-1,y-deep,y+1,z1+1,z1+1,wa);
+      if(v>0)for(let g=0;g<v*2;g++){const gx=x0+2+g*3,open=(g&1)?z1:z0;for(let z=z0;z<=z1;z++)if(z!==open)fill(gx,gx,y-deep,y+2,z,z,wa);}   // walls across with a gap at alternate sides: swim a slalom
+      lv.minY=Math.min(lv.minY,y-deep-1);const n={x0:x0+L,x1:x0+L+1,y,z0,z1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
+    elevator:(cur,v,demo)=>{const c=Math.max(-5,Math.min(4,cz(cur))),x=cur.x1+1,y=cur.y,H=5+v*2,S=v===0?2:1,z0=c,z1=c+S-1;
+      fill(x,x+S-1,y,y,z0,z1,wa);fill(x,x+S-1,y+1,y+H,z0,z1,B.WATER);
+      for(let yy=y+1;yy<=y+H+1;yy++){for(let xx=x-1;xx<=x+S;xx++)for(const zz of[z0-1,z1+1])P(xx,yy,zz,glass);for(let zz=z0;zz<=z1;zz++){if(yy>y+2)P(x-1,yy,zz,glass);if(yy<y+H)P(x+S,yy,zz,glass);}}
+      const n={x0:x+S,x1:x+S+1,y:y+H-1,z0,z1:Math.max(z1,z0+1),k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
+    branch:(cur,v,demo)=>{const x=cur.x1+2,y=cur.y;fill(x,x+2,y,y,-6,5,pl[0]);fill(x,x,y,y,-6,-4,B.CONCRETE_LIME);fill(x,x,y,y,3,5,B.CONCRETE_RED);
+      // the easy lane (green, z<0): many small hops; the hard lane (red, z>0): a few long ones; both end on one platform
+      let a={x0:x,x1:x+2,y,z0:-6,z1:-3,k:'block'},b={x0:x,x1:x+2,y,z0:2,z1:5,k:'block'};
+      for(let i=0;i<6;i++)a=hop(a,{size:2,gap:1,dy:0,zmin:-6,zmax:-2,d:0,lat:false});
+      const gHard=v===2?4:3,hd=Math.max(d,0.72);
+      for(let it=0;it<12;it++){if(b.x1<a.x1-(gHard-1))b=hop(b,{size:1,gap:gHard,dy:0,zmin:2,zmax:5,lat:false,d:hd});else if(a.x1<b.x1-1)a=hop(a,{size:2,gap:1,dy:0,zmin:-6,zmax:-2,d:0,lat:false});else break;}
+      const xe=Math.max(a.x1,b.x1)+2;fill(xe,xe+2,y,y,-6,5,pl[1]);lv.jumps.push({gx:xe-a.x1-1,gz:0,dyS:0,from:'block',to:'block',d:0.4,run:2},{gx:xe-b.x1-1,gz:0,dyS:0,from:'block',to:'block',d:hd,run:1});
+      fill(x-1,x-1,y+1,y+1,-6,-6,B.LANTERN);return{x0:xe,x1:xe+2,y,z0:-2,z1:1,k:'block'};},
+    maze:(cur,v,demo)=>{const N=6,S=2*N+1,x0=cur.x1+2,y=cur.y,zb=-6,w=athB(T.deco==='jungle'||T.deco==='plains'?'LEAVES':T.wa);
+      fill(x0,x0+S-1,y,y,zb,zb+S-1,pl[0]);const open=new Set(),vis=new Set(),st=[[0,R()*N|0]];vis.add(st[0].join());
+      while(st.length){const[cx,cz2]=st[st.length-1],nb=[[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>[cx+a,cz2+b]).filter(([a,b])=>a>=0&&b>=0&&a<N&&b<N&&!vis.has(a+','+b));
+        if(!nb.length){st.pop();continue;}const q=nb[(R()*nb.length)|0];open.add([cx*2+1+(q[0]-cx),cz2*2+1+(q[1]-cz2)].join());vis.add(q.join());st.push(q);}
+      const ein=2*((R()*N)|0)+1,eout=2*((R()*N)|0)+1;
+      for(let i=0;i<S;i++)for(let j=0;j<S;j++){const cell=(i&1)&&(j&1);if(cell||open.has(i+','+j))continue;if((i===0&&j===ein)||(i===S-1&&j===eout))continue;fill(x0+i,x0+i,y+1,y+3,zb+j,zb+j,w);}
+      if(v===2){fill(x0,x0+S-1,y+4,y+4,-8,7,wa);for(let i=0;i<6;i++)P(x0+1+2*((R()*N)|0),y,zb+1+2*((R()*N)|0),B.ATH_DIM);}   // dark maze: a few glowing floor tiles
+      // a step up to the entrance from the run-up platform
+      fill(cur.x1+1,cur.x1+1,y,y,Math.min(cz(cur),zb+ein),Math.max(cz(cur),zb+ein),pl[1]);const n={x0:x0+S+1,x1:x0+S+2,y,z0:zb+eout-1,z1:zb+eout,k:'block'};fill(x0+S,x0+S,y,y,zb+eout,zb+eout,pl[1]);plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
+    blink:(cur,v,demo)=>{const K=v===0?4:v===1?5:6,G=v===2?3:2,Pd=v===0?4.2:v===1?3.4:2.8,on=v===0?0.82:v===1?0.75:0.7,sz=v===0?2:1;let n=cur;const x0=cur.x1;
+      for(let i=0;i<K;i++){n=hop(n,{size:sz,gap:v===2?2:1,dy:0,lat:v>0});const cells=[];for(let x=n.x0;x<=n.x1;x++)for(let z=n.z0;z<=n.z1;z++)cells.push([x,n.y,z]);
+        dyn.push({t:'blink',cells,id:pl[i&1],P:Pd,on,ph:(i%G)/G});}
+      const e=hop(n,{size:2,gap:1,dy:0});if(demo)safety(x0+1,e.x0-1,cur.y,Math.min(cur.z0,e.z0)-1,Math.max(cur.z1,e.z1)+1,e);return e;},
+    crumble:(cur,v,demo)=>{const dl=v===0?0.95:v===1?0.65:0.45;let cells=[],n;const x0=cur.x1;
+      if(v<2){const W=v===0?2:1,c=Math.max(-6,Math.min(6-W,cz(cur))),x=cur.x1+2,L=8;for(let xx=x;xx<x+L;xx++)for(let z=c;z<c+W;z++)cells.push([xx,cur.y,z]);
+        lv.jumps.push({gx:1,gz:0,dyS:0,from:'block',to:'block',d,run:2});n={x0:x+L-1,x1:x+L-1,y:cur.y,z0:c,z1:c+W-1,k:'block'};}
+      else{n=cur;for(let i=0;i<5;i++){n=hop(n,{size:1,gap:1,dy:0});cells.push([n.x0,n.y,n.z0]);}}
+      for(const c of cells)P(c[0],c[1],c[2],pl[1]);dyn.push({t:'crumble',cells,id:pl[1],delay:dl,back:3});
+      const e=hop(n,{size:2,gap:1,dy:0});if(demo)safety(x0+1,e.x0-1,cur.y,Math.min(cur.z0,e.z0)-1,Math.max(cur.z1,e.z1)+1,e);return e;},
+    color:(cur,v,demo)=>{const nc=v===0?2:v===1?3:4,ci=(R()*ATH_COLORS.length)|0,cols=[ci];while(cols.length<nc){const k=(R()*ATH_COLORS.length)|0;if(!cols.includes(k))cols.push(k);}
+      const L=v===0?9:11,W=v===0?5:7,c=Math.max(-6+((W-1)>>1),Math.min(5-((W-1)>>1),cz(cur))),z0=c-((W-1)>>1),x0=cur.x1+1,y=cur.y,path=new Set();
+      let pz=c;for(let x=0;x<L;x++){path.add(x+','+pz);const r=R();if(x<L-1&&r<0.45){const nz2=Math.max(z0,Math.min(z0+W-1,pz+(R()<0.5?-1:1)));path.add(x+','+nz2);pz=nz2;}}
+      for(let x=0;x<L;x++)for(let z=z0;z<z0+W;z++){const real=path.has(x+','+z);
+        if(real){if(v===2&&x%3===1&&x<L-1)continue;P(x0+x,y,z,athB(ATH_COLORS[ci][1]));}
+        else{const k=cols[1+((R()*(nc-1))|0)];P(x0+x,y,z,B[ATH_COLORS[k][2]]);}}
+      lv.color=ATH_COLORS[ci][0];for(let z=z0-1;z<=z0+W;z++)P(x0,y+4,z,athB(ATH_COLORS[ci][1]));
+      lv.minY=Math.min(lv.minY,y);const n={x0:x0+L+1,x1:x0+L+2,y,z0:pz-1<-6?pz:pz-1,z1:pz-1<-6?pz+1:pz,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');
+      lv.jumps.push({gx:1,gz:0,dyS:0,from:'block',to:'block',d,run:1});return n;},
+    move:(cur,v,demo,count)=>{let n=cur;const x0=cur.x1;for(let m=0;m<(v===2?2:1);m++){const S=v===0?3:2,c=Math.max(-6,Math.min(6-S,cz(n)-((S-1)>>1))),Dst=6+v*2,st=v===0?0.5:v===1?0.36:0.3,a=n.x1+2;
+        const cells=[];for(let x=0;x<S;x++)for(let z=0;z<(v===2?1:S);z++)cells.push([x,0,z]);
+        dyn.push({t:'move',cells,id:pl[1],ox:a,oy:n.y,oz:c,axis:0,len:Dst,st,pause:1.3,ph:R()});
+        for(const q of cells)P(a+q[0],n.y,c+q[2],pl[1]);
+        n={x0:a+Dst+S+1,x1:a+Dst+S+2,y:n.y,z0:c,z1:c+1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');}
+      if(demo)safety(x0+1,n.x0-1,cur.y,Math.min(cur.z0,n.z0)-1,Math.max(cur.z1,n.z1)+1,n);return n;},
+    door:(cur,v,demo)=>{const W=v===0?3:2,c=Math.max(-6,Math.min(6-W,cz(cur)-1)),nd=1+v,L=3+nd*4,x0=cur.x1+1,y=cur.y,Pd=v===0?3.6:v===1?3.0:2.6,op=v===0?0.55:v===1?0.48:0.42;
+      fill(x0,x0+L-1,y,y,c,c+W-1,pl[0]);
+      for(let k=0;k<nd;k++){const dx=x0+2+k*4,cells=[];for(let yy=y+1;yy<=y+3;yy++)for(let z=c;z<c+W;z++)cells.push([dx,yy,z]);
+        fill(dx,dx,y+1,y+4,c-1,c-1,athB(T.arch));fill(dx,dx,y+1,y+4,c+W,c+W,athB(T.arch));fill(dx,dx,y+4,y+4,c,c+W-1,athB(T.arch));
+        for(const q of cells)P(q[0],q[1],q[2],athB(T.wb));dyn.push({t:'door',cells,id:athB(T.wb),P:Pd,open:op,ph:k*0.28});
+        if(v===2&&k<nd-1){for(let z=c;z<c+W;z++)P(dx+2,y,z,0);}}
+      const n={x0:x0+L,x1:x0+L+1,y,z0:c,z1:c+W-1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
+    lava:(cur,v,demo)=>{const W=5,c=Math.max(-4,Math.min(3,cz(cur))),z0=c-2,z1=c+2,x0=cur.x1+1,y=cur.y,Lx=10+v*2,Pd=v===0?7:v===1?5.6:4.6,rise=v===0?2:2.2;
+      fill(x0,x0+Lx-1,y-2,y-2,z0-1,z1+1,wa);fill(x0,x0+Lx-1,y-1,y+1,z0-1,z0-1,wa);fill(x0,x0+Lx-1,y-1,y+1,z1+1,z1+1,wa);fill(x0,x0+Lx-1,y-1,y-1,z0,z1,B.LAVA);
+      // stepping stones at the lava's level, and raised islands that it never reaches
+      const stones=new Set(),isl=new Set();let pz=c;const gap=v===2?2:1;let x=0;
+      while(x<Lx){const isIsland=(x%(gap===1?4:6))===3||x===Lx-1;if(isIsland){isl.add(x+','+pz);}else stones.add(x+','+pz);x+=gap+1;if(v>0&&R()<0.35)pz=Math.max(z0,Math.min(z1,pz+(R()<0.5?-1:1)));}
+      const cells=[];for(let i=0;i<Lx;i++)for(let z=z0;z<=z1;z++){const k=i+','+z;if(isl.has(k)){P(x0+i,y,z,athB(T.edge));P(x0+i,y+1,z,athB(T.edge));continue;}
+        if(stones.has(k))P(x0+i,y,z,pl[0]);else P(x0+i,y,z,B.LAVA);cells.push([x0+i,y+1,z]);}
+      dyn.push({t:'lava',cells,P:Pd,rise,ph:0});lv.minY=Math.min(lv.minY,y-2);
+      const n={x0:x0+Lx,x1:x0+Lx+1,y:y+1,z0:Math.max(-6,pz-1),z1:Math.max(-6,pz-1)+1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
+    gate:(cur,v,demo)=>{const W=2,c=Math.max(-6,Math.min(4,cz(cur))),x0=cur.x1+1,y=cur.y,L=8+v*4;
+      P(x0,y,c,B.ATH_PLATE);P(x0,y,c+1,B.ATH_PLATE);fill(x0+1,x0+L-1,y,y,c,c+1,pl[0]);
+      if(v>0)for(let k=0;k<v*2;k++){const gx=x0+3+k*3;if(gx<x0+L-2){P(gx,y,c,0);P(gx,y,c+1,0);if(v===2)P(gx+1,y,c,0);}}
+      const gx=x0+L,cells=[];for(let yy=y+1;yy<=y+3;yy++)for(let z=c;z<=c+1;z++)cells.push([gx,yy,z]);
+      fill(gx,gx,y,y,c,c+1,pl[0]);fill(gx,gx,y+1,y+4,c-1,c-1,athB(T.arch));fill(gx,gx,y+1,y+4,c+2,c+2,athB(T.arch));fill(gx,gx,y+4,y+4,c,c+1,athB(T.arch));for(const q of cells)P(q[0],q[1],q[2],athB(T.wb));
+      dyn.push({t:'gate',plate:[[x0,y,c],[x0,y,c+1]],cells,id:athB(T.wb),dur:L/5.6+(v===0?3.2:v===1?2.2:1.4)});
+      const n={x0:gx+1,x1:gx+2,y,z0:c,z1:c+1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
+  };
+  // wrappers: a roof that makes it dark, a pool that sends you back, a ceiling over the jumps
+  const WRAP={
+    dark:(inner,cur,v,demo)=>{const x0=cur.x1+1;const n=inner(cur);const top=Math.max(cur.y,n.y)+5;fill(x0,n.x0-1,top,top,-8,7,wa);
+      // glowing pads show the way in the dark
+      for(let i=0;i<bl.length;i+=4){const x=bl[i],y=bl[i+1],id=bl[i+3];if(x>x0&&x<n.x0&&y<top&&(id===pl[0]||id===pl[1])&&R()<(v===2?0.35:0.7))bl[i+3]=B.ATH_DIM;}
+      lv.dark=[x0,n.x0-1];return n;},
+    wreset:(inner,cur,v,demo)=>{const x0=cur.x1+1;const n=inner(cur);const y=Math.min(cur.y,n.y)-3;fill(x0,n.x0-1,y,y,-7,6,B.WATER);fill(x0,n.x0-1,y-1,y-1,-7,6,wa);
+      reg.push({t:'water',x0,x1:n.x0-1});lv.minY=Math.min(lv.minY,y-1);return n;},
+  };
+  // ---- the level: checkpoint, a short run-up, the high point(s), a last easy hop
+  const cp=lv.cp,goal=lv.n>ATH_N;
+  for(let x=cp.x0;x<=cp.x1;x++)for(let z=cp.z0;z<=cp.z1;z++){const rim=z===cp.z0||z===cp.z1;P(x,cp.y,z,goal?B.ATH_GOAL:rim?athB(T.edge):B.ATH_CP);}
+  const ar=athB(T.arch);for(const z of[cp.z0-1,cp.z1+1])for(let y=cp.y-2;y<=cp.y+5;y++)P(cp.x0,y,z,ar);
+  for(let z=cp.z0-1;z<=cp.z1+1;z++)P(cp.x0,cp.y+6,z,ar);P(cp.x0,cp.y+5,cp.z0+1,B.LANTERN);P(cp.x0,cp.y+5,cp.z1-1,B.LANTERN);
+  const txt=goal?'GOAL':String(lv.n),wd=txt.length*4-1,zc=Math.round((cp.z0+cp.z1)/2),zs=zc-Math.floor(wd/2),dg=goal?B.GOLD_BLOCK:athB(T.dig);
+  for(let i=0;i<txt.length;i++){const F=ATH_FONT[txt[i]];for(let r=0;r<5;r++)for(let c=0;c<3;c++)if(F[r][c]==='1')P(cp.x0,cp.y+12-r,zs+i*4+c,dg);}
+  if(goal)return null;
+  let cur={x0:cp.x0,x1:cp.x1,y:cp.y,z0:cp.z0,z1:cp.z1,k:'block'};
+  const runUp=ph===0?2+(R()<0.5?1:0):ph<4?1+(R()<0.5?1:0):1;for(let i=0;i<runUp;i++)cur=hop(cur);
+  for(let i=0;i<plan.length;i++){const[g,v,demo,wrap]=plan[i];if((g==='ladder'||g==='elevator')&&cur.y>70){cur=hop(cur,{dy:-1});cur=hop(cur,{dy:-1});}const f=c=>SP[g](c,v,demo);
+    const from=Object.assign({},cur);cur=wrap?WRAP[wrap](f,cur,v,demo):f(cur);(lv.sp=lv.sp||[]).push({g,v,wrap,from,to:Object.assign({},cur)});if(i<plan.length-1)cur=hop(cur,{size:Math.max(1,3-ph),dy:0});}
+  return cur;
+}
+// ---- the plan of every level: which gimmick, which strength, first time shown safely, combinations later
+function athPlans(){
+  const out=[],seen=new Set(),R=mulberry32(ATH_SEED^0x5a17),recent=[],recentCombo=[];let prev='';
+  const avail=n=>Object.keys(ATH_GIM).filter(g=>ATH_GIM[g].at<=n);
+  const COMBOS=[['ice','slime'],['move','wreset'],['branch','dark'],['color','dark'],['ice','ceiling'],['crumble','blink'],['door','jump'],['lava','move'],['gate','crumble'],['blink','wreset'],['ladder','dark'],['maze','dark']];
+  for(let n=1;n<=ATH_N;n++){const ph=Math.floor((n-1)/30),th=Math.min(9,Math.floor((n-1)/15)),A=avail(n);
+    const fresh=A.find(g=>!seen.has(g)&&g!=='jump');
+    const strength=g=>{const age=n-ATH_GIM[g].at;if(age<6||ph===0)return 0;if(ph===1)return age<15?0:1;if(ph===2)return 1;if(ph===3)return R()<0.5?1:2;return 2;};
+    const pick=(not)=>{let tot=0;const w=A.map(g=>{let x=g===prev?0.1:1;if(not&&not.includes(g))x=0;const ri=recent.lastIndexOf(g);if(ri>=0)x*=0.15+0.12*(recent.length-1-ri);if(ATH_GIM[g].th.includes(th))x*=3.5;if(g==='jump')x*=ph===0?1.5:0.6;if(g==='wreset'||g==='dark')x*=0.6;tot+=x;return x;});
+      let r=R()*tot;for(let i=0;i<A.length;i++)if((r-=w[i])<=0)return A[i];return A[0];};
+    let plan;
+    if(fresh){seen.add(fresh);plan=fresh==='wreset'?[['move',1,false,'wreset']]:fresh==='dark'?[['jump',1,false,'dark']]:[[fresh,0,true]];plan.intro=fresh;}
+    else if(n===ATH_N){plan=[['jump',2,false],['gate',2,false]];plan.finale=true;}
+    else if(ph===3&&R()<0.75){let c=COMBOS.filter(cb=>cb.every(g=>A.includes(g))&&!recentCombo.includes(cb.join()));if(!c.length)c=COMBOS.filter(cb=>cb.every(g=>A.includes(g)));const cb=c[(R()*c.length)|0];recentCombo.push(cb.join());if(recentCombo.length>5)recentCombo.shift();
+      plan=cb[1]==='dark'||cb[1]==='wreset'?[[cb[0],strength(cb[0]),false,cb[1]]]:[[cb[0],strength(cb[0]),false],[cb[1],strength(cb[1]),false]];}
+    else if(ph===4){const k=R()<0.5?2:3;plan=[];const used=[];for(let i=0;i<k;i++){let g=pick(used);used.push(g);if(g==='color')used.push('color');if(g==='dark'||g==='wreset'){plan.push(['jump',2,false,g]);}else plan.push([g,strength(g),false]);prev=g;}}
+    else{let g=pick();if(g==='dark'||g==='wreset')plan=[['jump',strength(g),false,g]];else plan=[[g,strength(g),false]];}
+    prev=plan[0][3]||plan[0][0];for(const q of plan){recent.push(q[3]||q[0]);}while(recent.length>8)recent.shift();out.push(plan);}
+  return out;}
+const ATH_STYLES=['float','pillar','rim','lamp','under'];
+function athLayout(){if(ATH.L)return ATH.L;
+  const L=[],plans=athPlans();let x=0,y=62,z=0;
+  for(let n=1;n<=ATH_N+1;n++){
+    const d=athDiff(Math.min(n,ATH_N)),th=Math.min(9,Math.floor((Math.min(n,ATH_N)-1)/15)),ph=Math.min(4,Math.floor((Math.min(n,ATH_N)-1)/30)),R=mulberry32(ATH_SEED+n*7919);
+    const zc=Math.max(-3,Math.min(2,z)),cp={x0:x,x1:x+4,y,z0:zc-3,z1:zc+3,k:'cp'};
+    const lv={n,d,th,ph,cp,minY:y,jumps:[],style:ATH_STYLES[(R()*ATH_STYLES.length)|0],plan:n<=ATH_N?plans[n-1]:[]};L.push(lv);
+    const cur=athBuild(lv,R,lv.plan);
+    let xmin=1e9,xmax=-1e9;for(let i=0;i<lv.blocks.length;i+=4){const bx=lv.blocks[i];if(bx<xmin)xmin=bx;if(bx>xmax)xmax=bx;}lv.xmin=xmin-1;lv.xmax=xmax+1;
+    if(!cur)break;
+    // an easy last hop onto the next checkpoint
+    const dy=cur.y>70?-1:cur.y<58?1:0,ny=cur.y+dy,dyS=ny+1-(cur.y+ATH_SURF[cur.k]),g=Math.max(1,Math.min(2,Math.floor(athMaxGap(Math.min(d,0.4),dyS,cur.k,'block',cur.x1-cur.x0+1))));
+    lv.jumps.push({gx:g,gz:0,dyS,from:cur.k,to:'cp',d:Math.min(d,0.4),run:cur.x1-cur.x0+1});
+    x=cur.x1+g+1;y=ny;z=Math.round((cur.z0+cur.z1)/2);
+  }
+  ATH.L=L;return L;}
+function athBlocks(n){return athLayout()[n-1].blocks;}
+function athGimName(lv){const p=lv.plan||[];if(!p.length)return'';const nm=p.map(([g,,,w])=>w?(ATH_GIM[w].name+'＋'+(g==='jump'?'ジャンプ':ATH_GIM[g].name)):ATH_GIM[g].name);
+  return(p.finale?'フィナーレ：':'')+nm.join('・')+(lv.color?'（'+lv.color+'だけ）':'');}
+
+// ---- the moving parts, run only for the levels around the player
+const ATHD={clock:0,lastLv:-1};
+function athSet(x,y,z,id){if(world.getBlock(x,y,z)!==id)world.setBlock(x,y,z,id,false,true);}
+function athStandCell(){const p=player;if(!p.onGround)return null;return[Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.08),Math.floor(p.pos[2])];}
+function athInCells(cells){const p=player,x0=p.pos[0]-0.3,x1=p.pos[0]+0.3,z0=p.pos[2]-0.3,z1=p.pos[2]+0.3,y0=p.pos[1],y1=p.pos[1]+1.8;
+  return cells.some(c=>c[0]+1>x0&&c[0]<x1&&c[2]+1>z0&&c[2]<z1&&c[1]+1>y0&&c[1]<y1);}
+function athDynReset(lv){for(const o of lv.dyn||[]){if(o.t==='crumble'){o.st=null;for(const c of o.cells)athSet(c[0],c[1],c[2],o.id);}if(o.t==='gate'){o.openT=0;for(const c of o.cells)athSet(c[0],c[1],c[2],o.id);for(const c of o.plate)athSet(c[0],c[1],c[2],B.ATH_PLATE);}}}
+function athDynTick(dt){
+  ATHD.clock+=dt;const t=ATHD.clock,L=athLayout(),sc=athStandCell(),p=player;
+  for(let n=Math.max(1,ATH.lv-1);n<=Math.min(ATH_N,ATH.lv+1);n++){const lv=L[n-1];
+    for(const o of lv.dyn||[]){
+      if(o.t==='blink'){const f=((t/o.P+o.ph)%1+1)%1,s=f<o.on-0.16?1:f<o.on?2:0;if(s===o.s)continue;o.s=s;
+        if(s===0&&athInCells(o.cells.map(c=>[c[0],c[1]+1,c[2]])))p.onGround=false;for(const c of o.cells)athSet(c[0],c[1],c[2],s===1?o.id:s===2?B.ATH_WARN:0);}
+      else if(o.t==='door'){const f=((t/o.P+o.ph)%1+1)%1,open=f<o.open;if(open===o.s)continue;if(!open&&athInCells(o.cells))continue;o.s=open;for(const c of o.cells)athSet(c[0],c[1],c[2],open?0:o.id);}
+      else if(o.t==='move'){const cyc=2*(o.len*o.st+o.pause),f=((t/cyc+o.ph)%1+1)%1*cyc;let pos;
+        if(f<o.pause)pos=0;else if(f<o.pause+o.len*o.st)pos=Math.floor((f-o.pause)/o.st);else if(f<2*o.pause+o.len*o.st)pos=o.len;else pos=o.len-Math.floor((f-2*o.pause-o.len*o.st)/o.st);
+        pos=Math.max(0,Math.min(o.len,pos));if(pos===o.pos)continue;const old=o.pos===undefined?0:o.pos,dx=pos-old;
+        const riding=sc&&o.cells.some(c=>sc[0]===o.ox+old+c[0]&&sc[1]===o.oy&&sc[2]===o.oz+c[2]);
+        for(const c of o.cells)athSet(o.ox+old+c[0],o.oy,o.oz+c[2],0);for(const c of o.cells)athSet(o.ox+pos+c[0],o.oy,o.oz+c[2],o.id);o.pos=pos;
+        if(riding)p.pos[0]+=dx;}
+      else if(o.t==='crumble'){o.st=o.st||new Map();const k=sc?sc.join():null;
+        if(k&&o.cells.some(c=>c.join()===k)&&!o.st.has(k)){o.st.set(k,{t:o.delay,ph:0});athSet(sc[0],sc[1],sc[2],B.ATH_WARN);}
+        for(const[key,s]of o.st){s.t-=dt;const c=key.split(',').map(Number);
+          if(s.ph===0&&s.t<=0){s.ph=1;s.t=o.back;athSet(c[0],c[1],c[2],0);}
+          else if(s.ph===1&&s.t<=0&&!athInCells([c])){o.st.delete(key);athSet(c[0],c[1],c[2],o.id);}}}
+      else if(o.t==='lava'){const f=((t/o.P+o.ph)%1+1)%1,up=f>1-o.rise/o.P,warn=!up&&f>1-(o.rise+1.1)/o.P;
+        if(warn&&Math.random()<dt*14){const c=o.cells[(Math.random()*o.cells.length)|0];if(typeof wq==='function')wq({x:c[0]+Math.random(),y:c[1]+0.05,z:c[2]+Math.random(),vy:2+Math.random()*1.5,g:7,tile:T.LAVA,s:0.05,life:0.7,glow:true});}
+        if(up===o.s)continue;o.s=up;for(const c of o.cells)athSet(c[0],c[1],c[2],up?B.LAVA:0);}
+      else if(o.t==='gate'){o.openT=Math.max(0,(o.openT||0)-dt);
+        if(sc&&o.plate.some(c=>c[0]===sc[0]&&c[1]===sc[1]&&c[2]===sc[2])&&o.openT<o.dur-0.2){if(!o.openT)athFlash('ドアが開いた！ 急げ！');o.openT=o.dur;}
+        const open=o.openT>0;if(open!==o.s&&!(!open&&athInCells(o.cells))){o.s=open;for(const c of o.cells)athSet(c[0],c[1],c[2],open?0:o.id);for(const c of o.plate)athSet(c[0],c[1],c[2],open?B.ATH_PLATE_ON:B.ATH_PLATE);}
+        if(open&&o.openT<3&&Math.floor(o.openT*2)!==o.tick){o.tick=Math.floor(o.openT*2);if(o.openT>0.3)athFlash('のこり '+Math.ceil(o.openT)+' 秒');}}
+    }}
+  // touching what sends you back: lava anywhere, water in the marked stretches
+  const lv=L[ATH.lv-1];if(p.inLava)return'lava';
+  if(p.inWater)for(const r of lv.regions||[])if(r.t==='water'&&p.pos[0]>=r.x0&&p.pos[0]<r.x1+1)return'water';
+  return null;
+}
+// ---- the look of each scenery: snow, leaves, embers, bubbles, spores, dust, drips, sparkles drifting by
+const ATH_AMB=[{c:'CONCRETE_LIME',vy:-0.6,n:2},{c:'CONCRETE_GREEN',vy:-0.7,n:3},{c:'TC_YELLOW',vy:0.1,n:3,side:1.2},{c:'CONCRETE_WHITE',vy:-1.0,n:6},{c:'CONCRETE_LIGHT_BLUE',vy:0.9,n:3},
+  {c:'TC_ORANGE',vy:0.15,n:3,side:1.4},{c:'CONCRETE_PINK',vy:0.25,n:3},{c:'CONCRETE_LIGHT_BLUE',vy:-2.5,n:2},{c:'CONCRETE_ORANGE',vy:1.2,n:4},{c:'CONCRETE_YELLOW',vy:0.2,n:2}];
+function athAmbient(dt,th){const a=ATH_AMB[th];if(!a||typeof wq!=='function')return;const tl=T[a.c];if(tl===undefined)return;
+  if(Math.random()>dt*a.n*4)return;const p=player.pos;
+  wq({x:p[0]+(Math.random()-0.3)*18,y:p[1]+(a.vy<0?6+Math.random()*4:-3+Math.random()*3),z:p[2]+(Math.random()-0.5)*12,vx:(a.side||0.3)*(Math.random()-0.3),vy:a.vy,vz:(Math.random()-0.5)*0.4,g:0,dr:0,tile:tl,s:0.02,life:5,glow:th===8,
+    fn:(q,dt2)=>{q.t+=dt2;q.x+=q.vx*dt2+Math.sin(q.t*1.7+q.z)*0.01;q.y+=q.vy*dt2;q.z+=q.vz*dt2;}});}
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
