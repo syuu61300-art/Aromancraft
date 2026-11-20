@@ -11143,18 +11143,18 @@ function headHit(m,p){return m.hh>=1.1&&p[1]>m.pos[1]+m.hh*0.78;}
 // then fenced in on every side by barrier blocks up to a barrier ceiling at height 100. Outside lies only sea.
 // A match: both players hang in the sky over opposite sides while 3-2-1 counts down, then drop (no fall damage);
 // health bars appear once you land. Weapons and gear are dealt at random: a sword, an axe, blocks, healing and extras.
-const AR={G:40,R:34,WALL:35.6,BAR:37.8,TOP:100};
+const AR={G:40,R:34,WALL:35.6,BAR:37.8,TOP:100,SEA:13*16};   // SEA: as far as the longest view distance (12 chunks) reaches
 World.prototype.genArena=function(c){
   const BL=c.blocks,bx=c.cx*16,bz=c.cz*16,G=AR.G;
   const trees=[];for(let k=0;k<6;k++){const a=Math.PI/6+k*Math.PI/3;trees.push([Math.round(Math.cos(a)*19),Math.round(Math.sin(a)*19)]);}
   const set=(x,y,z,id)=>{if(y>=0&&y<H)BL[bidx(x,y,z)]=id;};
   for(let z=0;z<16;z++)for(let x=0;x<16;x++){
     const wx=bx+x,wz=bz+z,r=Math.hypot(wx+0.5,wz+0.5);
+    if(r>AR.SEA)continue;                                          // past the farthest view distance there is nothing at all
     set(x,0,z,B.BEDROCK);
-    if(r>AR.BAR+0.2){arenaCastle(c,x,z,wx,wz,r,set);continue;}   // beyond the fence: a castle all around
+    if(r>AR.BAR+0.2){arenaCastle(c,x,z,wx,wz,r,set);continue;}   // beyond the fence: a castle all around, then the sea
     // the ground of the island
-    const flat=r<8||r>29,bump=flat?0:Math.round(1.4*(Math.sin(wx*0.19)*Math.cos(wz*0.15)+0.55*Math.sin((wx+wz)*0.11))*smooth(8,14,r)*(1-smooth(24,29,r)));
-    const top=G-1+Math.max(-1,bump);
+    const top=G-1;   // a level floor: the obstacles give the shape
     for(let y=1;y<=top;y++)set(x,y,z,y<top-3?B.STONE:y<top?B.DIRT:B.GRASS);
     if(r>AR.R){ // the visible ring wall, then the invisible fence and ceiling
       if(r<=AR.WALL){for(let y=G;y<=G+1;y++)set(x,y,z,hash3(wx,y,wz,1401)<0.2?B.MOSSY_STONEBRICK:B.STONEBRICK);
@@ -11167,19 +11167,40 @@ World.prototype.genArena=function(c){
       if(r<4.2)set(x,G,z,B.STONEBRICK);
       if(Math.abs(wx)===5&&Math.abs(wz)===5){for(let y=G;y<G+5;y++)set(x,y,z,B.STONEBRICK);set(x,G+5,z,B.LANTERN);}
       continue;}
-    // a pond on each side
-    for(const pz of[-15,15]){const pr=Math.hypot(wx+0.5,wz+0.5-pz);if(pr<3.3){set(x,top,z,B.WATER);set(x,top-1,z,B.WATER);set(x,top-2,z,B.SAND);}else if(pr<4.2)set(x,top,z,B.SAND);}
-    // broken walls for cover
-    for(const s of[-1,1]){const wxx=s*27;if(Math.abs(wx-wxx)<=0&&Math.abs(wz)<=3){const h=Math.abs(wz)===1?1:3;for(let y=G;y<G+h;y++)set(x,y,z,hash3(wx,y,wz,1402)<0.35?B.MOSSY_STONEBRICK:B.CRACKED_STONEBRICK);}
-      if(Math.abs(wz-s*24)<=0&&Math.abs(wx)<=3){const h=Math.abs(wx)===2?1:3;for(let y=G;y<G+h;y++)set(x,y,z,hash3(wx,y,wz,1403)<0.35?B.MOSSY_STONEBRICK:B.CRACKED_STONEBRICK);}}
-    // trees
-    for(const[tx,tz]of trees){const dx=wx-tx,dz=wz-tz;if(dx===0&&dz===0)for(let y=top+1;y<=top+5;y++)set(x,y,z,B.LOG);
-      for(let y=top+3;y<=top+7;y++){const dy=y-(top+5),d=Math.hypot(dx,dy*1.2,dz);if(d<2.6&&!(dx===0&&dz===0&&y<=top+5)&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}}
+    // obstacles, laid out the same on both players' sides (mirror symmetric), see arenaObstacles
+    arenaObstacles(x,z,wx,wz,top,set,BL);
     // grass and flowers
     if(BL[bidx(x,top,z)]===B.GRASS&&BL[bidx(x,top+1,z)]===0){const h=hash3(wx,0,wz,1404);if(h<0.1)set(x,top+1,z,B.TALLGRASS);else if(h<0.125)set(x,top+1,z,h<0.112?B.FLOWER_Y:B.FLOWER_R);}
   }
   c.spawns=[];
 };
+// ---- obstacles inside the arena (q = position folded into one quarter, so every piece appears four times / mirrored)
+function arenaObstacles(x,z,wx,wz,top,set,BL){
+  const G=AR.G,qx=wx<0?-wx-1:wx,qz=wz<0?-wz-1:wz,brick=(y,k)=>{const v=hash3(wx,y,wz,k);return v<0.25?B.MOSSY_STONEBRICK:v<0.4?B.CRACKED_STONEBRICK:B.STONEBRICK;};
+  const col=(h,id)=>{for(let y=top+1;y<=top+h;y++)set(x,y,z,typeof id==='function'?id(y):id);};
+  // 1. low cover walls around the plaza (waist high: hide by crouching, jump over to chase)
+  if((qz===3&&qx>=10&&qx<=13)||(qx===3&&qz>=10&&qz<=13)){col(qx===13||qz===13?1:2,y=>brick(y,1501));return;}
+  // 2. ponds on the path from each start point to the middle, with a plank bridge across
+  {const pr=Math.hypot(qx-12,qz+0.5);if(pr<3.3){if(qz===0){set(x,top,z,B.PLANKS);set(x,top-1,z,B.WATER);}else{set(x,top,z,B.WATER);set(x,top-1,z,B.WATER);}set(x,top-2,z,B.SAND);return;}
+    if(pr<4.2&&qz>0){set(x,top,z,B.SAND);return;}}
+  // 3. two lookout towers (north and south): four posts, a plank deck at 4 high with a railing, block steps up from the middle side
+  if(qx<=1&&qz>=19&&qz<=22){const post=(qx===1)&&(qz===19||qz===22);
+    if(post)col(5,B.STONEBRICK);else{set(x,top+4,z,B.SPRUCE_PLANKS);if((qz===22||qx===1)&&B.OAK_FENCE!==undefined)set(x,top+5,z,B.OAK_FENCE);}
+    if(qx===0&&qz===19)set(x,top+5,z,0);return;}
+  if(qx===0&&qz>=15&&qz<=18){col(qz-14,B.STONEBRICK);return;}
+  // 4. trees for cover, one in each quarter
+  {const dx=qx-18,dz=qz-12;if(dx===0&&dz===0){col(5,B.LOG);}
+    for(let y=top+3;y<=top+7;y++){const dy=y-(top+5),d=Math.hypot(dx,dy*1.2,dz);if(d<2.6&&!(dx===0&&dz===0&&y<=top+5)&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}
+    if(dx===0&&dz===0)return;}
+  // 5. stacks of crates and hay near the edges
+  if(qx>=20&&qx<=21&&qz>=5&&qz<=6){col(qx===20&&qz===5?2:1,y=>y===top+2?B.HAY||B.PLANKS:(B.BARREL!==undefined?B.BARREL:B.PLANKS));return;}
+  if(qx>=8&&qx<=9&&qz>=24&&qz<=25){col(qx===8&&qz===24?2:1,y=>y===top+2?(B.BARREL!==undefined?B.BARREL:B.PLANKS):(B.HAY||B.PLANKS));return;}
+  // 6. ruined stone pillars with a lantern
+  if((qx===16&&qz===26)||(qx===27&&qz===12)){col(4,y=>brick(y,1502));set(x,top+5,z,B.LANTERN);return;}
+  // 7. a broken arch in front of each start point, and low bushes
+  if(qx===27&&qz<=3){const h=qz===3?4:qz===2?2:qz===0?4:0;if(h)col(h,y=>brick(y,1503));if(qz<=3&&qz>=1)set(x,top+4,z,brick(top+4,1504));return;}
+  if((qx===23&&qz===16)||(qx===24&&qz===16)||(qx===11&&qz===17)){col(1,B.LEAVES);return;}
+}
 // ---- the castle around the arena: stepped stands for spectators, a tall wall with battlements, eight towers, banners;
 // beyond the walls, quiet grassland with trees (you see it from the sky at the start)
 function arenaCastle(c,x,z,wx,wz,r,set){
@@ -11202,15 +11223,10 @@ function arenaCastle(c,x,z,wx,wz,r,set){
     // banners hanging from the inner face
     if(r<44.9){const bn=((a/(Math.PI*2)*16)%1+1)%1;if(bn>0.47&&bn<0.53){const red=Math.floor((a/(Math.PI*2)+1)*16)%2===0;for(let y=G+11;y<=G+18;y++)set(x,y,z,red?B.WOOL_R:(B.WOOL_B!==undefined?B.WOOL_B:B.LAPIS_BLOCK));}}
     return;}
-  // outside the walls: grass and some trees
-  set(x,G-1,z,B.GRASS);
-  const gx=Math.floor(wx/9),gz=Math.floor(wz/9);
-  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const cx=gx+dx,cz=gz+dz;if(hash2(cx,cz,1421)>0.45)continue;
-    const tx=cx*9+2+((hash2(cx,cz,1422)*5)|0),tz=cz*9+2+((hash2(cx,cz,1423)*5)|0);if(Math.hypot(tx,tz)<52)continue;
-    const ddx=wx-tx,ddz=wz-tz,th=4+((hash2(cx,cz,1424)*3)|0);if(Math.abs(ddx)>2||Math.abs(ddz)>2)continue;
-    if(ddx===0&&ddz===0)for(let y=G;y<G+th;y++)set(x,y,z,B.LOG);
-    for(let y=G+th-2;y<=G+th+1;y++){const d=Math.hypot(ddx,(y-(G+th))*1.3,ddz);if(d<2.5&&!(ddx===0&&ddz===0&&y<G+th)&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}}
-  if(BL[bidx(x,G,z)]===0&&hash3(wx,1,wz,1425)<0.08)set(x,G,z,B.TALLGRASS);
+  // outside the walls: open sea, deepening away from the castle (the island itself is filled in above)
+  for(let y=1;y<G-1;y++)set(x,y,z,0);
+  const floor=r<54?G-6:r<70?G-9:G-14;for(let y=1;y<floor-2;y++)set(x,y,z,B.STONE);for(let y=floor-2;y<floor;y++)set(x,y,z,hash3(wx,0,wz,1426)<0.2?B.GRAVEL||B.SAND:B.SAND);
+  for(let y=floor;y<=G-2;y++)set(x,y,z,B.WATER);
 }
 {const _gen=World.prototype.generate;World.prototype.generate=function(c){
   if(!this.arena)return _gen.call(this,c);
