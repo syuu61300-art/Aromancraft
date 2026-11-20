@@ -347,6 +347,7 @@
     <p class="note" style="text-align:left;margin-top:0">世界全体をリアルにします。太陽と月の影、やわらかい雲と空、透き通る水、深い海の大きなうねりと白波、波に揺られるボート、風で揺れる草木、まぶしい光のにじみ、光の筋、明るさに目が慣れる効果。後ろの景色ですぐに確かめられます。</p>
     <div class="setrow2"><span>リアルMod</span><div class="seg"><button id="m-on" class="small">オン</button><button id="m-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>画質</span><div class="seg"><button id="m-q0" class="small">軽い</button><button id="m-q1" class="small">ふつう</button><button id="m-q2" class="small">きれい</button><button id="m-q3" class="small">最高</button><button id="m-q4" class="small">最大</button></div></div>
+    <div class="setrow2"><span>シェーダーパック<small id="pack-desc" style="display:block;color:#9ab;font-size:11px;line-height:1.35;margin-top:2px"></small></span><div class="seg" style="flex-wrap:wrap"><button id="m-pk0" class="small" style="flex:1 0 22%">標準</button><button id="m-pk1" class="small" style="flex:1 0 22%">幻想的</button><button id="m-pk2" class="small" style="flex:1 0 22%">シネマ</button><button id="m-pk3" class="small" style="flex:1 0 22%">レトロ</button><button id="m-pk4" class="small" style="flex:1 0 22%">鮮やか</button><button id="m-pk5" class="small" style="flex:1 0 22%">トゥーン</button><button id="m-pk6" class="small" style="flex:1 0 22%">モノクロ</button></div></div>
     <div class="setrow2"><span>影</span><div class="seg"><button id="m-shadow-on" class="small">オン</button><button id="m-shadow-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>揺れる草木</span><div class="seg"><button id="m-wave-on" class="small">オン</button><button id="m-wave-off" class="small">オフ</button></div></div>
     <div class="setrow2"><span>水面の波と反射</span><div class="seg"><button id="m-water-on" class="small">オン</button><button id="m-water-off" class="small">オフ</button></div></div>
@@ -3938,7 +3939,9 @@ function meshChunk(c){
   fillPad(c,nb);computeSkyLight(nb);lightOn=computeBlockLight(c,nb);
   const S=SOLIDBUF,W=WATERBUF;S.reset();W.reset();
   const bx=c.cx*16,bz=c.cz*16,maxY=c.maxY;
-  for(let y=0;y<=maxY;y++)for(let z=0;z<16;z++)for(let x=0;x<16;x++){
+  // index of the first triangle of each 16-high section (the mesher works bottom to top), for section culling
+  const secS=new Int32Array(9),secW=new Int32Array(9);let secN=0;
+  for(let y=0;y<=maxY;y++){if((y&15)===0){secS[y>>4]=S.ni;secW[y>>4]=W.ni;secN=(y>>4)+1;}for(let z=0;z<16;z++)for(let x=0;x<16;x++){
     const id=PAD[pidx(x,y,z)];if(!id||INVIS[id])continue;
     if(SHAPE[id]){emitShape(SOLIDBUF,id,x,y,z,bx,bz);continue;}
     if(CROSS[id]){if(id===B.TORCH)emitTorch(S,x,y,z,bx,bz);else emitCross(S,id,x,y,z,bx,bz);continue;}
@@ -3951,7 +3954,9 @@ function meshChunk(c){
       else if(TRANS[id]&&LIQUID[nid])continue;
       emitFace(buf,id,f,x,y,z,bx,bz,liq);
     }
-  }
+  }}
+  for(let k=secN;k<9;k++){secS[k]=S.ni;secW[k]=W.ni;}
+  c.secS=secS;c.secW=secW;c.vis=typeof perfOn==='function'&&perfOn()?sectionVis(maxY):null;
   c.solid=uploadMesh(c.solid,S);c.water=uploadMesh(c.water,W);
   c.dirty=false;c.meshed=true;
 }
@@ -4504,7 +4509,7 @@ function spawnBreakParticles(x,y,z,id,n){
       life:0.45+Math.random()*0.55,tile,u:Math.random()*0.75,v:Math.random()*0.75,s:0.07+Math.random()*0.06,smoke:false});
   }
 }
-function puff(x,y,z,n,s){for(let i=0;i<n;i++){if(particles.length>900)particles.shift();particles.push({x:x+(Math.random()-0.5)*0.8,y:y+Math.random()*0.8,z:z+(Math.random()-0.5)*0.8,
+function puff(x,y,z,n,s){for(let i=0;i<n;i++){if(particles.length>(typeof LITH!=='undefined'&&LITH.on?450:900))particles.shift();particles.push({x:x+(Math.random()-0.5)*0.8,y:y+Math.random()*0.8,z:z+(Math.random()-0.5)*0.8,
   vx:(Math.random()-0.5)*1.2,vy:Math.random()*1.5+0.3,vz:(Math.random()-0.5)*1.2,life:0.5+Math.random()*0.6,tile:T.SMOKE,u:0,v:0,s:s||0.12+Math.random()*0.12,smoke:true});}}
 function spawnItem(x,y,z,id,n,d,vx,vy,vz){
   if(!validItem(id)||n<=0)return;
@@ -4732,6 +4737,8 @@ function updateEntities(dt){
       if(d<0.8){const left=addItem(it.id,it.n,it.d);if(left<it.n){sfx.pop();}if(left<=0){items.splice(i,1);continue;}it.n=left;it.delay=1;}
       else{it.vel[0]=dx/d*6;it.vel[1]=dy/d*6;it.vel[2]=dz/d*6;it.pos[0]+=it.vel[0]*dt;it.pos[1]+=it.vel[1]*dt;it.pos[2]+=it.vel[2]*dt;continue;}
     }
+    // 軽量化（処理）: an item lying still on the ground only re-checks its footing now and then
+    if(typeof LITH!=='undefined'&&LITH.on&&lithItemRest(it,dt))continue;
     const inW=LIQUID[world.getBlock(Math.floor(it.pos[0]),Math.floor(it.pos[1]),Math.floor(it.pos[2]))];
     it.vel[1]-=(inW?4:18)*dt;if(inW&&it.vel[1]<-1)it.vel[1]=-1;
     const f=it.onGround?Math.exp(-8*dt):Math.exp(-0.5*dt);it.vel[0]*=f;it.vel[2]*=f;
@@ -5903,11 +5910,14 @@ function mobBoom(x,y,z,r,grief,src){
 }
 function crystalBoom(m){const p=m.pos;mobBoom(p[0],p[1]+1,p[2],2.6,false,m);if(typeof onCrystalGone==='function')onCrystalGone(m);}
 // ---------------------------------------------------------------- the main loop
-function updateMobs(dt,sky){
+function updateMobs(dtAll,sky){
   const day=curDim===0&&sky.day>0.75;
   const tgtOK=playerTarget(),pe=playerEye();
   for(let i=mobs.length-1;i>=0;i--){
-    const m=mobs[i],d=m.def;m.t+=dt;
+    const m=mobs[i],d=m.def;let dt=dtAll;
+    // 軽量化（処理）: far-away, idle creatures think a few times a second instead of every frame
+    if(typeof LITH!=='undefined'&&LITH.on&&d.move!=='boss'){const s=lithMobStep(m,dtAll);if(s===0)continue;dt=s;}
+    m.t+=dt;
     if(d.move==='boss'){if(typeof dragonUpdate==='function')dragonUpdate(m,dt);if(m.gone)mobs.splice(i,1);continue;}
     const c=world.getChunk(Math.floor(m.pos[0])>>4,Math.floor(m.pos[2])>>4);
     const dxp=player.pos[0]-m.pos[0],dzp=player.pos[2]-m.pos[2],dyp=player.pos[1]-m.pos[1],dist=Math.hypot(dxp,dzp);
@@ -7304,7 +7314,7 @@ let cssW=0,cssH=0,camYaw=0,camPitch=0;
 function resize(){
   // draw at (up to) the screen's real pixel density so the picture is sharp on phones; the Real Mod quality picks the limit
   const cap=typeof realOn==='function'&&realOn()?modQ().dpr:2;
-  const dpr=Math.min(window.devicePixelRatio||1,cap);
+  const dpr=Math.max(0.5,Math.min(window.devicePixelRatio||1,cap)*(typeof perfDprScale==='function'?perfDprScale():1));
   const w=Math.floor(innerWidth*dpr),h=Math.floor(innerHeight*dpr);
   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
   cssW=innerWidth;cssH=innerHeight;
@@ -7455,6 +7465,7 @@ function updateAdapt(sky){
   return adaptV;
 }
 function render(){
+  perfRenderTick();
   if(realOn()&&realInit()){
     try{renderReal();return;}
     catch(e){console.warn('リアルMod を止めました',e);REAL.failed=true;gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.depthRange(0,1);gl.disable(gl.POLYGON_OFFSET_FILL);
@@ -7486,14 +7497,7 @@ function render(){
   gl.uniform3fv(u.uCam,eye);gl.uniform4fv(u.uDyn,dynLightUniform());gl.uniform1f(u.uDay,sky.dayLight);gl.uniform3fv(u.uSkyTint,sky.tint);gl.uniform1f(u.uAlphaMode,0);
   gl.uniform1f(u.uWaterTile,T.WATER);gl.uniform1f(u.uLavaTile,T.LAVA);
   gl.uniform3fv(u.uSunDir,sunDir);gl.uniform1f(u.uSunAmt,0.85*smooth(0.05,0.6,sky.day));gl.uniform1f(u.uSunset,sky.sunset);gl.uniform1f(u.uMinL,dimMinL());gl.uniform1f(u.uAdapt,updateAdapt(sky));
-  const waters=[];drawnChunks=0;const maxD=(R+1)*16;
-  for(const c of world.chunks.values()){
-    if(!c.meshed)continue;const x0=c.cx*16,z0=c.cz*16;
-    const dx=x0+8-eye[0],dz=z0+8-eye[2],d2=dx*dx+dz*dz;if(d2>maxD*maxD)continue;
-    if(!boxVisible(x0,0,z0,x0+16,c.maxY+1,z0+16))continue;
-    if(c.solid){gl.bindVertexArray(c.solid.vao);gl.drawElements(gl.TRIANGLES,c.solid.count,gl.UNSIGNED_INT,0);drawnChunks++;}
-    if(c.water)waters.push([d2,c.water]);
-  }
+  const maxD=(R+1)*16,waters=drawWorldChunks(R,maxD);
   buildDynamic();
   if(dynMesh){gl.disable(gl.CULL_FACE);gl.bindVertexArray(dynMesh.vao);gl.drawElements(gl.TRIANGLES,dynMesh.count,gl.UNSIGNED_INT,0);gl.enable(gl.CULL_FACE);}
   if(target&&!target.ent&&state==='play'&&!player.dead){
@@ -7517,7 +7521,7 @@ function render(){
     waters.sort((a,b)=>b[0]-a[0]);
     gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.disable(gl.CULL_FACE);
     gl.uniform1f(u.uAlphaMode,1);
-    for(const w of waters){gl.bindVertexArray(w[1].vao);gl.drawElements(gl.TRIANGLES,w[1].count,gl.UNSIGNED_INT,0);}
+    drawWaterList(waters);
     gl.depthMask(true);gl.disable(gl.BLEND);gl.enable(gl.CULL_FACE);gl.uniform1f(u.uAlphaMode,0);
   }
   if((state==='play'||state==='paused'||state==='inventory'||state==='chat')&&camMode===0&&!player.dead){
@@ -7537,6 +7541,136 @@ function render(){
   $('lava-overlay').classList.toggle('hidden',!inLava);
   $('hurt-overlay').style.opacity=player.hurtT>0?String(player.hurtT/0.35*0.55):'0';
   if(typeof updateNameplates==='function')updateNameplates();
+}
+
+// ================================================================ 軽量化（描画）Mod — an original take on the classic "render optimiser" mod
+// 1) every chunk mesh is split into 16-block-high sections (index ranges, the mesher emits bottom to top)
+// 2) each section remembers which of its 6 faces are joined by open space (a flood fill over see-through cells)
+// 3) every frame a breadth-first walk from the camera's section through open faces finds the sections that can be
+//    seen at all; caves under your feet, or the surface while you are deep in a cave, are simply not drawn
+// 4) sections outside the view are skipped one by one instead of whole 128-block columns
+// plus: automatic resolution for the normal renderer, half-rate shadow updates for the Real Mod, and an FPS read-out
+function perfOn(){return typeof xmodOn==='function'&&xmodOn('perf');}
+
+// ---- (2) section connectivity, worked out while a chunk is meshed (uses the padded block copy PAD)
+const SV_OP=new Uint8Array(4096),SV_ST=new Int16Array(4096);
+function sectionVis(maxY){
+  const vis=new Uint8Array(48);
+  for(let s=0;s<8;s++){
+    const Y0=s*16;
+    if(Y0>maxY){for(let f=0;f<6;f++)vis[s*6+f]=63;continue;}
+    let opq=0;
+    for(let y=0;y<16;y++)for(let z=0;z<16;z++){let pi=pidx(0,Y0+y,z),li=(y*16+z)*16;
+      for(let x=0;x<16;x++,pi++,li++){const o=OPAQUE[PAD[pi]];SV_OP[li]=o;opq+=o;}}
+    if(opq===0){for(let f=0;f<6;f++)vis[s*6+f]=63;continue;}
+    if(opq===4096)continue;                       // solid rock: nothing gets through
+    const conn=[0,0,0,0,0,0];
+    for(let start=0;start<4096;start++){
+      if(SV_OP[start])continue;
+      let faces=0,sp=0;SV_ST[sp++]=start;SV_OP[start]=1;
+      while(sp){const v=SV_ST[--sp],x=v&15,z=(v>>4)&15,y=v>>8;
+        if(x===15)faces|=1;else if(!SV_OP[v+1]){SV_OP[v+1]=1;SV_ST[sp++]=v+1;}
+        if(x===0)faces|=2;else if(!SV_OP[v-1]){SV_OP[v-1]=1;SV_ST[sp++]=v-1;}
+        if(y===15)faces|=4;else if(!SV_OP[v+256]){SV_OP[v+256]=1;SV_ST[sp++]=v+256;}
+        if(y===0)faces|=8;else if(!SV_OP[v-256]){SV_OP[v-256]=1;SV_ST[sp++]=v-256;}
+        if(z===15)faces|=16;else if(!SV_OP[v+16]){SV_OP[v+16]=1;SV_ST[sp++]=v+16;}
+        if(z===0)faces|=32;else if(!SV_OP[v-16]){SV_OP[v-16]=1;SV_ST[sp++]=v-16;}}
+      if(faces)for(let f=0;f<6;f++)if(faces&(1<<f))conn[f]|=faces;
+    }
+    for(let f=0;f<6;f++)vis[s*6+f]=conn[f];
+  }
+  return vis;
+}
+
+// ---- (3) which sections can be seen from the camera this frame
+const CC={G:0,grid:null,entered:null,mask:null,qI:null,qF:null,qD:null,ox:0,oz:0,count:0};
+const SD_X=[1,-1,0,0,0,0],SD_Y=[0,0,1,-1,0,0],SD_Z=[0,0,0,0,1,-1],SD_OPP=[1,0,3,2,5,4];
+function caveCull(R){
+  const G=2*(R+3)+1,N=G*G*8;
+  if(CC.G!==G){CC.G=G;CC.grid=new Array(G*G);CC.entered=new Uint8Array(N);CC.mask=new Uint8Array(G*G);CC.qI=new Int32Array(N*6+64);CC.qF=new Uint8Array(N*6+64);CC.qD=new Uint8Array(N*6+64);}
+  const pcx=Math.floor(eye[0]/16),pcz=Math.floor(eye[2]/16),ox=pcx-(R+3),oz=pcz-(R+3);CC.ox=ox;CC.oz=oz;
+  const grid=CC.grid,ent=CC.entered,mask=CC.mask,qI=CC.qI,qF=CC.qF,qD=CC.qD;
+  grid.fill(null);ent.fill(0);mask.fill(0);
+  for(const c of world.chunks.values()){if(!c.meshed)continue;const gx=c.cx-ox,gz=c.cz-oz;if(gx>=0&&gx<G&&gz>=0&&gz<G)grid[gz*G+gx]=c;}
+  const home=grid[(pcz-oz)*G+(pcx-ox)];if(!home)return false;
+  let qh=0,qt=0;
+  const sy=Math.floor(eye[1]/16);
+  if(sy>7||sy<0){ // above the world (or below it): start from every top (bottom) section in view
+    const s=sy>7?7:0,fin=sy>7?2:3;
+    for(let i=0;i<G*G;i++){const c=grid[i];if(!c)continue;if(!boxVisible(c.cx*16,s*16,c.cz*16,c.cx*16+16,s*16+16,c.cz*16+16))continue;
+      const idx=i*8+s;ent[idx]|=1<<fin;qI[qt]=idx;qF[qt]=fin;qD[qt]=sy>7?8:4;qt++;}
+  }else{const idx=((pcz-oz)*G+(pcx-ox))*8+sy;ent[idx]=63;qI[qt]=idx;qF[qt]=6;qD[qt]=0;qt++;}
+  let n=0;
+  while(qh<qt){
+    const idx=qI[qh],fin=qF[qh],dirs=qD[qh];qh++;
+    const s=idx&7,cell=idx>>3,c=grid[cell];
+    if(!(mask[cell]&(1<<s))){mask[cell]|=1<<s;n++;}
+    const conn=fin===6?63:(c.vis?c.vis[s*6+fin]:63);if(!conn)continue;
+    const gx=cell%G,gz=(cell/G)|0;
+    for(let d=0;d<6;d++){
+      if(!(conn&(1<<d))||(dirs&(1<<SD_OPP[d])))continue;
+      const ny=s+SD_Y[d];if(ny<0||ny>7)continue;
+      const nx=gx+SD_X[d],nz=gz+SD_Z[d];if(nx<0||nx>=G||nz<0||nz>=G)continue;
+      const ncell=nz*G+nx,nc=grid[ncell];if(!nc)continue;
+      const nf=SD_OPP[d],nidx=ncell*8+ny;if(ent[nidx]&(1<<nf))continue;
+      ent[nidx]|=1<<nf;
+      const x0=nc.cx*16,y0=ny*16,z0=nc.cz*16;if(!boxVisible(x0,y0,z0,x0+16,y0+16,z0+16))continue;
+      qI[qt]=nidx;qF[qt]=nf;qD[qt]=dirs|(1<<d);qt++;
+    }
+  }
+  CC.count=n;return true;
+}
+function sectionMask(c){const G=CC.G,gx=c.cx-CC.ox,gz=c.cz-CC.oz;if(gx<0||gx>=G||gz<0||gz>=G)return 0;return CC.mask[gz*G+gx];}
+// index ranges [start,count] of the sections of one mesh that are visible (consecutive sections merged into one draw)
+function sectionRanges(sec,m){const out=[];let s=0;
+  while(s<8){if(!(m&(1<<s))){s++;continue;}let e=s;while(e<8&&(m&(1<<e)))e++;const a=sec[s],b=sec[e];if(b>a)out.push([a,b-a]);s=e;}
+  return out;}
+
+// ---- (1)+(4) draw the world's chunks; returns the water meshes to draw afterwards (back to front)
+let perfSections=0,perfTris=0;
+function drawWorldChunks(R,maxD){
+  const waters=[];drawnChunks=0;perfSections=0;perfTris=0;
+  const cull=perfOn()&&caveCull(R);
+  for(const c of world.chunks.values()){
+    if(!c.meshed)continue;const x0=c.cx*16,z0=c.cz*16;
+    const dx=x0+8-eye[0],dz=z0+8-eye[2],d2=dx*dx+dz*dz;if(d2>maxD*maxD)continue;
+    if(!boxVisible(x0,0,z0,x0+16,c.maxY+1,z0+16))continue;
+    if(cull&&c.secS){
+      const m=sectionMask(c);if(!m)continue;
+      if(c.solid){const rs=sectionRanges(c.secS,m);if(rs.length){gl.bindVertexArray(c.solid.vao);for(const r of rs){gl.drawElements(gl.TRIANGLES,r[1],gl.UNSIGNED_INT,r[0]*4);perfSections++;perfTris+=r[1]/3;}drawnChunks++;}}
+      if(c.water){const rw=sectionRanges(c.secW,m);if(rw.length)waters.push([d2,c.water,rw]);}
+      continue;
+    }
+    if(c.solid){gl.bindVertexArray(c.solid.vao);gl.drawElements(gl.TRIANGLES,c.solid.count,gl.UNSIGNED_INT,0);drawnChunks++;perfTris+=c.solid.count/3;}
+    if(c.water)waters.push([d2,c.water,null]);
+  }
+  return waters;
+}
+function drawWaterList(waters){
+  for(const w of waters){gl.bindVertexArray(w[1].vao);
+    if(!w[2])gl.drawElements(gl.TRIANGLES,w[1].count,gl.UNSIGNED_INT,0);
+    else for(const r of w[2])gl.drawElements(gl.TRIANGLES,r[1],gl.UNSIGNED_INT,r[0]*4);}
+}
+
+// ---- automatic resolution for the normal renderer (the Real Mod has its own)
+let perfLastT=0;
+function perfRenderTick(){
+  const now=performance.now(),dt=perfLastT?Math.min(0.2,(now-perfLastT)/1000):0.016;perfLastT=now;
+  if(perfOn()&&!(typeof realOn==='function'&&realOn())&&document.visibilityState!=='hidden'&&state==='play')dynResTick(dt);
+}
+function perfDprScale(){return perfOn()&&!(typeof realOn==='function'&&realOn())?DYNRES.k:1;}
+
+// ---- FPS read-out
+const FPSBOX={el:null,t:0};
+function tickFpsBox(dt){
+  const show=perfOn()&&state!=='title'&&state!=='loading'&&!document.body.classList.contains('nohud');
+  if(!FPSBOX.el){if(!show)return;const e=document.createElement('div');e.id='fpsbox';
+    e.style.cssText='position:absolute;right:10px;top:calc(var(--tb,64px) + 40px);z-index:3;pointer-events:none;font-size:12px;color:#e8ffe0;background:rgba(0,0,0,0.38);padding:2px 7px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:pre;text-align:right';
+    document.body.appendChild(e);FPSBOX.el=e;}
+  FPSBOX.el.style.display=show?'block':'none';if(!show)return;
+  FPSBOX.t-=dt;if(FPSBOX.t>0)return;FPSBOX.t=0.5;
+  const res=Math.round(canvas.width/Math.max(1,cssW)*100)/100;
+  FPSBOX.el.textContent=`FPS ${fps}\n描画 ${drawnChunks}チャンク・${(perfTris/10000).toFixed(1)}万面\n解像度 ×${res}`;
 }
 
 // ================================================================ リアルMod: a second, "realistic" rendering path
@@ -7812,20 +7946,46 @@ void main(){vec2 dl=(uSun-vUV)/28.0;vec2 p=vUV;float acc=0.0,w=1.0;
   o=vec4(vec3(acc/14.0*fall),1.0);}`;
 const FINAL_FS=`#version 300 es
 precision highp float;
-uniform sampler2D uScene,uBloom1,uBloom2,uRays; uniform float uIn,uExposure,uBloomAmt,uRaysAmt,uUnder; uniform vec3 uRaysCol; uniform vec2 uRes;
+uniform sampler2D uScene,uBloom1,uBloom2,uRays,uDepth; uniform float uIn,uExposure,uBloomAmt,uRaysAmt,uUnder,uT; uniform vec3 uRaysCol; uniform vec2 uRes;
+// shader pack grading: A = saturation, contrast, vignette, grain; B = posterize levels, outline strength, black lift, letterbox
+uniform vec4 uGradeA,uGradeB; uniform vec3 uTintLo,uTintHi; uniform vec2 uTexel;
 in vec2 vUV; out vec4 o;
 vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);}
+float lz(float z){const float n=0.05,f=1200.0;return 2.0*n*f/(f+n-(z*2.0-1.0)*(f-n));}
 void main(){
   vec3 c=texture(uScene,vUV).rgb*uIn*uExposure;
   c+=(texture(uBloom1,vUV).rgb*0.55+texture(uBloom2,vUV).rgb*0.45)*uBloomAmt;
   c+=uRaysCol*texture(uRays,vUV).r*uRaysAmt;
   c=aces(c);
   c=pow(c,vec3(1.0/2.2));
-  float lu=dot(c,vec3(0.3,0.59,0.11));c=mix(vec3(lu),c,1.04);
-  vec2 v=vUV-0.5;c*=1.0-dot(v,v)*(uUnder>0.5?1.1:0.42);
-  c+=(fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-0.5)/255.0;
+  float lu=dot(c,vec3(0.3,0.59,0.11));
+  c*=mix(uTintLo,uTintHi,smoothstep(0.15,0.85,lu));            // split toning
+  c=(c-0.5)*uGradeA.y+0.5;                                     // contrast
+  lu=dot(c,vec3(0.3,0.59,0.11));c=mix(vec3(lu),c,uGradeA.x);   // saturation
+  c=c*(1.0-uGradeB.z)+uGradeB.z;                               // lifted blacks (film look)
+  if(uGradeB.x>0.5){float l0=max(dot(c,vec3(0.3,0.59,0.11)),1e-3);c*=(floor(l0*uGradeB.x+0.5)/uGradeB.x)/l0;}   // posterize the brightness only (toon), colours keep their hue
+  if(uGradeB.y>0.0){                                           // ink outlines where the depth jumps (toon)
+    float d0=lz(texture(uDepth,vUV).r),e=0.0;
+    for(int i=0;i<4;i++){vec2 off=i==0?vec2(1,0):i==1?vec2(-1,0):i==2?vec2(0,1):vec2(0,-1);
+      float d1=lz(texture(uDepth,vUV+off*uTexel*1.5).r);e=max(e,abs(d1-d0)/max(d0,0.5));}
+    c*=1.0-smoothstep(0.06,0.18,e)*uGradeB.y*(1.0-smoothstep(150.0,400.0,d0));}
+  vec2 v=vUV-0.5;c*=1.0-dot(v,v)*(uUnder>0.5?1.1:uGradeA.z);
+  float nz=fract(sin(dot(gl_FragCoord.xy+fract(uT)*vec2(91.7,37.3),vec2(12.9898,78.233)))*43758.5453)-0.5;
+  c+=nz*max(1.0/255.0,uGradeA.w);
+  if(uGradeB.w>0.0&&(vUV.y<uGradeB.w||vUV.y>1.0-uGradeB.w))c=vec3(0.0);   // cinema bars
   o=vec4(clamp(c,0.0,1.0),1.0);
 }`;
+// shader packs (an original set of looks): bloom/exposure multipliers + grading for the final pass
+const SHADER_PACKS=[
+  {name:'標準',desc:'リアルModそのままの見た目',sat:1.04,con:1,vig:0.42,grain:0,post:0,edge:0,lift:0,bar:0,lo:[1,1,1],hi:[1,1,1],bloom:1,exp:0},
+  {name:'幻想的',desc:'やわらかく光があふれる、絵本のような色',sat:1.25,con:0.95,vig:0.5,grain:0,post:0,edge:0,lift:0.02,bar:0,lo:[0.92,0.96,1.12],hi:[1.08,1.0,0.93],bloom:1.9,exp:0.12},
+  {name:'シネマ',desc:'映画のような青緑とオレンジの色調と黒帯',sat:0.92,con:1.14,vig:0.7,grain:0.02,post:0,edge:0,lift:0,bar:0.09,lo:[0.88,1.02,1.1],hi:[1.12,1.0,0.86],bloom:1.1,exp:0},
+  {name:'レトロ',desc:'色あせた古いフィルム写真風',sat:0.72,con:0.9,vig:0.85,grain:0.05,post:0,edge:0,lift:0.07,bar:0,lo:[1.04,0.98,0.9],hi:[1.1,1.02,0.84],bloom:1,exp:0.05},
+  {name:'鮮やか',desc:'色がくっきり濃い、元気な見た目',sat:1.45,con:1.12,vig:0.3,grain:0,post:0,edge:0,lift:0,bar:0,lo:[1,1,1],hi:[1,1,1],bloom:1.2,exp:0},
+  {name:'トゥーン',desc:'アニメのような色の段階と輪郭線',sat:1.3,con:1.05,vig:0.2,grain:0,post:6,edge:1,lift:0,bar:0,lo:[1,1,1],hi:[1,1,1],bloom:0.6,exp:0.05},
+  {name:'モノクロ',desc:'白黒映画のような重厚な見た目',sat:0,con:1.3,vig:0.9,grain:0.04,post:0,edge:0,lift:0,bar:0,lo:[1,1,1],hi:[1,1,1],bloom:0.9,exp:0},
+];
+function curPack(){const on=typeof xmodOn==='function'?xmodOn('shaderpack'):true;return SHADER_PACKS[on?clamp(settings.mod.pack|0,0,SHADER_PACKS.length-1):0];}
 const FXAA_FS=`#version 300 es
 precision highp float; uniform sampler2D uSrc; uniform vec2 uRcp; in vec2 vUV; out vec4 o;
 void main(){vec2 uv=vUV;const vec3 W=vec3(0.299,0.587,0.114);
@@ -7952,7 +8112,11 @@ function renderReal(){
   buildDynamic();
   // ---- shadow map from the sun (or the moon)
   const shadowOn=M.shadow&&(useSun?sunUp:moonUp)>0.01&&!under;
-  if(shadowOn){
+  const SC=REAL.shCache||(REAL.shCache={vp:new Float32Array(16),eye:[0,0,0],ld:[0,0,0],n:0,ok:false});SC.n++;
+  const reuseShadow=shadowOn&&perfOn()&&SC.ok&&(SC.n&1)&&Math.hypot(eye[0]-SC.eye[0],eye[1]-SC.eye[1],eye[2]-SC.eye[2])<1.2&&Math.abs(Ld[0]-SC.ld[0])+Math.abs(Ld[1]-SC.ld[1])+Math.abs(Ld[2]-SC.ld[2])<0.004;
+  if(reuseShadow)lightVP.set(SC.vp);
+  if(!shadowOn)SC.ok=false;
+  if(shadowOn&&!reuseShadow){
     const S=Q.S,sz=REAL.shadow.size;
     const lf=[-Ld[0],-Ld[1],-Ld[2]];let lr=[lf[2],0,-lf[0]];let ll=Math.hypot(lr[0],lr[2]);if(ll<1e-4){lr=[1,0,0];ll=1;}lr=[lr[0]/ll,0,lr[2]/ll];
     const lu=[lr[1]*lf[2]-lr[2]*lf[1],lr[2]*lf[0]-lr[0]*lf[2],lr[0]*lf[1]-lr[1]*lf[0]];
@@ -7980,6 +8144,7 @@ function renderReal(){
       drawHumanoid(SELF,settings.skin,p.pos[0],p.pos[1],p.pos[2],{yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
       selfMesh=uploadMesh(selfMesh,SELF,gl.DYNAMIC_DRAW);if(selfMesh){gl.bindVertexArray(selfMesh.vao);gl.drawElements(gl.TRIANGLES,selfMesh.count,gl.UNSIGNED_INT,0);}}
     gl.disable(gl.POLYGON_OFFSET_FILL);
+    SC.vp.set(lightVP);SC.eye=[eye[0],eye[1],eye[2]];SC.ld=[Ld[0],Ld[1],Ld[2]];SC.ok=true;
   }
   // ---- scene into the HDR target
   extractPlanes(vp);
@@ -8008,14 +8173,7 @@ function renderReal(){
   gl.uniform1f(u.uSunVis,useSun?sunUp:moonUp*0.4);gl.uniform3fv(u.uZenith,zen);gl.uniform3fv(u.uHorizon,hor);
   gl.uniformMatrix4fv(u.uShadowVP,false,lightVP);gl.uniform1f(u.uShadowTexel,REAL.shadow?1/REAL.shadow.size:0.001);gl.uniform1i(u.uTaps,Q.taps);
   gl.uniform1f(u.uBump,M.bump&&Q.scale>0.7?1:0);gl.uniform1f(u.uOutScale,REAL.outScale);
-  const waters=[];drawnChunks=0;const maxD=(R+1)*16;
-  for(const c of world.chunks.values()){
-    if(!c.meshed)continue;const x0=c.cx*16,z0=c.cz*16;
-    const dx=x0+8-eye[0],dz=z0+8-eye[2],d2=dx*dx+dz*dz;if(d2>maxD*maxD)continue;
-    if(!boxVisible(x0,0,z0,x0+16,c.maxY+1,z0+16))continue;
-    if(c.solid){gl.bindVertexArray(c.solid.vao);gl.drawElements(gl.TRIANGLES,c.solid.count,gl.UNSIGNED_INT,0);drawnChunks++;}
-    if(c.water)waters.push([d2,c.water]);
-  }
+  const maxD=(R+1)*16,waters=drawWorldChunks(R,maxD);
   if(dynMesh){gl.disable(gl.CULL_FACE);gl.bindVertexArray(dynMesh.vao);gl.drawElements(gl.TRIANGLES,dynMesh.count,gl.UNSIGNED_INT,0);gl.enable(gl.CULL_FACE);}
   if(target&&!target.ent&&state==='play'&&!player.dead){
     const e=0.003,ins=CROSS[target.id]?0.2:0,x0=target.x+ins-e,y0=target.y-e,z0=target.z+ins-e,x1=target.x+1-ins+e,y1=target.y+1-ins+e,z1=target.z+1-ins+e;
@@ -8041,7 +8199,7 @@ function renderReal(){
     gl.uniform1f(u.uRefr,refr?1:0);
     gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.disable(gl.CULL_FACE);
     gl.uniform1f(u.uAlphaMode,1);
-    for(const w of waters){gl.bindVertexArray(w[1].vao);gl.drawElements(gl.TRIANGLES,w[1].count,gl.UNSIGNED_INT,0);}
+    drawWaterList(waters);
     gl.depthMask(true);gl.disable(gl.BLEND);gl.enable(gl.CULL_FACE);gl.uniform1f(u.uAlphaMode,0);
   }
   if((state==='play'||state==='paused'||state==='inventory'||state==='chat')&&camMode===0&&!player.dead){
@@ -8088,10 +8246,15 @@ function renderReal(){
   const toLdr=Q.fxaa;
   pass(P.fin,toLdr?g.ldr:null,u=>{
     tex(0,g.scene.tex,u.uScene);tex(1,g.b1.tex,u.uBloom1);tex(2,g.b2.tex,u.uBloom2);tex(3,g.rays.tex,u.uRays);
-    gl.uniform1f(u.uIn,inS);gl.uniform1f(u.uExposure,REAL.exposure);gl.uniform1f(u.uBloomAmt,bloomOn?0.9:0);gl.uniform1f(u.uRaysAmt,raysAmt);
+    const SP=curPack();tex(4,g.scene.depth,u.uDepth);
+    gl.uniform4f(u.uGradeA,SP.sat,SP.con,SP.vig,SP.grain);gl.uniform4f(u.uGradeB,SP.post,SP.edge,SP.lift,SP.bar);gl.uniform3fv(u.uTintLo,SP.lo);gl.uniform3fv(u.uTintHi,SP.hi);
+    gl.uniform2f(u.uTexel,1/SW,1/SH);gl.uniform1f(u.uT,gameTime);
+    gl.uniform1f(u.uIn,inS);gl.uniform1f(u.uExposure,REAL.exposure*Math.pow(2,SP.exp));gl.uniform1f(u.uBloomAmt,bloomOn?0.9*SP.bloom:0);gl.uniform1f(u.uRaysAmt,raysAmt);
     gl.uniform3fv(u.uRaysCol,mixc([1.0,0.92,0.75],[1.0,0.6,0.3],sky.sunset));gl.uniform1f(u.uUnder,under?1:0);
   });
   if(toLdr)pass(P.fxaa,null,u=>{tex(0,g.ldr.tex,u.uSrc);gl.uniform2f(u.uRcp,1/g.ldr.w,1/g.ldr.h);});
+  // let go of the scene's depth texture: left bound, it would clash with drawing into that same depth buffer next frame
+  gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,null);
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.activeTexture(gl.TEXTURE0);
   gl.bindVertexArray(null);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);
   $('water-overlay').classList.toggle('hidden',!under);
@@ -8223,7 +8386,7 @@ function mobAuraFx(dt){
 const XMOD_PANELS=['settings','help','inventory','container','keybinds','modlock','modscreen','cmdscreen','death','character'];
 function xmodPanelOpen(){for(const id of XMOD_PANELS){const e=document.getElementById(id);if(e&&!e.classList.contains('hidden'))return true;}return false;}
 // ================================================================ extra Mods (unlocked together with the Real Mod): minimap, timber & vein mining, dynamic light, health bars, zoom
-const XMOD_LIST=[['minimap','ミニマップ','画面の左上に周りの地図・座標・向きを表示'],['timber','木こり・一括採掘','原木を切ると木が丸ごと倒れ、鉱石は鉱脈ごと掘れる（しゃがむと1つずつ）'],
+const XMOD_LIST=[['perf','軽量化（描画）','見えない洞窟や画面の外を描かずにFPSを上げる。重いと解像度を自動調整・FPSを表示'],['shaderpack','シェーダーパック','リアルModの見た目をパックで切り替え（幻想的・シネマ・レトロ・鮮やか・トゥーン・モノクロ）。選ぶのは上の「シェーダーパック」'],['minimap','ミニマップ','画面の左上に周りの地図・座標・向きを表示'],['timber','木こり・一括採掘','原木を切ると木が丸ごと倒れ、鉱石は鉱脈ごと掘れる（しゃがむと1つずつ）'],
   ['dynlight','動的ライト','たいまつやランタンを手に持つだけで周りが明るくなる'],['hpbar','体力バー','モブの頭上に体力を表示し、与えたダメージの数字が飛ぶ'],['zoom','ズーム','Zキー（スマホは🔍ボタン）を押している間だけ望遠']];
 function xmodOn(k){const M=settings.mod;return!!(M&&M.unlocked&&M.x&&M.x[k]!==false);}
 if(settings.mod&&!settings.mod.x)settings.mod.x={};
@@ -8323,14 +8486,16 @@ function tickZoom(dt){
   const want=on&&ZOOM.held&&state==='play'?1/ZOOM.level:1;ZOOM.k+=(want-ZOOM.k)*Math.min(1,dt*12);
 }
 // ---------------------------------------------------------------- per frame
-function tickMods(dt){tickMinimap(dt);tickHpBars(dt);tickZoom(dt);}
+// later mods add their own per-frame work and on/off reactions here
+const XMOD_TICK=[],XMOD_CHANGE={perf:()=>{if(world)for(const c of world.chunks.values())c.dirty=true;},shaderpack:()=>{if(typeof syncModUI==='function')syncModUI();}};
+function tickMods(dt){tickMinimap(dt);tickHpBars(dt);tickZoom(dt);tickFpsBox(dt);for(const f of XMOD_TICK)f(dt);}
 // ---------------------------------------------------------------- Mod screen rows
 function buildXmodRows(){
   const host=document.getElementById('xmod-rows');if(!host||host.childElementCount)return;
   for(const[k,name,desc]of XMOD_LIST){const row=document.createElement('div');row.className='setrow2 xmod';
     row.innerHTML=`<span>${name}<small style="display:block;color:#9ab;font-size:11px;line-height:1.35;margin-top:2px">${desc}</small></span><div class="seg"><button id="x-${k}-on" class="small">オン</button><button id="x-${k}-off" class="small">オフ</button></div>`;host.appendChild(row);
-    row.querySelector(`#x-${k}-on`).onclick=()=>{settings.mod.x=settings.mod.x||{};settings.mod.x[k]=true;saveSettings();syncXmod();};
-    row.querySelector(`#x-${k}-off`).onclick=()=>{settings.mod.x=settings.mod.x||{};settings.mod.x[k]=false;saveSettings();syncXmod();};}
+    row.querySelector(`#x-${k}-on`).onclick=()=>{settings.mod.x=settings.mod.x||{};settings.mod.x[k]=true;saveSettings();syncXmod();if(XMOD_CHANGE[k])XMOD_CHANGE[k](true);};
+    row.querySelector(`#x-${k}-off`).onclick=()=>{settings.mod.x=settings.mod.x||{};settings.mod.x[k]=false;saveSettings();syncXmod();if(XMOD_CHANGE[k])XMOD_CHANGE[k](false);};}
 }
 function syncXmod(){buildXmodRows();for(const[k]of XMOD_LIST){const on=settings.mod.x?settings.mod.x[k]!==false:true;const a=document.getElementById(`x-${k}-on`),b=document.getElementById(`x-${k}-off`);if(a){a.classList.toggle('on',on);b.classList.toggle('on',!on);}}}
 
@@ -9052,6 +9217,8 @@ function syncModUI(){
   seg('m-on','m-off',M.on);seg('m-shadow-on','m-shadow-off',M.shadow);seg('m-wave-on','m-wave-off',M.wave);seg('m-water-on','m-water-off',M.water);
   seg('m-bump-on','m-bump-off',M.bump);seg('m-ocean-on','m-ocean-off',M.ocean!==false);for(let i=0;i<3;i++)$('m-oh'+i).classList.toggle('on',(M.oh===undefined?1:M.oh|0)===i);seg('m-bloom-on','m-bloom-off',M.bloom);seg('m-rays-on','m-rays-off',M.rays);
   for(let i=0;i<MOD_Q.length;i++)$('m-q'+i).classList.toggle('on',(M.q|0)===i);
+  for(let i=0;i<SHADER_PACKS.length;i++)$('m-pk'+i).classList.toggle('on',(M.pack|0)===i);
+  $('pack-desc').textContent=SHADER_PACKS[clamp(M.pack|0,0,SHADER_PACKS.length-1)].desc+(xmodOn('shaderpack')?'':'（追加Modの「シェーダーパック」がオフです）');
   let info='';
   if(REAL.failed)info='この端末ではリアルModのシェーダーを動かせなかったため、ふつうの表示に戻しています。';
   else if(REAL.ready&&!REAL.hdr)info='この端末は HDR に対応していないため、明るさの幅をしぼって表示しています。';
@@ -9083,6 +9250,7 @@ $('mod-pass').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefaul
 {const bind=(id,fn)=>{$(id).onclick=()=>{fn();saveSettings();syncModUI();};};const M=()=>settings.mod;
   bind('m-on',()=>{M().on=true;REAL.failed=false;});bind('m-off',()=>{M().on=false;});
   for(let i=0;i<MOD_Q.length;i++)bind('m-q'+i,()=>{M().q=i;});
+  for(let i=0;i<SHADER_PACKS.length;i++)bind('m-pk'+i,()=>{M().pack=i;});
   for(let i=0;i<3;i++)bind('m-oh'+i,()=>{M().oh=i;});
   for(const k of['shadow','wave','water','bump','bloom','rays','ocean']){bind('m-'+k+'-on',()=>{M()[k]=true;});bind('m-'+k+'-off',()=>{M()[k]=false;});}
   bind('mod-lock',()=>{M().unlocked=false;M().on=false;toast('リアルMod をロックしました');showScreen(modFrom==='pause'?'pause':'title');});
@@ -9756,6 +9924,49 @@ async function pauseMPButton(){
   $('pause-note').textContent='ルームを準備中…';
   if(await startHosting(true)){updatePauseMP();addChat('','ルームコード: '+MP.code+'（友だちに伝えてください）',true);}
 }
+
+// ================================================================ 軽量化（処理）Mod — an original take on the classic "game logic optimiser" mod
+// - creatures far from you, that are not fighting or following anyone, update a few times a second (with the time they skipped)
+// - items lying still on the ground stop simulating physics until something changes
+// - identical item drops lying close together merge into one stack (fewer things to simulate and draw)
+// - fewer particles at once, and particles far away vanish early
+XMOD_LIST.push(['lith','軽量化（処理）','遠くのモブの計算を間引き、止まったアイテムをまとめて計算を減らす。カクつきを軽く']);
+const LITH={on:false,frame:0,mergeT:0,skipped:0};
+function lithMobStep(m,dt){
+  const dx=m.pos[0]-player.pos[0],dz=m.pos[2]-player.pos[2],d2=dx*dx+dz*dz;
+  const busy=m.anger>0||m.hurtT>0||m.deathT>0||m.rider||m.leashed||m.tame||m.love>0||m.ai.flee>0||m.def.kind==='boss';
+  if(busy||d2<40*40){if(m.lodAcc){const a=Math.min(0.3,m.lodAcc+dt);m.lodAcc=0;return a;}return dt;}
+  m.lodAcc=(m.lodAcc||0)+dt;
+  const every=d2>80*80?6:3;
+  if((LITH.frame+m.uid)%every!==0){LITH.skipped++;return 0;}
+  const a=Math.min(0.3,m.lodAcc);m.lodAcc=0;return a;
+}
+function lithItemRest(it,dt){
+  if(!it.onGround||Math.abs(it.vel[0])+Math.abs(it.vel[1])+Math.abs(it.vel[2])>0.05){it.rest=0;return false;}
+  it.rest=(it.rest||0)+dt;if(it.rest<0.5)return false;
+  // every second, make sure the ground is still there
+  it.chk=(it.chk||0)-dt;if(it.chk>0)return true;it.chk=1;
+  return SOLID[world.getBlock(Math.floor(it.pos[0]),Math.floor(it.pos[1]-0.05),Math.floor(it.pos[2]))]?true:(it.rest=0,false);
+}
+function lithMerge(){
+  if(items.length<2)return;
+  const cell=new Map();
+  for(let i=0;i<items.length;i++){const it=items[i];if(it.delay>0.3||it.n<=0)continue;
+    const k=Math.floor(it.pos[0])+','+Math.floor(it.pos[1])+','+Math.floor(it.pos[2]);let L=cell.get(k);if(!L){L=[];cell.set(k,L);}L.push(it);}
+  const gone=new Set();
+  for(const L of cell.values()){if(L.length<2)continue;
+    for(let a=0;a<L.length;a++){const A=L[a];if(gone.has(A))continue;const mx=maxStack(A.id);
+      for(let b=a+1;b<L.length;b++){const Bt=L[b];if(gone.has(Bt)||Bt.id!==A.id||(Bt.d||0)!==(A.d||0)||A.n>=mx)continue;
+        const take=Math.min(Bt.n,mx-A.n);A.n+=take;Bt.n-=take;A.age=Math.min(A.age,Bt.age);if(Bt.n<=0)gone.add(Bt);}}}
+  if(gone.size)for(let i=items.length-1;i>=0;i--)if(gone.has(items[i]))items.splice(i,1);
+}
+XMOD_TICK.push(dt=>{
+  LITH.on=xmodOn('lith');LITH.frame++;if(!LITH.on||!world)return;
+  LITH.mergeT-=dt;if(LITH.mergeT<=0){LITH.mergeT=0.5;lithMerge();}
+  // particles far away fade out early
+  if(particles.length>120){const px=player.pos[0],py=player.pos[1],pz=player.pos[2];
+    for(const q of particles){const dx=q.x-px,dy=q.y-py,dz=q.z-pz;if(dx*dx+dy*dy+dz*dz>48*48)q.life=Math.min(q.life,0.05);}}
+});
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
