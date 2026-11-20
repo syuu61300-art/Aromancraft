@@ -4240,6 +4240,19 @@ function autoJumpCheck(p,dx,dz){
     return boxFree(ax-hw,Y+1.02,az-hw,ax+hw,Y+1.02+p.hh,az+hw);}               // room to stand on top of it
   return false;
 }
+// water at least 2 blocks deep at the player's block level, here and one step ahead
+function deepWater2(p,dx,dz){
+  const y=Math.floor(p.pos[1]+0.3),W=(x,yy,z)=>world.getBlock(Math.floor(x),yy,Math.floor(z))===B.WATER;
+  const two=(x,z)=>W(x,y,z)&&(W(x,y+1,z)||W(x,y-1,z));
+  return two(p.pos[0],p.pos[2])&&two(p.pos[0]+dx*0.9,p.pos[2]+dz*0.9);
+}
+// swimming into a bank: is there room to climb out on top of it (and not a tall wall)?
+function ledgeFromWater(p,dx,dz){
+  const hw=p.hw,X=p.pos[0],Y=p.pos[1],Z=p.pos[2],ax=X+dx*0.4,az=Z+dz*0.4;
+  if(boxFree(ax-hw,Y+0.1,az-hw,ax+hw,Y+1.3,az+hw))return false;                // nothing in front to climb onto
+  if(!boxFree(X-hw,Y+p.hh,Z-hw,X+hw,Y+p.hh+1.0,Z+hw))return false;            // ceiling above
+  return boxFree(ax-hw,Y+1.45,az-hw,ax+hw,Y+1.45+1.8,az+hw);                     // room to stand on the top
+}
 function groundBelow(e){
   const p=e.pos,y=Math.floor(p[1]-0.05);
   for(let z=Math.floor(p[2]-e.hw);z<=Math.floor(p[2]+e.hw-1e-7);z++)for(let x=Math.floor(p[0]-e.hw);x<=Math.floor(p[0]+e.hw-1e-7);x++)if(SOLID[world.getBlock(x,y,z)])return true;
@@ -4294,6 +4307,9 @@ function updatePlayer(dt){
   let wx=fwdFlat[0]*fwd+rightV[0]*str,wz=fwdFlat[2]*fwd+rightV[2]*str;const wl=Math.hypot(wx,wz);if(wl>1){wx/=wl;wz/=wl;}
   const ajl=Math.hypot(wx,wz),ajx=ajl>0.01?wx/ajl:0,ajz=ajl>0.01?wz/ajl:0;if(p.ajT>0)p.ajT-=dt;
   const liquid=p.inWater||p.inLava;
+  // the swimming motion needs water 2 blocks deep (your own block and the one above or below) both here and just ahead,
+  // so wading in shallow water is walking, and you stand up as you reach the shore
+  const swimOK=p.inWater&&!p.flying&&deepWater2(p,ajl>0.01?ajx:fwdFlat[0],ajl>0.01?ajz:fwdFlat[2]);
   if(p.riding){const m=p.riding;if(m.deathT>0||!mobs.includes(m)||p.sneak&&state==='play'){dismount();}else{
     m.ctl={x:wx,z:wz,j:jump};p.pos=[m.pos[0],m.pos[1]+m.def.ride.h*(m.baby?0.55:1),m.pos[2]];p.vel=[0,0,0];p.fall=0;p.onGround=true;p.walkAmp=0;p.inWater=false;p.headWater=false;p.sneak=false;return;}}
   const under=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.1),Math.floor(p.pos[2]));
@@ -4310,13 +4326,19 @@ function updatePlayer(dt){
   }else{
     const ctl=p.onGround?(SLIP[under]?(SLIP[under]===2?1.1:2.2):16):liquid?6:3.5,k=1-Math.exp(-ctl*dt);
     p.vel[0]=lerp(p.vel[0],wx,k);p.vel[2]=lerp(p.vel[2],wz,k);
-    // sprint-swimming: lie flat and glide where you look
-    const swimFast=p.inWater&&p.sprint&&!p.flying;
+    // sprint-swimming: lie flat and glide where you look (only where the water is deep enough, see swimOK)
+    const swimFast=swimOK&&p.sprint;
     if(swimFast){const f=[0,0,0];dirVectors(p.yaw,p.pitch,f,[0,0,0],[0,0,0]);const sp=5.6*fxSpd,kk=1-Math.exp(-5*dt);
-      p.vel[0]=lerp(p.vel[0],f[0]*sp,kk);p.vel[2]=lerp(p.vel[2],f[2]*sp,kk);p.vel[1]=lerp(p.vel[1],f[1]*sp+(p.headWater?0:-1.2),kk);p.fall=0;}
+      p.vel[0]=lerp(p.vel[0],f[0]*sp,kk);p.vel[2]=lerp(p.vel[2],f[2]*sp,kk);p.vel[1]=lerp(p.vel[1],f[1]*sp+(p.headWater?0:-1.2),kk);p.fall=0;
+      if(jump)p.vel[1]=Math.max(p.vel[1],3.4);}
     else if(liquid){
       p.vel[1]-=10*dt;p.vel[1]*=Math.exp(-(p.inLava?4:2.6)*dt);
       if(jump){p.vel[1]=Math.min(p.vel[1]+26*dt,3.4);if(p.collH)p.vel[1]=Math.max(p.vel[1],5.2);}
+      // climbing out: swimming into the bank lifts you up onto it (no need to press jump), like auto-jump on land
+      else if(p.collH&&wl>0.3&&settings.autoJump!==false&&p.inWater){
+        if(ledgeFromWater(p,ajx,ajz))p.vel[1]=Math.max(p.vel[1],5.2);
+        // a taller wall under water: swim up along it toward the surface
+        else if(boxFree(p.pos[0]-p.hw,p.pos[1]+p.hh,p.pos[2]-p.hw,p.pos[0]+p.hw,p.pos[1]+p.hh+0.6,p.pos[2]+p.hw))p.vel[1]=Math.max(p.vel[1],3.0);}
       if(p.vel[1]<-4)p.vel[1]=-4;p.fall=0;
     }else{
       p.vel[1]-=28*dt;if(p.vel[1]<-55)p.vel[1]=-55;
@@ -4336,9 +4358,9 @@ function updatePlayer(dt){
   glideTick(p,dt,jump,liquid);
   // swimming pose: lying flat while sprint-swimming (1 block tall), a breaststroke while paddling about
   const moving=Math.hypot(p.vel[0],p.vel[2])>0.6||Math.abs(p.vel[1])>1.2;
-  p.swimFast=p.inWater&&p.sprint&&!p.flying?true:(p.swimFast&&!canStand());
+  p.swimFast=swimOK&&p.sprint?true:(p.swimFast&&!canStand());
   const deep=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+0.95),Math.floor(p.pos[2]))===B.WATER;
-  p.swimAmt=lerp(p.swimAmt||0,p.swimFast||p.gliding?1:p.inWater&&deep&&(moving||!p.onGround)&&!p.flying?0.55:0,1-Math.exp(-6*dt));
+  p.swimAmt=lerp(p.swimAmt||0,p.swimFast||p.gliding?1:swimOK&&deep&&(moving||!p.onGround)?0.55:0,1-Math.exp(-6*dt));
   p.hh=p.swimFast?0.6:1.8;
   const wasGround=p.onGround,vyB=p.vel[1];
   const dy=physStep(p,dt,p.sneak);
