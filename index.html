@@ -3556,11 +3556,16 @@ World.prototype.buildStronghold=function(c){
 // ruined portals: a broken obsidian frame with a few loose blocks — the first obsidian you can find
 World.prototype.ruinAt=function(cx,cz){const key=cx+','+cz;this._rp=this._rp||new Map();if(this._rp.has(key))return this._rp.get(key);
   let r=null;const s=this.seed;if(hash2(cx,cz,s+801)<0.6){const x=cx*192+40+((hash2(cx,cz,s+802)*112)|0),z=cz*192+40+((hash2(cx,cz,s+803)*112)|0);this.column(x,z);
-    if(this._h>SEA&&this._h<SEA+40&&!this.villageNear(x,z,10))r={x,z,y:this._h+1};}
+    // remember the ground height before anything else runs: the village check below works out other columns
+    const h=this._h;if(h>SEA&&h<SEA+40&&!this.villageNear(x,z,10))r={x,z,y:h+1};}
   this._rp.set(key,r);return r;};
 World.prototype.buildRuin=function(c,r){
   const bx=c.cx*16,bz=c.cz*16,BL=c.blocks,inC=(x,z)=>x>=bx&&x<bx+16&&z>=bz&&z<bz+16,set=(x,y,z,id)=>{if(inC(x,z)&&y>0&&y<H)BL[bidx(x-bx,y,z-bz)]=id;};
   const s=this.seed,miss1=1+((hash2(r.x,r.z,s+804)*4)|0),miss2=(miss1+2)%6;
+  const get=(x,y,z)=>inC(x,z)&&y>=0&&y<H?BL[bidx(x-bx,y,z-bz)]:B.STONE;
+  // the floor never hangs in the air: fill any gap under it down to the ground (netherrack, then stone)
+  for(let dz=-2;dz<=2;dz++)for(let dx=-3;dx<=4;dx++){const x=r.x+dx,z=r.z+dz;if(!inC(x,z))continue;
+    for(let y=r.y-2,n=0;y>0&&n<14;y--,n++){const id=get(x,y,z);if(SOLID[id]&&!CROSS[id]&&!LEAFY[id])break;set(x,y,z,n<2?B.NETHERRACK:B.STONE);}}
   for(let dz=-2;dz<=2;dz++)for(let dx=-3;dx<=4;dx++){if(hash2(r.x+dx,r.z+dz,s+805)<0.75)set(r.x+dx,r.y-1,r.z+dz,hash2(r.x+dx,r.z+dz,s+806)<0.15?B.MAGMA:B.NETHERRACK);for(let y=r.y;y<r.y+6;y++)if(Math.abs(dz)>0||dx<-1||dx>2)set(r.x+dx,y,r.z+dz,0);}
   let k=0;for(let u=-1;u<=2;u++)for(let v=-1;v<=4;v++){const fr=u===-1||u===2||v===-1||v===4;if(!fr){set(r.x+u,r.y+v,r.z,0);continue;}const corner=(u===-1||u===2)&&(v===-1||v===4);
     if(corner){if(hash2(r.x+u,r.y+v,s+807)<0.5)set(r.x+u,r.y+v,r.z,B.OBSIDIAN);continue;}k++;set(r.x+u,r.y+v,r.z,(k===miss1+3||k===miss2+3)&&v>0?0:B.OBSIDIAN);}
@@ -7275,7 +7280,9 @@ const eye=[0,0,0],fw=[0,0,0],rt=[0,0,0],up=[0,0,0],lineData=new Float32Array(72)
 const pEye=[0,0,0],pFw=[0,0,0],tmpA=[0,0,0],tmpB=[0,0,0];
 let cssW=0,cssH=0,camYaw=0,camPitch=0;
 function resize(){
-  const dpr=Math.min(window.devicePixelRatio||1,1.5);
+  // draw at (up to) the screen's real pixel density so the picture is sharp on phones; the Real Mod quality picks the limit
+  const cap=typeof realOn==='function'&&realOn()?MOD_Q[clamp(settings.mod.q|0,0,2)].dpr:2;
+  const dpr=Math.min(window.devicePixelRatio||1,cap);
   const w=Math.floor(innerWidth*dpr),h=Math.floor(innerHeight*dpr);
   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
   cssW=innerWidth;cssH=innerHeight;
@@ -7517,10 +7524,10 @@ function render(){
 const MOD_DEFAULT={unlocked:false,on:true,q:1,shadow:true,wave:true,water:true,bloom:true,rays:true,bump:true,ocean:true,oh:1};
 settings.mod=Object.assign({},MOD_DEFAULT,settings.mod||{});
 if(settings.mod.q===undefined)settings.mod.q=1;
-const MOD_Q=[ // light / normal / beautiful
-  {scale:0.62,shadow:1024,S:34,taps:4,fxaa:false,bloomLv:1},
-  {scale:0.85,shadow:2048,S:50,taps:8,fxaa:true,bloomLv:2},
-  {scale:1.0,shadow:2048,S:68,taps:16,fxaa:true,bloomLv:2},
+const MOD_Q=[ // light / normal / beautiful  (dpr: the most screen pixels per CSS pixel the frame is drawn at)
+  {scale:0.8,dpr:1.5,shadow:1024,S:34,taps:4,fxaa:true,bloomLv:1},
+  {scale:1.0,dpr:2,shadow:2048,S:50,taps:9,fxaa:true,bloomLv:2},
+  {scale:1.0,dpr:3,shadow:4096,S:68,taps:16,fxaa:true,bloomLv:2},
 ];
 const REAL={ready:false,failed:false,hdr:false,outScale:1,exposure:1,lastT:0,progs:null,tg:{},shadow:null,shadowSize:0,flagsTex:null};
 function realOn(){return !!(settings.mod&&settings.mod.unlocked&&settings.mod.on&&!REAL.failed);}
@@ -7587,10 +7594,11 @@ float shadowAt(vec3 wp,vec3 N,float ndl){
   float e=max(abs(p.x-0.5),abs(p.y-0.5))*2.0;
   if(e>=1.0||p.z>=1.0)return 1.0;
   float bias=0.00025+0.0009*(1.0-clamp(abs(ndl),0.0,1.0));
-  float a=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*6.2831;
-  mat2 rot=mat2(cos(a),sin(a),-sin(a),cos(a));float r=uShadowTexel*1.5,s=0.0;
-  for(int i=0;i<16;i++){if(i>=uTaps)break;s+=texture(uShadow,vec3(p.xy+rot*PD[i]*r,p.z-bias));}
-  s/=float(uTaps);
+  // smooth, grain-free soft shadows: a regular grid of hardware-filtered comparisons (2x2, 3x3 or 4x4)
+  int n=uTaps<=4?2:(uTaps<=9?3:4);float off=(float(n)-1.0)*0.5,r=uShadowTexel*(n==2?1.0:n==3?0.9:0.8),s=0.0;
+  for(int j=0;j<4;j++){if(j>=n)break;for(int i=0;i<4;i++){if(i>=n)break;
+    s+=texture(uShadow,vec3(p.xy+(vec2(float(i),float(j))-off)*r,p.z-bias));}}
+  s/=float(n*n);
   return mix(s,1.0,smoothstep(0.82,1.0,e));
 }
 vec3 skyCol(vec3 r){float y=max(r.y,0.0);vec3 c=mix(uHorizon,uZenith,pow(y,0.5));
@@ -7845,8 +7853,16 @@ function rtMake(w,h,hdr,withDepth){
   if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw new Error('framebuffer incomplete');
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);return t;
 }
+// keeps the frame rate up on slower phones: if frames get slow the picture is drawn a little smaller, and grows back when there is room
+const DYNRES={k:1,t:0,n:0,cool:0};
+function dynResTick(dt){
+  DYNRES.t+=dt;DYNRES.n++;DYNRES.cool-=dt;if(DYNRES.t<2)return;
+  const avg=DYNRES.t/DYNRES.n;DYNRES.t=0;DYNRES.n=0;if(DYNRES.cool>0)return;
+  if(avg>1/26&&DYNRES.k>0.6){DYNRES.k=Math.max(0.6,DYNRES.k-0.1);DYNRES.cool=3;}
+  else if(avg<1/48&&DYNRES.k<1){DYNRES.k=Math.min(1,DYNRES.k+0.1);DYNRES.cool=4;}
+}
 function realTargets(Q){
-  const w=Math.max(16,Math.round(canvas.width*Q.scale)),h=Math.max(16,Math.round(canvas.height*Q.scale)),g=REAL.tg;
+  const sc=Q.scale*DYNRES.k,w=Math.max(16,Math.round(canvas.width*sc)),h=Math.max(16,Math.round(canvas.height*sc)),g=REAL.tg;
   if(!g.scene||g.scene.w!==w||g.scene.h!==h){
     for(const k in g)rtFree(g[k]);g.copy=null;
     g.scene=rtMake(w,h,true,true);g.ldr=rtMake(w,h,false,false);
@@ -7875,6 +7891,7 @@ function toView(v){return[rt[0]*v[0]+rt[1]*v[1]+rt[2]*v[2],up[0]*v[0]+up[1]*v[1]
 function renderReal(){
   const M=settings.mod,Q=MOD_Q[clamp(M.q|0,0,2)],P=REAL.progs;
   const now=performance.now(),dt=Math.min(0.1,REAL.lastT?(now-REAL.lastT)/1000:0.016);REAL.lastT=now;
+  if(document.visibilityState!=='hidden')dynResTick(dt);
   resize();realTargets(Q);
   const g=REAL.tg,SW=g.scene.w,SH=g.scene.h,aspect=canvas.width/canvas.height;
   setupCamera();
