@@ -2894,7 +2894,7 @@ function useItemSpecial(id){
     if(used){consumeHeld(1);startSwing();for(let k=0;k<8;k++)particles.push({x:t.x+Math.random(),y:t.y+1+Math.random()*0.5,z:t.z+Math.random(),vx:0,vy:0.6,vz:0,life:0.8,tile:T.BONE_MEAL||T.SNOW,u:0.4,v:0.4,s:0.05,smoke:false});sfx.grow&&sfx.grow([t.x+0.5,t.y+1,t.z+0.5]);return true;}
     return false;}
   if(id===I.BUCKET&&!advMode&&((player.riding&&bailBoat(player.riding))||(target&&target.ent&&bailBoat(target.ent))))return true;
-  if(id===I.BUCKET&&!advMode){const l=liquidTarget(5);if(!l)return false;world.setBlock(l.x,l.y,l.z,0);sfx.splash&&sfx.splash([l.x+0.5,l.y+0.5,l.z+0.5]);swapHeld(l.id===B.LAVA?I.LAVA_BUCKET:I.WATER_BUCKET);startSwing();return true;}
+  if(id===I.BUCKET&&!advMode){const l=liquidTarget(5);if(!l)return false;if(l.id===B.WATER&&wLevel(world,l.x,l.y,l.z)!==8)return false;world.setBlock(l.x,l.y,l.z,0);sfx.splash&&sfx.splash([l.x+0.5,l.y+0.5,l.z+0.5]);swapHeld(l.id===B.LAVA?I.LAVA_BUCKET:I.WATER_BUCKET);startSwing();return true;}
   if((id===I.WATER_BUCKET||id===I.LAVA_BUCKET||id===I.FISH_BUCKET||id===I.POWDER_SNOW_BUCKET)&&!advMode){
     let x,y,z;if(t){x=t.x+t.nx;y=t.y+t.ny;z=t.z+t.nz;const c=world.getBlock(x,y,z);if(c&&!CROSS[c]&&!LIQUID[c])return false;}else return false;
     if(id!==I.LAVA_BUCKET&&curDim===1){puff(x+0.5,y+0.5,z+0.5,8,0.08);sfx.sizzle&&sfx.sizzle([x+0.5,y+0.5,z+0.5]);swapHeld(I.BUCKET);startSwing();return true;}
@@ -3888,7 +3888,9 @@ function blkAt(x,y,z){if(!lightOn||y<0||y>=H)return 0;return LBUF[(y*LR+z+LOFF)*
 const LUM=new Float32Array(4);
 function emitFace(buf,id,f,x,y,z,bx,bz,liquid){
   const fd=FACES[f],nx=x+fd.n[0],ny=y+fd.n[1],nz=z+fd.n[2],tile=FT[id*6+f],emissive=GLOW[id]>0,fsh=fd.shade;
-  const lower=liquid&&PAD[pidx(x,y+1,z)]!==id?0.125:0;
+  // a liquid's surface sits a little low, except under a solid block (ice on a frozen sea, a slab, glass...): there it fills
+  // its block right up to the block above, flat, so it never shows (or, with waves on, pokes up) through that block
+  const upId=PAD[pidx(x,y+1,z)],lower=liquid&&upId!==id&&!(upId&&!LIQUID[upId]&&SOLID[upId])?0.125:0;
   buf.ensure(4);const base=buf.nv;
   // leaves let some daylight through, so faces inside a canopy are lifted a little instead of going nearly black
   const lift=LEAFY[id]?2:0,SK=lift?(a,b,c)=>{const s=skyAt(a,b,c);return s?Math.min(15,s+lift):0;}:skyAt;
@@ -3906,7 +3908,7 @@ function emitFace(buf,id,f,x,y,z,bx,bz,liquid){
       if(!oc&&!(o1&&o2)){ss+=SK(cx,cy,cz);bs+=blkAt(cx,cy,cz);n++;}
       sk=ss/(n*15);bl=bs/(n*15);sh=liquid?1:AO_CURVE[ao];
     }
-    const p=fd.v[v];let py=y+p[1];if(lower&&p[1]===1)py-=lower;
+    const p=fd.v[v];let py=y+p[1];if(lower&&p[1]===1){py-=lower;if(id===B.WATER&&world.flow&&world.flow.size)py=y+waterCornerH(bx+x+p[0],bx+x,y,bz+z+p[2],bz+z);}
     if(lower&&p[1]===1&&id===B.WATER)sh=1+0.25*oceanCorner(x+p[0],y,z+p[2]);
     buf.vert(bx+x+p[0],py,bz+z+p[2],tile,QUV[v][0],QUV[v][1],sh,sk,bl);
     LUM[v]=sh*(Math.max(sk,bl)+0.2);void fsh;
@@ -3969,6 +3971,10 @@ function meshChunk(c){
 }
 
 let world=null;
+// the height of a corner of the water surface: the mean of the water cells that share it (a cell with water above counts as full)
+function waterCornerH(X,ox,y,Z,oz){const own=waterH(ox,y,oz);if(own>=1)return 1;let s=0,n=0;
+  for(const cx of[X-1,X])for(const cz of[Z-1,Z]){if(world.getBlock(cx,y,cz)!==B.WATER)continue;if(world.getBlock(cx,y+1,cz)===B.WATER)return 1;s+=waterH(cx,y,cz);n++;}
+  return n?Math.min(0.875,s/n):own;}
 
 // how much open sea surrounds a corner of the water surface: 0 by the shore or in shallows, 1 over deep water (same for every face sharing the corner)
 function oceanCorner(cx,y,cz){let f=1;
@@ -4312,7 +4318,7 @@ function updatePlayer(dt){
   const canStand=()=>{for(let y=1;y<2;y++)for(const[dx,dz]of[[-0.29,-0.29],[0.29,-0.29],[-0.29,0.29],[0.29,0.29]])if(SOLID[world.getBlock(Math.floor(p.pos[0]+dx),Math.floor(p.pos[1]+y+0.5),Math.floor(p.pos[2]+dz))])return false;return true;};
   if(mode==='survival'&&p.food<=6)p.sprint=false;
   const feet=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+0.3),Math.floor(p.pos[2]));
-  const wasWater=p.inWater,wasLava=p.inLava;p.inWater=feet===B.WATER;p.inLava=feet===B.LAVA;
+  const wasWater=p.inWater,wasLava=p.inLava,fy3=p.pos[1]+0.3;p.inWater=feet===B.WATER&&(!world.flow||!world.flow.size||(()=>{const h=waterH(Math.floor(p.pos[0]),Math.floor(fy3),Math.floor(p.pos[2]));return h>=0.8||fy3-Math.floor(fy3)<h-0.2;})());p.inLava=feet===B.LAVA;
   if(p.inWater&&!wasWater)sfx.splash(p.vel[1]<-4);
   if(p.inLava&&!wasLava)sfx.sizzle();
   const sy=Math.sin(p.yaw),cy=Math.cos(p.yaw);fwdFlat[0]=sy;fwdFlat[2]=-cy;rightV[0]=cy;rightV[2]=sy;
@@ -4548,7 +4554,7 @@ function finishBreak(x,y,z,id,tool){
   const k=tileKey(x,y,z),t=world.tiles.get(k);
   if(t&&mode==='survival'){for(const s of t.slots)if(s)spawnItem(x+0.5,y+0.5,z+0.5,s.id,s.n,s.d);}
   if(t)world.tiles.delete(k);
-  world.setBlock(x,y,z,waterNeighbor(x,y,z)?B.WATER:0);breakPartner(x,y,z,id);veinBreak(x,y,z,id,tool);
+  world.setBlock(x,y,z,0);breakPartner(x,y,z,id);veinBreak(x,y,z,id,tool);
   const up=world.getBlock(x,y+1,z);
   if(CROSS[up]&&up!==B.TORCH){world.setBlock(x,y+1,z,0);if(mode==='survival')for(const[did,n]of dropsFor(up,null))spawnItem(x+0.5,y+1.3,z+0.5,did,n);
     if(up===B.SUGARCANE){for(let yy=y+2;world.getBlock(x,yy,z)===B.SUGARCANE;yy++){world.setBlock(x,yy,z,0);if(mode==='survival')spawnItem(x+0.5,yy+0.3,z+0.5,B.SUGARCANE,1);}}}
@@ -4729,6 +4735,7 @@ function updateEntities(dt){
   for(let i=primed.length-1;i>=0;i--){const e=primed[i];e.t-=dt;if(e.t<=0){primed.splice(i,1);explode(e,e.remote);}}
   for(let i=particles.length-1;i>=0;i--){
     const q=particles[i];q.life-=dt;if(q.life<=0){particles.splice(i,1);continue;}
+    if(q.fn){q.fn(q,dt);continue;}   // particles with a motion of their own (water splashes)
     if(q.smoke){const k=Math.exp(-2.2*dt);q.vx*=k;q.vz*=k;q.vy=q.vy*k+0.9*dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt;q.s+=dt*0.25;continue;}
     q.vy-=20*dt;
     const nx=q.x+q.vx*dt,ny=q.y+q.vy*dt,nz=q.z+q.vz*dt;
@@ -4800,6 +4807,216 @@ function glideTick(p,dt,jump,liquid){
   v=clamp(v,3,40);p.glideV=v;const k=1-Math.exp(-4*dt);
   p.vel[0]=lerp(p.vel[0],f[0]*v,k);p.vel[2]=lerp(p.vel[2],f[2]*v,k);p.vel[1]=lerp(p.vel[1],f[1]*v-2.2,k);p.fall=Math.min(p.fall,Math.max(0,-f[1])*3);
   if(mode==='survival'&&Math.random()<dt){const s=ARMOR[1];s.d=(s.d||0)+1;if(s.d>=432){ARMOR[1]=null;p.gliding=false;toast('エリトラが壊れた');}}
+}
+
+// ================================================================ flowing water
+// Water flows now. Every water block is either a source (full: all generated water, and what you pour from a bucket) or
+// flowing water with a level 1..7 (9 = falling), kept in world.flow. Every quarter second the cells that changed are looked at:
+//  · water falls first; where it cannot fall it spreads sideways, one level lower per block, up to 7 blocks;
+//  · a gap with two or more source blocks beside it (on something solid, or on more still water) fills up and becomes a
+//    source itself, so scooping or digging out one block of a lake lets the water round it flow in and close it again;
+//  · flowing water that loses its supply drains away, and water with nowhere to go spills over edges and runs down slopes.
+// The simulation runs only where something changed, so seas and lakes cost nothing while they are left alone.
+const FLOW_TICK=0.25,FLOW_MAX=360,FH4=[[1,0],[-1,0],[0,1],[0,-1]];
+function wKey(x,y,z){return x+','+y+','+z;}
+function flowMap(w){return w.flow||(w.flow=new Map());}
+function flowQ(w){return w.flowQ||(w.flowQ=new Set());}
+// water level of a cell: 0 none, 1..7 flowing, 8 source, 9 falling
+function wLevel(w,x,y,z){if(w.getBlock(x,y,z)!==B.WATER)return 0;const l=w.flow&&w.flow.get(wKey(x,y,z));return l===undefined?8:l;}
+// what water may wash into: air, and plants or torches that it washes away
+function flowRepl(id){return id===0||(CROSS[id]&&!SOLID[id]&&!LIQUID[id]);}
+// how high the surface of a water cell stands (0..1 of the block)
+function waterH(x,y,z){if(!world||world.getBlock(x,y,z)!==B.WATER)return 0;const up=world.getBlock(x,y+1,z);if(up===B.WATER||(up&&SOLID[up]))return 1;
+  const l=world.flow&&world.flow.get(wKey(x,y,z));return l===undefined?0.875:l>=9?1:Math.max(0.12,0.875*l/8);}
+function flowWake(w,x,y,z){const q=flowQ(w);q.add(wKey(x,y,z));q.add(wKey(x,y+1,z));q.add(wKey(x,y-1,z));for(const[dx,dz]of FH4)q.add(wKey(x+dx,y,z+dz));}
+function flowDirty(w,x,z){const cx=x>>4,cz=z>>4,lx=x&15,lz=z&15;w.markDirty(cx,cz,true);
+  const ex=lx===0?-1:lx===15?1:0,ez=lz===0?-1:lz===15?1:0;if(ex)w.markDirty(cx+ex,cz,true);if(ez)w.markDirty(cx,cz+ez,true);if(ex&&ez)w.markDirty(cx+ex,cz+ez,true);}
+// any change to blocks next to water wakes the water up
+{const _sb=World.prototype.setBlock;
+  World.prototype.setBlock=function(x,y,z,id,record=true,net=false){
+    const old=this.getBlock(x,y,z),r=_sb.call(this,x,y,z,id,record,net);
+    if(old===id){ // water poured onto flowing water makes it a source again
+      if(id===B.WATER&&!net&&this.flow&&this.flow.delete(wKey(x,y,z))){flowDirty(this,x,z);flowWake(this,x,y,z);}
+      return r;}
+    if(r===false)return r;
+    if(old===B.WATER&&this.flow)this.flow.delete(wKey(x,y,z));
+    if(this.flowGen)return r;   // world generation: leave it be
+    if(id===B.WATER||old===B.WATER||this.getBlock(x+1,y,z)===B.WATER||this.getBlock(x-1,y,z)===B.WATER||this.getBlock(x,y,z+1)===B.WATER||this.getBlock(x,y,z-1)===B.WATER||this.getBlock(x,y+1,z)===B.WATER)flowWake(this,x,y,z);
+    return r;};}
+function flowSupport(w,x,y,z){const b=w.getBlock(x,y,z);if(b===B.WATER)return wLevel(w,x,y,z)===8;return !flowRepl(b)&&!LIQUID[b];}
+function flowUpdate(w,x,y,z){
+  if(y<1||y>=H-1||!w.getChunk(x>>4,z>>4))return;
+  const id=w.getBlock(x,y,z),k=wKey(x,y,z),F=flowMap(w);
+  const isW=id===B.WATER,cur=isW?(F.has(k)?F.get(k):8):0;
+  if(isW&&cur===8){flowSpread(w,x,y,z,8);return;}   // sources stay; they only feed what is round them
+  if(!isW&&!flowRepl(id))return;
+  // what this cell should hold now
+  let src=0,m=0;
+  for(const[dx,dz]of FH4){const nx=x+dx,nz=z+dz;if(w.getBlock(nx,y,nz)!==B.WATER)continue;const l=wLevel(w,nx,y,nz);if(l===8)src++;
+    // a neighbour feeds sideways only where it cannot fall: on something solid, or (if it is not falling itself) on still water
+    const nb=w.getBlock(nx,y-1,nz);const side=nb===B.WATER?(l!==9&&wLevel(w,nx,y-1,nz)===8):!flowRepl(nb)&&!LIQUID[nb];if(!side)continue;
+    const v=l>=8?7:l-1;if(v>m)m=v;}
+  let t;
+  if(src>=2&&flowSupport(w,x,y-1,z))t=8;                 // a gap in a body of water closes up
+  else if(w.getBlock(x,y+1,z)===B.WATER)t=9;            // water pouring down from above
+  else t=m;
+  if(isW){
+    if(t===0){w.setBlock(x,y,z,0,true,true);return;}   // its supply is gone: it drains away
+    if(t!==cur){if(t===8)F.delete(k);else F.set(k,t);flowDirty(w,x,z);flowWake(w,x,y,z);if(typeof waterFx==='function')waterFx(w,x,y,z,t,'level');}
+  }else if(t>0){
+    if(id)flowWashAway(x,y,z,id);
+    w.setBlock(x,y,z,B.WATER,true,true);if(t!==8)F.set(k,t);flowDirty(w,x,z);
+    if(typeof waterFx==='function')waterFx(w,x,y,z,t,'new');
+  }else return;
+  flowSpread(w,x,y,z,t);
+}
+function flowSpread(w,x,y,z,l){const q=flowQ(w),below=w.getBlock(x,y-1,z);
+  if(flowRepl(below)){q.add(wKey(x,y-1,z));return;}      // it falls: nothing spreads sideways
+  if(below===B.WATER&&wLevel(w,x,y-1,z)!==8&&l!==8)return;
+  if(l<=1)return;
+  for(const[dx,dz]of FH4){const nx=x+dx,nz=z+dz,n=w.getBlock(nx,y,nz);
+    if(flowRepl(n)||(n===B.WATER&&wLevel(w,nx,y,nz)<(l>=8?7:l-1)))q.add(wKey(nx,y,nz));}}
+function flowWashAway(x,y,z,id){if(mode==='survival'&&BLOCKS[id]&&BLOCKS[id].drop!==null&&typeof spawnItem==='function'&&Math.random()<0.8)spawnItem(x+0.5,y+0.3,z+0.5,BLOCKS[id].drop!==undefined?BLOCKS[id].drop:id,1,0);}
+function tickFlow(dt){const w=world;if(!w||!w.flowQ||!w.flowQ.size||curDim===1)return;
+  w.flowT=(w.flowT||0)+dt;if(w.flowT<FLOW_TICK)return;w.flowT=0;
+  const list=[...w.flowQ];w.flowQ.clear();
+  // nearest first, so that what you are looking at moves even when a lot is flowing far away
+  const p=player.pos;if(list.length>FLOW_MAX){const d=k=>{const a=k.split(',');return Math.abs(a[0]-p[0])+Math.abs(a[1]-p[1])+Math.abs(a[2]-p[2]);};list.sort((a,b)=>d(a)-d(b));}
+  let n=0;for(const k of list){if(n++>=FLOW_MAX){w.flowQ.add(k);continue;}const a=k.split(',');flowUpdate(w,+a[0],+a[1],+a[2]);}
+}
+// the push of a current (and the pull of a waterfall) on the player
+function flowPush(x,y,z){if(!world.flow||!world.flow.size)return null;const l=wLevel(world,x,y,z);if(!l||l===8)return null;
+  const h=waterH(x,y,z);let fx=0,fz=0;
+  for(const[dx,dz]of FH4){const n=world.getBlock(x+dx,y,z+dz);
+    if(n===B.WATER){const d=h-waterH(x+dx,y,z+dz);fx+=dx*d;fz+=dz*d;}
+    else if(flowRepl(n)){fx+=dx*(flowRepl(world.getBlock(x+dx,y-1,z+dz))?1.2:h*0.8);fz+=dz*(flowRepl(world.getBlock(x+dx,y-1,z+dz))?1.2:h*0.8);}}
+  const L=Math.hypot(fx,fz);return{x:L>0.01?fx/L:0,z:L>0.01?fz/L:0,down:l===9};}
+// the player: shallow running water is not deep enough to swim in, a current pushes you along, a waterfall pulls you down
+{const _up=updatePlayer;updatePlayer=function(dt){const r=_up.apply(this,arguments);const p=player;
+  if(world&&world.flow&&world.flow.size&&!p.flying&&!p.dead){const f=flowPush(Math.floor(p.pos[0]),Math.floor(p.pos[1]+0.3),Math.floor(p.pos[2]));
+    if(f){const k=(p.sneak?3.5:6)*dt;p.vel[0]+=f.x*k;p.vel[2]+=f.z*k;if(f.down&&p.inWater)p.vel[1]=Math.max(p.vel[1]-5*dt,-3.5);}}
+  return r;};}
+
+// ================================================================ water hitting blocks: 12 ways to splash (飛び散る) and 12 ways to bounce (跳ねる)
+// Where water meets a block something moves: a waterfall landing on stone, a flood front running into a wall, waves
+// slapping a shore, a rock or the edge of sea ice. Each time one of 24 different motions is played, never the same one twice
+// in a row in the same place, and each motion is its own: crowns, jets, fans, mist, spirals, skipping and splitting drops...
+MODHOOK.tex.push(()=>{
+  sprite('WD_DROP',S=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const d=Math.hypot(x-7.5,(y-8.2)*0.92);if(d<5.6)S.set(x,y,d<1.6&&x<8&&y<8?[250,252,255]:d<3.8?[176,214,252]:[120,172,236]);}S.set(6,5,[255,255,255]);});
+  sprite('WD_STREAK',S=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const w=y<12?2.2*(y/12):2.2*(1-(y-12)/4);if(Math.abs(x-7.5)<w)S.set(x,y,y<4?[236,246,255]:[150,196,246]);}});
+  sprite('WD_FOAM',S=>{const rr=mulberry32(771);for(let k=0;k<26;k++){const a=rr()*Math.PI*2,d=rr()*5,x=7.5+Math.cos(a)*d,y=7.5+Math.sin(a)*d,c=rr()<0.3?[214,230,240]:[246,250,252];S.set(x,y,c);S.set(x+1,y,c);S.set(x,y+1,c);S.set(x+1,y+1,c);}});
+  sprite('WD_MIST',S=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const d=Math.hypot(x-7.5,y-7.5);if(d<3.5||(d<6.8&&((x+y)&1)===0&&hash3(x,y,0,772)<1-(d-3.5)/3.6))S.set(x,y,[226,238,248]);}});
+  sprite('WD_RING',S=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const d=Math.hypot(x-7.5,y-7.5);if(d>5.6&&d<7.4)S.set(x,y,d<6.5?[236,246,255]:[170,210,246]);}});
+  sprite('WD_BUBBLE',S=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const d=Math.hypot(x-7.5,y-7.5);if(d>4.4&&d<6.2)S.set(x,y,[210,236,252]);}S.set(5,5,[255,255,255]);S.set(6,5,[255,255,255]);S.set(5,6,[255,255,255]);});
+});
+const WFX={t:0,falls:new Map(),seen:new Map(),lastS:-1,lastH:-1,count:[new Array(12).fill(0),new Array(12).fill(0)]};
+const WR=Math.random,WSC=2.2;   // WSC: drops are drawn a little larger than life so that they read on screen
+function wq(o){const lim=(typeof LITH!=='undefined'&&LITH.on)?450:900;if(particles.length>lim)particles.shift();
+  const q=Object.assign({life:1,s:0.06,tile:T.WD_DROP,u:0,v:0,full:true,vx:0,vy:0,vz:0,g:16,dr:0,fl:null,b:0.5,nb:0,bf:0.8,t:0},o);q.s*=WSC;if(q.grow)q.grow*=WSC;if(!q.fn)q.fn=wBall;particles.push(q);return q;}
+const wSolid=(x,y,z)=>SOLID[world.getBlock(Math.floor(x),Math.floor(y),Math.floor(z))];
+// the usual motion: gravity and drag; it bounces off its floor (the water surface or the ground) and off blocks, nb more times
+function wBall(q,dt){q.t+=dt;if(q.delay>0){q.delay-=dt;q.hide=q.delay>0;if(q.hide)return;}
+  const k=q.dr?Math.exp(-q.dr*dt):1;q.vx*=k;q.vz*=k;q.vy=q.vy*k-q.g*dt;if(q.pre)q.pre(q,dt);
+  const nx=q.x+q.vx*dt;if(wSolid(nx,q.y,q.z)){q.vx=-q.vx*(q.b||0.4);if(q.onW)q.onW(q);}else q.x=nx;
+  const nz=q.z+q.vz*dt;if(wSolid(q.x,q.y,nz)){q.vz=-q.vz*(q.b||0.4);if(q.onW)q.onW(q);}else q.z=nz;
+  const ny=q.y+q.vy*dt,land=q.vy<0&&((q.fl!==null&&ny<q.fl)||wSolid(q.x,ny,q.z));
+  if(land){if(q.nb>0){q.nb--;q.vy=-q.vy*q.b;q.vx*=q.bf;q.vz*=q.bf;if(q.fl!==null)q.y=Math.max(q.y,q.fl);if(q.onB)q.onB(q);}else{q.life=0;if(q.onL)q.onL(q);}}
+  else q.y=ny;
+  if(q.grow)q.s=Math.max(0.005,q.s+q.grow*dt);}
+// a ripple ring spreading on the surface
+function wRing(x,y,z,s0,grow,life){wq({x,y:y+0.012,z,s:s0,tile:T.WD_RING,flat:true,life:life||0.6,fn:(q,dt)=>{q.s+=grow*WSC*dt;}});}
+function wDir(dx,dz){if(!dx&&!dz){const a=WR()*Math.PI*2;return[Math.cos(a),Math.sin(a)];}const L=Math.hypot(dx,dz);return[dx/L,dz/L];}
+const rot=(d,a)=>[d[0]*Math.cos(a)-d[1]*Math.sin(a),d[0]*Math.sin(a)+d[1]*Math.cos(a)];
+
+// ---------------- 飛び散る: twelve splashes
+const SPLASH=[
+  // 1 crown: a ring of drops thrown out and up evenly
+  (x,y,z,d,fl)=>{for(let i=0;i<16;i++){const a=i/16*Math.PI*2,sp=1.6+WR()*0.25;wq({x:x+Math.cos(a)*0.12,y,z:z+Math.sin(a)*0.12,vx:Math.cos(a)*sp,vy:3.1+WR()*0.3,vz:Math.sin(a)*sp,fl,nb:0,life:1.2,s:0.055});}wRing(x,fl,z,0.1,0.9,0.7);},
+  // 2 jet: a tight column shooting straight up and falling back
+  (x,y,z,d,fl)=>{for(let i=0;i<10;i++)wq({x:x+(WR()-0.5)*0.1,y,z:z+(WR()-0.5)*0.1,vx:d[0]*0.25+(WR()-0.5)*0.2,vy:3.2+i*0.42,vz:d[1]*0.25+(WR()-0.5)*0.2,fl,tile:T.WD_STREAK,sy:1.9,s:0.045+i*0.003,life:1.8});},
+  // 3 fan: a flat fan of spray thrown away from the block
+  (x,y,z,d,fl)=>{for(let i=0;i<14;i++){const e=rot(d,(i/13-0.5)*2.1),sp=2.4+WR()*1.1;wq({x,y,z,vx:e[0]*sp,vy:1.4+WR()*0.7,vz:e[1]*sp,fl,s:0.05,life:1.1,dr:0.6});}},
+  // 4 mist: soft puffs that drift up and away and fade
+  (x,y,z,d,fl)=>{for(let i=0;i<12;i++)wq({x:x+(WR()-0.5)*0.5,y:y+WR()*0.3,z:z+(WR()-0.5)*0.5,vx:d[0]*0.5+(WR()-0.5)*0.6,vy:0.3+WR()*0.4,vz:d[1]*0.5+(WR()-0.5)*0.6,g:-0.35,dr:1.4,tile:T.WD_MIST,s:0.1+WR()*0.08,grow:0.09,life:1.4+WR()*0.8});},
+  // 5 burst: a fast spray in every direction, stopped short by the air
+  (x,y,z,d,fl)=>{for(let i=0;i<20;i++){const a=WR()*Math.PI*2,e=WR()*1.3,sp=4.2+WR()*1.2;wq({x,y,z,vx:Math.cos(a)*Math.cos(e)*sp,vy:Math.sin(e)*sp+0.6,vz:Math.sin(a)*Math.cos(e)*sp,dr:3.6,g:11,fl,s:0.032,life:0.75});}},
+  // 6 sheet: a curtain of drops rising along the face of the block
+  (x,y,z,d,fl)=>{const t=[-d[1],d[0]];for(let i=0;i<12;i++){const o=(i/11-0.5)*0.9;wq({x:x+t[0]*o,y,z:z+t[1]*o,vx:d[0]*(0.7+WR()*0.3),vy:2.6+WR()*0.7,vz:d[1]*(0.7+WR()*0.3),fl,s:0.05,life:1.2});}},
+  // 7 spiral: drops winding outward as they rise
+  (x,y,z,d,fl)=>{const a0=WR()*Math.PI*2;for(let i=0;i<14;i++){const ph=a0+i*0.45;wq({x,y,z,cx:x,cz:z,r:0.05,a:ph,vy:2.4+i*0.07,g:6,s:0.05,life:1.1,delay:i*0.03,fl,
+      pre:(q,dt)=>{q.a+=7*dt;q.r+=0.9*dt;q.vx=(q.cx+Math.cos(q.a)*q.r-q.x)/dt;q.vz=(q.cz+Math.sin(q.a)*q.r-q.z)/dt;}});}},
+  // 8 double crown: a wide crown, then a smaller, taller one inside it
+  (x,y,z,d,fl)=>{for(let i=0;i<12;i++){const a=i/12*Math.PI*2;wq({x,y,z,vx:Math.cos(a)*2,vy:2.4,vz:Math.sin(a)*2,fl,s:0.05,life:1.1});}
+    for(let i=0;i<8;i++){const a=(i+0.5)/8*Math.PI*2;wq({x,y,z,vx:Math.cos(a)*0.9,vy:4.1,vz:Math.sin(a)*0.9,fl,s:0.06,life:1.4,delay:0.16});}},
+  // 9 side lash: spray swept sideways in long arcs, as if by wind
+  (x,y,z,d,fl)=>{const s=WR()<0.5?1:-1,w=rot(d,s*1.1);for(let i=0;i<12;i++){const sp=2.8+WR()*1.6;wq({x,y,z,vx:w[0]*sp,vy:1.8+WR()*1.1,vz:w[1]*sp,g:9,fl,s:0.045,life:1.4,pre:(q,dt)=>{q.vx+=w[0]*1.5*dt;q.vz+=w[1]*1.5*dt;}});}},
+  // 10 foam spatter: lumps of foam thrown out that settle on the water and fade away
+  (x,y,z,d,fl)=>{for(let i=0;i<8;i++){const e=rot(d,(WR()-0.5)*2.6),sp=0.9+WR()*0.9;wq({x,y,z,vx:e[0]*sp,vy:1.3+WR()*0.6,vz:e[1]*sp,fl,tile:T.WD_FOAM,s:0.08+WR()*0.06,life:2.2,nb:0,
+      onL:q=>{wq({x:q.x,y:fl+0.014,z:q.z,s:q.s/WSC*1.4,tile:T.WD_FOAM,flat:true,life:1.3,vx:q.vx*0.4,vz:q.vz*0.4,fn:(p,dt)=>{p.x+=p.vx*dt;p.z+=p.vz*dt;p.vx*=0.94;p.vz*=0.94;p.s=Math.max(0.01,p.s-0.09*WSC*dt);}});}});}},
+  // 11 star: six arms of drops shooting out flat, each arm a line of drops
+  (x,y,z,d,fl)=>{const a0=WR();for(let k=0;k<6;k++){const a=a0+k*Math.PI/3;for(let j=0;j<4;j++){const sp=2.4+j*0.45;wq({x,y,z,vx:Math.cos(a)*sp,vy:1.0+j*0.12,vz:Math.sin(a)*sp,g:10,fl,s:0.04-j*0.004,life:0.9});}}},
+  // 12 umbrella: all rise together, open out at the top and come down in a ring
+  (x,y,z,d,fl)=>{const a0=WR();for(let i=0;i<16;i++){const a=a0+i/16*Math.PI*2;wq({x,y,z,vx:0,vy:4.3,vz:0,g:12,fl,s:0.05,life:1.6,open:a,
+      pre:(q,dt)=>{if(q.open!==null&&q.vy<0.7){q.vx=Math.cos(q.open)*1.6;q.vz=Math.sin(q.open)*1.6;q.open=null;}}});}},
+];
+// ---------------- 跳ねる: twelve bounces
+const HOP=[
+  // 1 skipping stone: one drop skims along, each hop shorter, leaving rings
+  (x,y,z,d,fl)=>{wq({x,y,z,vx:d[0]*3.0,vy:1.7,vz:d[1]*3.0,fl,b:0.55,bf:0.72,nb:4,s:0.07,life:3,onB:q=>wRing(q.x,fl,q.z,0.05,0.7,0.5)});},
+  // 2 ping-pong: bounces up and down on the spot, lower each time
+  (x,y,z,d,fl)=>{wq({x,y,z,vy:3.1,fl,b:0.62,nb:5,s:0.075,life:4,onB:q=>wRing(q.x,fl,q.z,0.04,0.5,0.4)});},
+  // 3 cascade: hops away and down, as if down a flight of steps
+  (x,y,z,d,fl)=>{wq({x,y,z,vx:d[0]*1.3,vy:2.2,vz:d[1]*1.3,fl,b:0.6,bf:0.95,nb:4,s:0.065,life:3,onB:q=>{q.fl-=0.22;}});},
+  // 4 split: a drop bounces and splits in two, and the two split again
+  (x,y,z,d,fl)=>{const sp=(q,n)=>{for(const s of[-1,1]){const e=rot([q.vx||d[0],q.vz||d[1]],s*0.7),L=Math.hypot(e[0],e[1])||1;wq({x:q.x,y:q.y,z:q.z,vx:e[0]/L*1.2,vy:2.1-n*0.5,vz:e[1]/L*1.2,fl,b:0.5,nb:n>0?1:0,s:q.s/WSC*0.72,life:2,onB:n>0?(p=>{p.nb=0;sp(p,n-1);p.life=0;}):null});}};
+    wq({x,y,z,vx:d[0]*0.8,vy:2.8,vz:d[1]*0.8,fl,b:0.5,nb:1,s:0.09,life:2,onB:q=>{sp(q,1);q.life=0;}});},
+  // 5 circling hop: a drop hops round in a circle about where the water struck
+  (x,y,z,d,fl)=>{const a0=Math.atan2(d[1],d[0]);wq({x:x+Math.cos(a0)*0.45,y,z:z+Math.sin(a0)*0.45,vy:2.0,fl,b:1,nb:5,s:0.06,life:3.5,cx:x,cz:z,a:a0,
+      pre:(q,dt)=>{q.a+=3.2*dt;q.vx=(q.cx+Math.cos(q.a)*0.45-q.x)/dt;q.vz=(q.cz+Math.sin(q.a)*0.45-q.z)/dt;},onB:q=>{q.vy=Math.min(q.vy,2.0)*0.85;}});},
+  // 6 a swarm of tiny hops
+  (x,y,z,d,fl)=>{for(let i=0;i<10;i++){const a=WR()*Math.PI*2,sp=0.5+WR()*0.8;wq({x,y,z,vx:Math.cos(a)*sp,vy:1.3+WR()*0.5,vz:Math.sin(a)*sp,fl,b:0.5,nb:3,g:18,s:0.028,life:2});}},
+  // 7 one high bounce: a big drop goes high, lands, rebounds once and ends in a little crown
+  (x,y,z,d,fl)=>{wq({x,y,z,vx:d[0]*0.35,vy:5.0,vz:d[1]*0.35,fl,b:0.36,nb:1,s:0.11,life:3,onL:q=>{for(let i=0;i<6;i++){const a=i/6*Math.PI*2;wq({x:q.x,y:fl,z:q.z,vx:Math.cos(a)*0.9,vy:1.6,vz:Math.sin(a)*0.9,fl,s:0.035,life:0.8});}}});},
+  // 8 zigzag: each hop turns the other way
+  (x,y,z,d,fl)=>{wq({x,y,z,vx:d[0]*1.7,vy:1.8,vz:d[1]*1.7,fl,b:0.62,bf:1,nb:5,s:0.06,life:3.5,side:1,onB:q=>{const e=rot([q.vx,q.vz],q.side*1.2);q.vx=e[0]*0.85;q.vz=e[1]*0.85;q.side=-q.side;}});},
+  // 9 rolling: a drop slides over the surface, then hops once and is gone in a ring
+  (x,y,z,d,fl)=>{wq({x,y:fl+0.04,z,vx:d[0]*1.9,vy:0,vz:d[1]*1.9,s:0.07,life:2.2,fn:(q,dt)=>{q.t+=dt;if(q.t<0.7){q.x+=q.vx*dt;q.z+=q.vz*dt;q.vx*=0.985;q.vz*=0.985;q.y=fl+0.04+Math.abs(Math.sin(q.t*18))*0.02;return;}
+      if(!q.hop){q.hop=1;q.vy=2.2;}q.vy-=16*dt;q.x+=q.vx*dt;q.z+=q.vz*dt;q.y+=q.vy*dt;if(q.y<fl&&q.vy<0){q.life=0;wRing(q.x,fl,q.z,0.05,0.8,0.6);}}});},
+  // 10 rebound: thrown at the block, it bounces back off its face and lands
+  (x,y,z,d,fl)=>{wq({x:x+d[0]*0.3,y:y+0.1,z:z+d[1]*0.3,vx:-d[0]*2.6,vy:1.9,vz:-d[1]*2.6,fl,b:0.55,nb:1,s:0.07,life:2.5,onW:q=>{q.vy=Math.max(q.vy,1.2);}});},
+  // 11 chain: every landing kicks a smaller drop on further ahead
+  (x,y,z,d,fl)=>{const kick=(px,pz,n,s)=>wq({x:px,y:fl+0.02,z:pz,vx:d[0]*(1.1+0.25*n),vy:1.5+0.2*n,vz:d[1]*(1.1+0.25*n),fl,nb:0,s,life:1.6,onL:q=>{wRing(q.x,fl,q.z,0.04,0.6,0.45);if(n>0)kick(q.x,q.z,n-1,s*0.8);}});kick(x,z,3,0.08);},
+  // 12 bubble: a light bubble of foam bounces softly, wobbling, then pops
+  (x,y,z,d,fl)=>{const s0=0.1;wq({x,y,z,vx:d[0]*0.6,vy:1.4,vz:d[1]*0.6,g:4,fl,b:0.72,nb:4,tile:T.WD_BUBBLE,s:s0,life:3.5,pre:(q,dt)=>{q.s=s0*WSC*(1+0.18*Math.sin(q.t*22));},
+      onL:q=>{for(let i=0;i<7;i++){const a=i/7*Math.PI*2;wq({x:q.x,y:q.y,z:q.z,vx:Math.cos(a)*1.4,vy:0.9+WR()*0.4,vz:Math.sin(a)*1.4,dr:2,g:8,fl,s:0.025,life:0.5});}}});},
+];
+// play one of the twelve of a kind, never the same one twice in a row
+function wPlay(kind,x,y,z,dx,dz,fl){const L=kind?HOP:SPLASH,last=kind?WFX.lastH:WFX.lastS;let i=(WR()*12)|0;if(i===last)i=(i+1+((WR()*11)|0))%12;
+  if(kind)WFX.lastH=i;else WFX.lastS=i;WFX.count[kind][i]++;L[i](x,y,z,wDir(dx,dz),fl);return i;}
+function wNear(x,y,z,r){const p=player.pos;return Math.abs(x-p[0])<r&&Math.abs(z-p[2])<r&&Math.abs(y-p[1])<r;}
+// hooked into the flow: a new waterfall landing, or a flood front running into a block
+function waterFx(w,x,y,z,t,kind){if(kind!=='new'||!wNear(x,y,z,36))return;
+  const below=w.getBlock(x,y-1,z);
+  if(t===9&&SOLID[below]){WFX.falls.set(wKey(x,y,z),{x,y,z,next:0});wPlay(0,x+0.5,y+0.05,z+0.5,0,0,y+0.02);return;}
+  if(t>=1&&t<=7)for(const[dx,dz]of FH4){if(SOLID[w.getBlock(x+dx,y,z+dz)]&&!SOLID[w.getBlock(x-dx,y,z-dz)]){const h=waterH(x,y,z);if(WR()<0.55)wPlay(1,x+0.5+dx*0.4,y+h,z+0.5+dz*0.4,-dx,-dz,y+h);return;}}
+}
+// every frame: keep known waterfalls splashing, and look round for water meeting blocks (shores, rocks, sea ice, walls)
+function tickWaterFx(dt){if(!world||state!=='play'||curDim===1)return;WFX.t-=dt;if(WFX.t>0)return;WFX.t=0.1;
+  const now=performance.now()/1000,p=player.pos;let budget=3;
+  for(const[k,f]of WFX.falls){if(!wNear(f.x,f.y,f.z,40)||wLevel(world,f.x,f.y,f.z)===0||!SOLID[world.getBlock(f.x,f.y-1,f.z)]||world.getBlock(f.x,f.y+1,f.z)!==B.WATER){WFX.falls.delete(k);continue;}
+    if(now<f.next||budget<=0)continue;f.next=now+0.28+WR()*0.4;budget--;wPlay(WR()<0.72?0:1,f.x+0.5+(WR()-0.5)*0.3,f.y+0.05,f.z+0.5+(WR()-0.5)*0.3,0,0,f.y+0.02);}
+  const ocean=typeof oceanOn==='function'&&oceanOn();
+  for(let s=0;s<22&&budget>0;s++){const x=Math.floor(p[0]+(WR()-0.5)*36),z=Math.floor(p[2]+(WR()-0.5)*36);
+    let y=-1;for(let yy=Math.floor(p[1])+10;yy>Math.floor(p[1])-16&&yy>1;yy--){if(world.getBlock(x,yy,z)===B.WATER){y=yy;break;}}if(y<0)continue;
+    const up=world.getBlock(x,y+1,z);if(up===B.WATER||SOLID[up])continue;
+    // a waterfall's foot found by chance: remember it
+    if(wLevel(world,x,y,z)===9){let yb=y;while(yb>1&&world.getBlock(x,yb-1,z)===B.WATER)yb--;if(SOLID[world.getBlock(x,yb-1,z)])WFX.falls.set(wKey(x,yb,z),{x,y:yb,z,next:0});continue;}
+    for(const[dx,dz]of FH4){const n=world.getBlock(x+dx,y,z+dz),n2=world.getBlock(x+dx,y+1,z+dz);
+      if(!(SOLID[n]||SOLID[n2])||n===B.WATER)continue;
+      const k=wKey(x,y,z),last=WFX.seen.get(k)||0;if(now-last<1.2)break;
+      if(WR()>(ocean?0.5:0.3))break;WFX.seen.set(k,now);if(WFX.seen.size>400)WFX.seen.clear();
+      const h=waterH(x,y,z),wave=ocean&&y>=SEA-1;budget--;
+      wPlay(wave?(WR()<0.55?0:1):(WR()<0.35?0:1),x+0.5+dx*0.42,y+h,z+0.5+dz*0.42,-dx,-dz,y+h);break;}}
 }
 
 // ============================================================================
@@ -7405,9 +7622,11 @@ function buildDynamic(){
     pushBox(DYN,mT(mining.x,mining.y,mining.z),-e,-e,-e,1+e,1+e,1+e,[t,t,t,t,t,t],1.15,1,1);
   }
   for(const q of particles){
+    if(q.hide)continue;
     const s=q.s,sk=world.skyAt(Math.floor(q.x),Math.floor(q.y),Math.floor(q.z)),base=DYN.nv,pbl=q.glow?1:pbl0;DYN.ensure(4);
     const us=q.smoke||q.full?1:0.25,u0=q.u,v0=q.v,sh=q.full?1.1:q.smoke?0.9*Math.min(1,q.life*1.5):1.15;
-    const rx=rt[0]*s,ry=rt[1]*s,rz=rt[2]*s,ux=up[0]*s,uy=up[1]*s,uz=up[2]*s;
+    let rx=rt[0]*s,ry=rt[1]*s,rz=rt[2]*s,ux=up[0]*s,uy=up[1]*s,uz=up[2]*s;
+    if(q.flat){rx=s;ry=0;rz=0;ux=0;uy=0;uz=s;}else if(q.sy){ux*=q.sy;uy*=q.sy;uz*=q.sy;}   // ripples lie flat; streaks are drawn long
     DYN.vert(q.x-rx-ux,q.y-ry-uy,q.z-rz-uz,q.tile,u0,v0+us,sh,sk,pbl);
     DYN.vert(q.x+rx-ux,q.y+ry-uy,q.z+rz-uz,q.tile,u0+us,v0+us,sh,sk,pbl);
     DYN.vert(q.x+rx+ux,q.y+ry+uy,q.z+rz+uz,q.tile,u0+us,v0,sh,sk,pbl);
@@ -8036,6 +8255,7 @@ function buildTileFlags(){
       if(b.glow&&id!==B.LAVA)set(t,16);}
     if(CROSS[id]&&!LIGHT[id])set(FT[id*6],2);
   }
+  for(const f of(MODHOOK.tileFlags||[]))for(const[t,b]of f())if(t!==undefined)set(t,b);
   set(T.WATER,4);set(T.LAVA,8);set(T.TORCH,32);if(T.FURNACE_FRONT_ON!==undefined)set(T.FURNACE_FRONT_ON,32);
   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,64,64,0,gl.RED,gl.UNSIGNED_BYTE,F);gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);
@@ -8517,7 +8737,7 @@ function tickZoom(dt){
 // ---------------------------------------------------------------- per frame
 // later mods add their own per-frame work and on/off reactions here
 const XMOD_TICK=[],XMOD_CHANGE={perf:()=>{if(world)for(const c of world.chunks.values())c.dirty=true;},shaderpack:()=>{if(typeof syncModUI==='function')syncModUI();}};
-function tickMods(dt){tickMinimap(dt);tickHpBars(dt);tickZoom(dt);tickFpsBox(dt);for(const f of XMOD_TICK)f(dt);}
+function tickMods(dt){if(typeof tickFlow==='function'&&state!=='title'&&state!=='loading'){tickFlow(dt);if(typeof tickWaterFx==='function')tickWaterFx(dt);}tickMinimap(dt);tickHpBars(dt);tickZoom(dt);tickFpsBox(dt);for(const f of XMOD_TICK)f(dt);}
 // ---------------------------------------------------------------- Mod screen rows
 function buildXmodRows(){
   const host=document.getElementById('xmod-rows');if(!host||host.childElementCount)return;
@@ -8958,6 +9178,7 @@ function loadSaveInto(s){
   newWorld(s.seed|0);
   for(const[k,arr]of s.edits||[]){const m=new Map();for(let i=0;i+1<arr.length;i+=2)m.set(arr[i],arr[i+1]);world.edits.set(k,m);}
   for(const[k,t]of s.tiles||[]){const o=tileLoad(t);if(o)world.tiles.set(k,o);}
+  if(Array.isArray(s.flow)){world.flow=new Map(s.flow);for(const[k]of s.flow)flowQ(world).add(k);}
   mode=s.mode==='survival'?'survival':'creative';
   if(Array.isArray(s.dims))for(const d of[1,2])if(s.dims[d]){const w=dimWorld(d);loadDimData(w,s.dims[d]);}
   if(s.rules&&typeof s.rules==='object')for(const k in GAMERULE_DEFAULTS)if(typeof s.rules[k]===typeof GAMERULE_DEFAULTS[k])gameRules[k]=s.rules[k];
@@ -8989,7 +9210,7 @@ function beginLoading(text){
 function serializeSave(){
   const W0=worlds[0]||world,base=dimData(W0);
   return{v:2,seed:world.seed,mode,pos:player.pos.map(v=>Math.round(v*100)/100),yaw:player.yaw,pitch:player.pitch,flying:player.flying,time:dayTime,
-    inv:inv.map(s=>s?(s.ld?[s.id,s.n,s.d||0,1]:[s.id,s.n,s.d||0]):null),armor:ARMOR.map(s=>s?[s.id,s.n,s.d||0]:null),sel,hp:player.hp,food:player.food,sat:player.sat,spawn:spawnPoint,edits:base.edits,tiles:base.tiles,
+    inv:inv.map(s=>s?(s.ld?[s.id,s.n,s.d||0,1]:[s.id,s.n,s.d||0]):null),armor:ARMOR.map(s=>s?[s.id,s.n,s.d||0]:null),sel,hp:player.hp,food:player.food,sat:player.sat,spawn:spawnPoint,edits:base.edits,tiles:base.tiles,flow:W0.flow&&W0.flow.size?[...W0.flow]:undefined,
     mobs:base.mobs,dim:curDim,dims:[null,worlds[1]?dimData(worlds[1]):null,worlds[2]?dimData(worlds[2]):null],rules:gameRules,diff:difficulty,gm:curModeName(),
     fx:player.fx||{},weather:{kind:weather.kind,t:Math.round(weather.t)},score:[...scoreboard.obj.values()].map(o=>({name:o.name,dn:o.dn,s:[...o.s.entries()]})),side:scoreboard.side||null};
 }
@@ -11159,88 +11380,65 @@ function headHit(m,p){return m.hh>=1.1&&p[1]>m.pos[1]+m.hh*0.78;}
 // health bars appear once you land. Weapons and gear are dealt at random: a sword, an axe, blocks, healing and extras.
 const AR={G:40,R:34,WALL:35.6,BAR:37.8,TOP:100,SEA:13*16};   // SEA: as far as the longest view distance (12 chunks) reaches
 World.prototype.genArena=function(c){
+  // the look of everything standing in the arena comes from the models in 89k_arena.js; here go the ground (arena blocks
+  // nobody can break) and, under every model, invisible arena blocks shaped like it so that it is solid
   const BL=c.blocks,bx=c.cx*16,bz=c.cz*16,G=AR.G;
-  const trees=[];for(let k=0;k<6;k++){const a=Math.PI/6+k*Math.PI/3;trees.push([Math.round(Math.cos(a)*19),Math.round(Math.sin(a)*19)]);}
   const set=(x,y,z,id)=>{if(y>=0&&y<H)BL[bidx(x,y,z)]=id;};
   for(let z=0;z<16;z++)for(let x=0;x<16;x++){
     const wx=bx+x,wz=bz+z,r=Math.hypot(wx+0.5,wz+0.5);
     if(r>AR.SEA)continue;                                          // past the farthest view distance there is nothing at all
     set(x,0,z,B.BEDROCK);
     if(r>AR.BAR+0.2){arenaCastle(c,x,z,wx,wz,r,set);continue;}   // beyond the fence: a castle all around, then the sea
-    // the ground of the island
-    const top=G-1;   // a level floor: the obstacles give the shape
-    for(let y=1;y<=top;y++)set(x,y,z,y<top-3?B.STONE:y<top?B.DIRT:B.GRASS);
-    const A=arBlocks();
-    if(r>AR.R){ // the visible ring wall (brick, a thin wall on top, lanterns on posts), then the invisible fence and ceiling
-      if(r<=AR.WALL){set(x,G,z,B.DS_BRICKS!==undefined?B.DS_BRICKS:B.STONEBRICK);set(x,G+1,z,hash3(wx,G+1,wz,1401)<0.25?B.MOSSY_STONEBRICK:B.STONEBRICK);
-        if(r<=AR.R+0.9)set(x,G+2,z,hash3(wx,0,wz,1405)<0.3?A.msWall:A.sbWall);
-        const a=Math.atan2(wz,wx);if(r<=AR.R+0.9&&Math.abs(((a/(Math.PI*2)*24)%1+1)%1-0.5)>0.44)set(x,G+3,z,B.LANTERN);}
+    const top=G-1;
+    for(let y=1;y<top;y++)set(x,y,z,y<top-3?B.STONE:B.DIRT);
+    set(x,top,z,hash3(wx,0,wz,1407)<0.5?B.AR_TURF:B.AR_TURF2);
+    if(r>AR.R){ // the enclosure wall (a model), then the invisible fence, the moat and the ceiling
+      if(r<=AR.WALL){set(x,top,z,B.AR_STONE);set(x,G,z,B.AR_SOLID);set(x,G+1,z,B.AR_SOLID);set(x,G+2,z,B.AR_HALF);}
       else{for(let y=G;y<=AR.TOP;y++)set(x,y,z,B.BARRIER);const gb=Math.abs(wx+0.5)>Math.abs(wz+0.5)&&Math.abs(wz+0.5)<2.2;
         set(x,G-3,z,B.STONEBRICK);set(x,G-2,z,B.WATER);set(x,G-1,z,gb?B.SPRUCE_PLANKS:B.WATER);}
       set(x,AR.TOP,z,B.BARRIER);continue;}
     set(x,AR.TOP,z,B.BARRIER);
-    // centre plaza: patterned floor, a two-step dais, four pillars on plinths with lanterns
-    if(r<7.6){const ax=Math.abs(wx+0.5),az=Math.abs(wz+0.5);
-      set(x,top,z,r>6.6?B.MOSSY_STONEBRICK:(Math.floor(ax)+Math.floor(az))%3===0?B.CHISELED_STONEBRICK:B.STONEBRICK);
-      if(r<2.4)set(x,G,z,B.CHISELED_STONEBRICK);else if(r<3.4)set(x,G,z,B.STONEBRICK);else if(r<4.4)set(x,G,z,A.sbSlab);
-      const px=Math.abs(wx<0?-wx-1:wx),pz=Math.abs(wz<0?-wz-1:wz);
-      if(px===5&&pz===5){for(let y=G;y<G+4;y++)set(x,y,z,B.STONEBRICK);set(x,G+4,z,B.CHISELED_STONEBRICK);set(x,G+5,z,A.sbWall);set(x,G+6,z,B.LANTERN);}
-      else if(px>=4&&px<=6&&pz>=4&&pz<=6)set(x,G,z,A.sbSlab);
+    // the central plaza: flagstones, the two-step dais, four columns on 3x3 plinths
+    const px=wx<0?-wx-1:wx,pz=wz<0?-wz-1:wz;
+    if(px>=4&&px<=6&&pz>=4&&pz<=6){set(x,top,z,B.AR_PAVE);if(px===5&&pz===5){for(let y=G;y<=G+5;y++)set(x,y,z,B.AR_SOLID);}else set(x,G,z,B.AR_HALF);continue;}
+    if(r<7.6){set(x,top,z,B.AR_PAVE);
+      if(r<3.4)set(x,G,z,B.AR_SOLID);else if(r<4.4)set(x,G,z,B.AR_HALF);
       continue;}
-    // a ring path around the plaza
-    if(r<8.7){set(x,top,z,hash3(wx,0,wz,1406)<0.2?A.coarse:A.path);continue;}
-    // obstacles, laid out the same on both players' sides (mirror symmetric), see arenaObstacles
+    if(r<8.7){set(x,top,z,B.AR_EARTH);continue;}   // the path round the plaza
     arenaObstacles(x,z,wx,wz,top,set,BL);
-    // grass and flowers
-    if(BL[bidx(x,top,z)]===B.GRASS&&BL[bidx(x,top+1,z)]===0){const h=hash3(wx,0,wz,1404);if(h<0.09)set(x,top+1,z,B.TALLGRASS);else if(h<0.125){const f=[B.FLOWER_Y,B.FLOWER_R,B.FLOWER_B,B.FLOWER_PINK].filter(v=>v!==undefined);set(x,top+1,z,f[((h-0.09)/0.035*f.length)|0]||B.FLOWER_Y);}}
   }
   c.spawns=[];
 };
-// finer pieces (slabs, stairs, thin walls, fences) looked up once
-let ARB=null;
-function arBlocks(){if(ARB)return ARB;const F=k=>FAMILY[B[k]]||{},st=k=>{const s=F(k).stairs;return s&&BLOCKS[s].vars?BLOCKS[s].vars:[B[k],B[k],B[k],B[k]];};
-  const sl=k=>F(k).slab||B[k],slt=k=>{const b=F(k).slab;return b&&SLABMAT[b]?SLABMAT[b].top:B[k];};
-  ARB={sbSlab:sl('STONEBRICK'),sbTop:slt('STONEBRICK'),sbSt:st('STONEBRICK'),sbWall:F('STONEBRICK').wall||B.STONEBRICK,msWall:F('MOSSY_STONEBRICK').wall||F('STONEBRICK').wall||B.STONEBRICK,
-    msSlab:sl('MOSSY_STONEBRICK'),spSlab:sl('SPRUCE_PLANKS'),spTop:slt('SPRUCE_PLANKS'),spSt:st('SPRUCE_PLANKS'),spFence:B.SPRUCE_FENCE||B.OAK_FENCE,
-    path:B.DIRT_PATH!==undefined?B.DIRT_PATH:B.GRAVEL,coarse:B.COARSE_DIRT!==undefined?B.COARSE_DIRT:B.DIRT,log:B.DARK_OAK_LOG!==undefined?B.DARK_OAK_LOG:B.LOG};
-  return ARB;}
-// ---- obstacles inside the arena (q = position folded into one quarter, so every piece appears four times / mirrored)
+// ---- what stands in the arena, folded into one quarter (q), so that every piece appears four times, mirrored
 function arenaObstacles(x,z,wx,wz,top,set,BL){
-  const G=AR.G,A=arBlocks(),qx=wx<0?-wx-1:wx,qz=wz<0?-wz-1:wz,north=wz>=0,brick=(y,k)=>{const v=hash3(wx,y,wz,k);return v<0.25?B.MOSSY_STONEBRICK:v<0.4?B.CRACKED_STONEBRICK:B.STONEBRICK;};
-  const col=(h,id)=>{for(let y=top+1;y<=top+h;y++)set(x,y,z,typeof id==='function'?id(y):id);};
-  // 0. dirt paths from each start point to the bridge and on to the plaza
-  if(qz===0&&((qx>=9&&qx<=10)||(qx>=15&&qx<=25))){set(x,top,z,hash3(wx,0,wz,1507)<0.25?A.coarse:A.path);}
-  // 1. low cover walls around the plaza: a brick course with a thin wall on top, slab ends
-  if((qz===3&&qx>=10&&qx<=13)||(qx===3&&qz>=10&&qz<=13)){const end=qx===13||qz===13;
-    if(end){set(x,top+1,z,A.msSlab);return;}set(x,top+1,z,brick(top+1,1501));set(x,top+2,z,hash3(wx,0,wz,1508)<0.3?A.msWall:A.sbWall);return;}
-  // 2. ponds with a stone rim, and a fenced plank bridge across on the path
+  const G=AR.G,qx=wx<0?-wx-1:wx,qz=wz<0?-wz-1:wz,S=B.AR_SOLID,SW=B.AR_SOLID_W,HF=B.AR_HALF,HW=B.AR_HALF_W;
+  const col=(y0,y1,id)=>{for(let y=y0;y<=y1;y++)set(x,y,z,id);};
+  // paths from each start point over the bridge to the plaza
+  if(qz===0&&((qx>=9&&qx<=10)||(qx>=15&&qx<=25)))set(x,top,z,B.AR_EARTH);
+  // low cover walls (2 high) ending in fallen stones (half high)
+  if((qz===3&&qx>=10&&qx<=13)||(qx===3&&qz>=10&&qz<=13)){if(qx===13||qz===13)set(x,G,z,HF);else col(G,G+1,S);return;}
+  // ponds with a stone rim; a timber bridge (deck and railings) across on the path
   {const pr=Math.hypot(qx-12,qz+0.5);
-    if(pr<3.3){const bridge=qz<=1;set(x,top-2,z,B.SAND);set(x,top-1,z,B.WATER);
-      if(bridge){set(x,top,z,B.SPRUCE_PLANKS);if(qz===1)set(x,top+1,z,A.spFence);}else set(x,top,z,B.WATER);return;}
-    if(pr<4.3){set(x,top,z,hash3(wx,0,wz,1509)<0.35?B.MOSSY_STONEBRICK:B.STONEBRICK);if(qz>=2&&hash3(wx,1,wz,1510)<0.5)set(x,top+1,z,A.sbSlab);return;}}
-  // 3. two lookout towers (north and south): log posts, plank deck at 4 high with a fence railing, a slab roof, stair steps up from the middle
+    if(pr<3.3){set(x,top-2,z,B.AR_SAND);set(x,top-1,z,B.WATER);if(qz<=1){set(x,top,z,SW);if(qz===1)set(x,G,z,SW);}else set(x,top,z,B.WATER);return;}
+    if(pr<4.3){set(x,top,z,B.AR_STONE);return;}}
+  // the watchtowers: posts, a deck 4 up with a breastwork, a roof; stone stairs up from the middle side
   if(qx<=1&&qz>=19&&qz<=22){const corner=qx===1&&(qz===19||qz===22);
-    if(corner){col(7,A.log);set(x,top+8,z,A.spSlab);return;}
-    for(let y=top+1;y<=top+3;y++)if(qz===22&&qx===0&&y===top+2)set(x,y,z,B.LANTERN);
-    set(x,top+4,z,B.SPRUCE_PLANKS);set(x,top+8,z,A.spSlab);
-    if(qz===22||qx===1)set(x,top+5,z,A.spFence);return;}
-  if(qx===0&&qz>=15&&qz<=18){const h=qz-14;for(let y=top+1;y<top+h;y++)set(x,y,z,B.STONEBRICK);set(x,top+h,z,A.sbSt[north?2:3]);return;}
-  if(qx===1&&qz>=15&&qz<=18){const h=qz-14;for(let y=top+1;y<=top+h;y++)set(x,y,z,y===top+h?A.sbSlab:B.STONEBRICK);return;}
-  // 4. trees for cover, one in each quarter, with a few roots of coarse dirt
-  {const dx=qx-18,dz=qz-12;if(dx===0&&dz===0){col(5,B.LOG);return;}
-    for(let y=top+3;y<=top+7;y++){const dy=y-(top+5),d=Math.hypot(dx,dy*1.2,dz)+hash3(wx,y,wz,1511)*0.5;if(d<2.7&&BL[bidx(x,y,z)]===0)set(x,y,z,B.LEAVES);}
-    if(Math.abs(dx)+Math.abs(dz)===1)set(x,top,z,A.coarse);}
-  // 5. crates: barrels, a hay bale and a slab lid, near the edges
-  if(qx>=20&&qx<=21&&qz>=5&&qz<=6){if(qx===20&&qz===5){set(x,top+1,z,B.BARREL||B.PLANKS);set(x,top+2,z,B.HAY||B.PLANKS);set(x,top+3,z,A.spSlab);}else if(qx===21&&qz===6)set(x,top+1,z,A.spSlab);else set(x,top+1,z,B.BARREL||B.PLANKS);return;}
-  if(qx>=8&&qx<=9&&qz>=24&&qz<=25){if(qx===8&&qz===24){set(x,top+1,z,B.HAY||B.PLANKS);set(x,top+2,z,B.BARREL||B.PLANKS);}else if(qx===9&&qz===25)set(x,top+1,z,A.spSlab);else set(x,top+1,z,B.HAY||B.PLANKS);return;}
-  // 6. ruined pillars: a plinth of slabs, a broken shaft, a lantern on a post
-  {const P=[[16,26],[27,12]];for(const[px,pz]of P){const dx=qx-px,dz=qz-pz;
-    if(!dx&&!dz){col(3,y=>brick(y,1502));set(x,top+4,z,A.sbWall);set(x,top+5,z,B.LANTERN);return;}
-    if(Math.abs(dx)<=1&&Math.abs(dz)<=1&&(dx===0||dz===0)){set(x,top+1,z,A.sbSlab);return;}}}
-  // 7. a ruined archway behind each start point
-  if(qx===27&&qz<=3){if(qz===2){col(4,y=>brick(y,1503));set(x,top+5,z,A.sbSlab);}else if(qz===3){col(2,y=>brick(y,1504));set(x,top+3,z,A.sbSlab);}else{set(x,top+5,z,qz===1?B.STONEBRICK:A.sbTop);}return;}
-  // 8. low bushes
-  if((qx===23&&qz===16)||(qx===24&&qz===16)||(qx===11&&qz===17)||(qx===12&&qz===17)){set(x,top+1,z,B.LEAVES);return;}
+    if(corner){col(G,G+6,SW);set(x,G+7,z,HW);return;}
+    set(x,G+3,z,SW);if(qz===22||qx===1)set(x,G+4,z,SW);set(x,G+7,z,HW);return;}
+  if(qx===0&&qz>=15&&qz<=18){col(G,G+qz-15,S);return;}
+  if(qx===1&&qz>=15&&qz<=18){const h=qz-15;if(h>0)col(G,G+h-1,S);set(x,G+h,z,HF);return;}
+  // a tree in each quarter (only the trunk is solid)
+  if(qx===18&&qz===12){col(G,G+4,SW);return;}
+  if(Math.abs(qx-18)+Math.abs(qz-12)===1)set(x,top,z,B.AR_EARTH);
+  // barrels, hay and crates
+  if(qx>=20&&qx<=21&&qz>=5&&qz<=6){if(qx===20&&qz===5){col(G,G+1,SW);set(x,G+2,z,HW);}else if(qx===21&&qz===6)set(x,G,z,HW);else set(x,G,z,SW);return;}
+  if(qx>=8&&qx<=9&&qz>=24&&qz<=25){if(qx===8&&qz===24)col(G,G+1,SW);else if(qx===9&&qz===25)set(x,G,z,HW);else set(x,G,z,SW);return;}
+  // ruined columns, each on a cross of fallen blocks
+  for(const[px,pz]of[[16,26],[27,12]]){const dx=qx-px,dz=qz-pz;if(!dx&&!dz){col(G,G+3,S);return;}if(Math.abs(dx)+Math.abs(dz)===1){set(x,G,z,HF);return;}}
+  // the ruined gateway behind each start point: piers, a lintel 4 up, broken outer piers
+  if(qx===27&&qz<=3){if(qz===2)col(G,G+4,S);else if(qz===3){col(G,G+1,S);set(x,G+2,z,HF);}else set(x,G+4,z,S);return;}
+  // shrubs
+  if((qz===16&&(qx===23||qx===24))||(qz===17&&(qx===11||qx===12))){set(x,G,z,B.AR_BUSH);return;}
 }
 // ---- the castle around the arena is a detailed mesh of its own (89j_castle.js). Here: only the ground it stands on,
 // a rocky shore round its feet, and beyond that open sea out to the edge of the view.
@@ -11286,8 +11484,17 @@ function duelSetup(host){
   resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;player.pitch=-0.35;spawnPoint=player.pos.slice();
 }
 function duelExit(){
-  if(!DUEL.on)return;if(typeof freeCastleMesh==='function')freeCastleMesh();DUEL.on=false;DUEL.phase='off';if(DUEL.rules){Object.assign(gameRules,DUEL.rules);DUEL.rules=null;}
-  document.body.classList.remove('duel-hidehp','duel-on');if(DUEL.ui)DUEL.ui.root.style.display='none';
+  if(!DUEL.on)return;DUEL.on=false;DUEL.phase='off';
+  if(DUEL.rules){Object.assign(gameRules,DUEL.rules);DUEL.rules=null;}
+  Object.assign(DUEL,{round:0,me:0,opp:0,oppHp:20,oppName:'',goT:0,banner:'',readyMe:false,readyOpp:false,sentReady:false,landed:false});
+  document.body.classList.remove('duel-hidehp','duel-on');
+  if(DUEL.ui){DUEL.ui.root.style.display='none';DUEL.ui.res.style.display='none';DUEL.ui.vs.style.display='none';DUEL.ui.msg.style.display='none';DUEL.ui.count.textContent='';}
+  if(state==='overlay'&&OVL.id==='duel-none'){state='title';OVL.id=null;}
+  if(typeof freeCastleMesh==='function')freeCastleMesh();
+  // nothing of the arena stays behind: the title shows a normal world again, and the duel gear is gone
+  if(world&&world.arena){try{const w=typeof worldsList==='function'&&worldsList().find(v=>!v.friend);newWorld(w?w.seed|0:seedFromString(''));
+      titleCam.x=spawnPoint[0];titleCam.z=spawnPoint[2];titleCam.y=Math.max(spawnPoint[1]+18,SEA+30);}catch(e){console.warn(e);}}
+  resetPlayer();particles.length=0;items.length=0;
 }
 // random gear: a sword, an axe, blocks, something to heal, and two extras
 const DUEL_KIT={
@@ -11316,7 +11523,7 @@ function duelUI(){
    #duel-root{position:fixed;inset:0;pointer-events:none;z-index:6;font-family:inherit;color:#fff;text-shadow:2px 2px 0 #000}
    #duel-count{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:min(22vw,150px);font-weight:bold;letter-spacing:.05em}
    #duel-msg{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-size:20px;background:rgba(0,0,0,.45);padding:6px 14px;border-radius:6px;white-space:nowrap}
-   #duel-vs{position:absolute;left:50%;top:calc(var(--tb,64px)*0.68 + 18px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;font-size:14px;background:rgba(0,0,0,.4);padding:6px 12px;border-radius:6px;white-space:nowrap}#duel-vs span{max-width:7em;overflow:hidden;text-overflow:ellipsis}
+   #duel-vs{position:absolute;left:50%;top:calc(var(--tb,64px)*0.68 + 18px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;font-size:12px;background:rgba(0,0,0,.32);padding:3px 10px;border-radius:6px;white-space:nowrap}#duel-vs span{max-width:7em;overflow:hidden;text-overflow:ellipsis}
    body.duel-on #hint{display:none}
    #duel-vs .bar{width:min(18vw,150px);height:10px;background:#300;border:1px solid #000;border-radius:3px;overflow:hidden}#duel-vs .bar div{height:100%;background:linear-gradient(#ff6a6a,#c22)}
    #duel-res{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(16,20,26,.92);border:3px solid #556;border-radius:8px;padding:20px 28px;text-align:center;pointer-events:auto;min-width:260px}
@@ -11402,7 +11609,28 @@ if(typeof updatePlayer==='function'){const _up=updatePlayer;updatePlayer=functio
   if(DUEL.on&&DUEL.phase==='end'){player.vel[0]*=0.8;player.vel[2]*=0.8;}
   const r=_up.apply(this,arguments);if(DUEL.on)player.fall=0;return r;};}
 if(typeof saveGame==='function'){const _sg=saveGame;saveGame=function(){if(DUEL.on)return;return _sg.apply(this,arguments);};}
-if(typeof quitToTitle==='function'){const _qt=quitToTitle;quitToTitle=function(){const was=DUEL.on;const r=_qt.apply(this,arguments);if(was)duelExit();return r;};}
+if(typeof quitToTitle==='function'){const _qt=quitToTitle;quitToTitle=function(){const was=DUEL.on;DUEL.quitting=true;let r;try{r=_qt.apply(this,arguments);}finally{DUEL.quitting=false;}if(was)duelExit();return r;};}
+// leaving the room in the middle of a 1v1 (the pause menu's "マルチプレイを終了", or the host going away) ends the 1v1:
+// the arena is not a world you can stay in on your own
+if(typeof mpLeave==='function'){const _ml=mpLeave;mpLeave=function(){const inDuel=DUEL.on&&!DUEL.quitting;const r=_ml.apply(this,arguments);
+  if(inDuel){if(state==='paused'||state==='overlay'){quitToTitle();}else duelPanel('1v1を終了しました','ルームとの接続が切れました。',[['タイトルへ戻る',()=>quitToTitle()]]);}return r;};}
+// the other player left (or stopped answering): say so, and let the host wait for someone new
+if(typeof removeRemote==='function'){const _rr=removeRemote;removeRemote=function(id){const had=MP.remotes&&MP.remotes.has(id);const r=_rr.apply(this,arguments);
+  if(had&&DUEL.on&&!DUEL.quitting&&MP.active&&MP.remotes.size===0&&DUEL.phase!=='wait'){
+    const nm=(DUEL.oppName||'相手').replace(/</g,'&lt;');
+    duelPanel('相手が退出しました',nm+' がルームを出ました。',DUEL.host?[['新しい相手を待つ',()=>duelWaitAgain()],['タイトルへ戻る',()=>quitToTitle()]]:[['タイトルへ戻る',()=>quitToTitle()]]);}
+  return r;};}
+function duelPanel(title,sub,btns){
+  const u=duelUI();u.root.style.display='block';u.res.style.display='block';
+  u.res.innerHTML=`<h2 style="color:#ffd23a">${title}</h2><div style="color:#cdd;font-size:14px;margin-bottom:10px">${sub}</div>`+btns.map((b,i)=>`<button data-i="${i}">${b[0]}</button>`).join('');
+  u.res.querySelectorAll('button').forEach(e=>e.onclick=()=>{u.res.style.display='none';if(state==='overlay'){state='play';OVL.id=null;}btns[+e.dataset.i][1]();});
+  if(state==='play'){stopActions();state='overlay';OVL.id='duel-none';OVL.onClose=null;}
+  if(isLocked())document.exitPointerLock();
+}
+function duelWaitAgain(){ // the host keeps the room open and waits for the next opponent
+  duelNewMatch();DUEL.phase='wait';DUEL.oppName='';DUEL.oppHp=20;DUEL.readyMe=DUEL.readyOpp=DUEL.sentReady=false;DUEL.banner='';
+  duelReset();resetPlayer();player.pos=DUEL.spawn.slice();player.yaw=DUEL.yaw;player.pitch=-0.35;player.invuln=0;renderStats();
+}
 // per frame
 XMOD_TICK.push(dt=>{
   if(!DUEL.on||!world||state==='title'||state==='loading')return;
@@ -11424,10 +11652,10 @@ XMOD_TICK.push(dt=>{
   else if(DUEL.phase==='fall'){msg='';if(player.onGround||player.inWater){DUEL.phase='fight';DUEL.landed=true;duelSendHp(true);renderStats();}}
   else if(DUEL.phase==='fight'){DUEL.hpSendT-=dt;if(DUEL.hpSendT<=0){DUEL.hpSendT=0.25;duelSendHp(false);}if(!opp)msg='相手との接続を待っています…';}
   if(u.msg._t!==msg){u.msg._t=msg;u.msg.textContent=msg;u.msg.style.display=msg?'block':'none';}
-  // both health bars, once you are on the ground
+  // only a small round score at the top (no health bars), once you are on the ground
   const show=DUEL.phase==='fight'||DUEL.phase==='end'||DUEL.phase==='inter';u.vs.style.display=show?'flex':'none';
-  if(show){const me=Math.max(0,Math.ceil(player.hp)),op=Math.ceil(DUEL.oppHp),key=me+'/'+op+'/'+DUEL.oppName+DUEL.me+DUEL.opp;
-    if(u.vs._k!==key){u.vs._k=key;u.vs.innerHTML=`<span>${myName()}</span><div class="bar"><div style="width:${me/20*100}%"></div></div><b>${me}</b><span style="color:#ffd23a">${DUEL.me} − ${DUEL.opp}</span><b>${op}</b><div class="bar"><div style="width:${op/20*100}%;margin-left:auto"></div></div><span>${(DUEL.oppName||'相手').replace(/</g,'&lt;')}</span>`;}}
+  if(show){const key=DUEL.oppName+'/'+DUEL.me+'/'+DUEL.opp;
+    if(u.vs._k!==key){u.vs._k=key;const esc=t=>String(t).replace(/</g,'&lt;');u.vs.innerHTML=`<span>${esc(myName())}</span><span style="color:#ffd23a;font-weight:bold">${DUEL.me} − ${DUEL.opp}</span><span>${esc(DUEL.oppName||'相手')}</span>`;}}
 });
 // ---------------------------------------------------------------- the 1v1 button, under "ルームを作る"
 (function(){
@@ -11439,8 +11667,8 @@ XMOD_TICK.push(dt=>{
     initAudio();settings.name=cleanName($('mp-name').value);saveSettings();
     $('mp-status').textContent='1v1ルームを準備中…';b.disabled=true;
     curWorldId=null;newWorld((Math.random()*2147483647)|0);world.arena=true;duelSetup(true);
-    const net=mpNet();wireNet(net);const code=Online.genCode();if(MP.kind==='peer')Online.maxP=2;
-    try{await net.host(code,myName());}catch(e){$('mp-status').textContent=(e&&e.message)||'接続できませんでした';b.disabled=false;try{net.leave();}catch(_){ }duelExit();return;}
+    const net=mpNet();wireNet(net);const code=Online.genCode();
+    try{await net.host(code,myName(),{maxP:2});}catch(e){$('mp-status').textContent=(e&&e.message)||'接続できませんでした';b.disabled=false;try{net.leave();}catch(_){ }duelExit();return;}
     b.disabled=false;MP.active=true;MP.isHost=true;MP.code=code;
     beginLoading('1v1ルーム '+code+' を開きました。アリーナを準備中…');
     addChat('','1v1ルームコード: '+code+'（相手に伝えてください）',true);
@@ -11717,6 +11945,7 @@ function buildCastleMesh(){
     const nx=Math.round(w/0.9),ny=Math.round(len/0.9),e=(x,y)=>{const p=Pc(x,y);return[p[0]-c*0.03,p[1],p[2]-Math.sin(a)*0.03];};
     caQ([e(0,4),e(nx,4),e(nx,1),e(0,1)],em,[0,0,1,1],1);
     const b0=e(0,ny),b1=e(nx,ny);caQ([[b0[0],b0[1]-0.6,b0[2]],[b1[0],b1[1]-0.6,b1[2]],b1,b0],T.CA_FRINGE,[0,0,2,1],1);}
+  if(typeof buildArenaInterior==='function')buildArenaInterior();
   {const M=CAS.buf,tot=CAS.sec.reduce((a,S)=>a+S.i.length,0);if(M.i.length<tot)M.i=new Uint32Array(tot);let o=0;
     for(const S of CAS.sec){M.i.set(S.i,o);S.o=o;S.n=S.i.length;o+=S.n;S.i=null;}M.ni=o;}
   CAS.mesh=uploadMesh(CAS.mesh,CAS.buf,gl.STATIC_DRAW);CAS.tris=CAS.buf.ni/3;CAS.buf=null;
@@ -11730,6 +11959,216 @@ function drawCastleMesh(all){
   if(cf)gl.enable(gl.CULL_FACE);if(!all&&typeof perfTris!=='undefined')perfTris+=n/3;
 }
 function freeCastleMesh(){if(CAS.mesh){freeMesh(CAS.mesh);CAS.mesh=null;}}
+
+// ================================================================ 1v1: the arena itself, made realistic
+// The ground is laid with arena blocks of their own (turf, packed earth, flagstones, sand; nobody can break them),
+// and everything standing on it is a detailed model: an octagonal dais with a sun-and-moon mosaic, columns with braziers,
+// real trees, stone cover walls, a pond with reeds, lilies and a timber bridge, timber watchtowers on stone stairs,
+// barrels, hay and crates, a ruined colonnade, shrubs, the round enclosure wall, and tufts of grass and flowers.
+// What you bump into is a set of invisible arena blocks laid out under each model.
+
+// ---- textures (all our own)
+function arNoise(x,y,cell,seed){const L=16/cell,ix=Math.floor(x/cell),iy=Math.floor(y/cell),fx=x/cell-ix,fy=y/cell-iy,
+  h=(i,j)=>hash3(((i%L)+L)%L,((j%L)+L)%L,0,seed),sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+  return(h(ix,iy)*(1-sx)+h(ix+1,iy)*sx)*(1-sy)+(h(ix,iy+1)*(1-sx)+h(ix+1,iy+1)*sx)*sy;}
+MODHOOK.tex.push(()=>{
+  const turf=(name,seed,clover)=>P(name,(x,y,r)=>{const v=arNoise(x,y,8,seed)*0.45+arNoise(x,y,4,seed+1)*0.35+arNoise(x,y,2,seed+2)*0.2;
+    let c=[66+v*46,112+v*54,38+v*22];if(clover&&arNoise(x,y,4,seed+5)>0.7)c=[c[0]*1.1,c[1]*1.14,c[2]*1.2];
+    const k=r();if(k<0.09)c=[c[0]*1.2,c[1]*1.16,c[2]*1.04];else if(k<0.15)c=sh(c,0.76);
+    if(hash3(x,y,seed,3)<0.02)c=[98,82,58];return nz(c,r,6);});
+  turf('AR_TURF_T1',701,false);turf('AR_TURF_T2',702,true);
+  const soil=(x,y,r)=>{const v=arNoise(x,y,4,703);if(hash3(x,y,0,704)<0.05)return nz([128,122,112],r,12);return nz([96+v*30,70+v*22,48+v*16],r,8);};
+  P('AR_SOIL',soil);
+  P('AR_TURF_S',(x,y,r)=>{const fr=2+((hash3(x,0,0,705)*3)|0);if(y<fr)return nz([78+arNoise(x,0,4,706)*30,128,46],r,10);if(y===fr&&r()<0.5)return nz([70,112,42],r,8);return soil(x,y,r);});
+  P('AR_EARTH_T',(x,y,r)=>{const v=arNoise(x,y,8,707)*0.6+arNoise(x,y,2,708)*0.4;if(hash3(x,y,0,709)<0.045)return nz([150,144,134],r,14);
+    if(hash3(x,y,0,710)<0.03)return nz([110,96,74],r,8);return nz([132+v*34,106+v*26,76+v*18],r,6);});
+  P('AR_EARTH_S',(x,y,r)=>y<2?nz([134,108,78],r,8):soil(x,y,r));
+  P('AR_SAND_T',(x,y,r)=>{const w=Math.sin((x+y*0.35)*1.15)*5;return nz([206+w,188+w,146+w],r,8);});
+  // plants and small things drawn as cut-outs
+  const blades=(S,seed,n,col,hmin,hmax)=>{const rr=mulberry32(seed);for(let b=0;b<n;b++){const x0=1.5+rr()*13,dx=(rr()-0.5)*7,h=hmin+rr()*(hmax-hmin),c=col[(rr()*col.length)|0];
+      for(let t=0;t<=h;t++){const f=t/h,x=x0+dx*f*f,y=15-t;S.set(x,y,[c[0]*(0.62+0.5*f),c[1]*(0.62+0.5*f),c[2]*(0.62+0.5*f)]);}}};
+  const GR=[[92,150,56],[78,138,48],[108,160,64],[86,128,44]];
+  sprite('AR_TUFT_A',S=>blades(S,711,12,GR,6,14));sprite('AR_TUFT_B',S=>{blades(S,712,9,GR,8,15);blades(S,713,3,[[170,160,96]],10,15);});
+  sprite('AR_FLOWERS',S=>{blades(S,714,8,GR,5,11);const rr=mulberry32(715),FC=[[240,238,228],[244,206,64],[176,120,214],[236,120,150]];
+    for(let k=0;k<5;k++){const x=2+rr()*12,y=2+rr()*6,c=FC[(rr()*FC.length)|0];S.set(x,y,c);S.set(x+1,y,c);S.set(x,y+1,c);S.set(x+1,y+1,sh(c,0.85));S.set(x+0.5,y+0.5,[250,220,90]);
+      for(let t=y+2;t<15;t++)S.set(x+0.5,t,[70,120,46]);}});
+  sprite('AR_REED',S=>{blades(S,716,10,[[96,134,62],[110,146,70],[84,120,54]],10,15);for(let y=2;y<7;y++){S.set(7,y,[96,62,34]);S.set(8,y,[110,72,40]);}for(let y=7;y<15;y++)S.set(7.5,y,[96,134,62]);});
+  sprite('AR_LILY',S=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const dx=x-7.5,dy=y-7.5,d=Math.hypot(dx,dy),a=Math.atan2(dy,dx);if(d<7.2&&!(a>-0.25&&a<0.25)){const v=Math.abs(Math.sin(a*5))<0.12;S.set(x,y,v?[70,120,50]:[58+d*2,110+d*3,46]);}}
+    for(const[x,y]of[[6,6],[7,6],[6,7],[7,7],[5,6],[8,7],[6,5],[7,8]])S.set(x,y,[240,180,200]);S.set(6.5,6.5,[250,224,96]);});
+  sprite('AR_LEAVES',S=>{const rr=mulberry32(717),LC=[[62,112,40],[74,128,46],[54,98,36],[88,140,54],[46,86,32]];
+    for(let k=0;k<95;k++){const x=rr()*16,y=rr()*16;if(Math.hypot(x-7.5,y-7.5)>8.2)continue;const c=LC[(rr()*LC.length)|0],w=1+((rr()*2)|0);
+      for(let i=0;i<=w;i++)S.set(x+i,y,i===0?sh(c,1.15):c);S.set(x+0.5,y+1,sh(c,0.8));}});
+  P('AR_BARK',(x,y,r)=>{const f=arNoise(x,y*0.25,4,718);const groove=Math.abs(Math.sin((x+f*3)*1.3))<0.25;return nz(groove?[52,40,32]:[98+f*24,80+f*18,62+f*12],r,8);});
+  P('AR_STAVES',(x,y,r)=>{if((x&3)===3)return nz([54,36,24],r,6);const g=Math.sin((y*0.7+hash3(x>>2,0,0,719)*9))*7;return nz([132+g,92+g,56+g*0.6],r,8);});
+  P('AR_STRAW',(x,y,r)=>{const g=hash3(x>>1,y,0,720);return nz(g<0.2?[168,138,70]:g>0.85?[226,200,124]:[200,172,98],r,10);});
+  P('AR_STRAW_END',(x,y,r)=>{const d=Math.hypot(x-7.5,y-7.5),s=Math.sin(d*2.2+Math.atan2(y-7.5,x-7.5)*2)*12;return nz([196+s,166+s,92+s*0.6],r,10);});
+  P('AR_CRATE',(x,y,r)=>{const fr=x<2||x>13||y<2||y>13,dg=Math.abs(x-y)<1.6;if(fr||dg)return nz(x===0||y===0||x===15||y===15?[70,50,32]:[124,92,58],r,8);if((y&3)===3)return nz([78,56,36],r,6);return nz([150,114,74],r,8);});
+  P('AR_ROCK',(x,y,r)=>{const v=arNoise(x,y,4,721)*0.6+arNoise(x,y,2,722)*0.4;if(arNoise(x,y,4,723)>0.72)return nz([108,124,72],r,10);return nz([110+v*50,108+v*48,102+v*44],r,8);});
+  P('AR_SHINGLE',(x,y,r)=>{const row=y>>2,iy=y&3,sx=x+(row&1)*2;if(iy===3)return nz([46,34,26],r,6);const v=hash3(sx>>2,row,0,724),t=0.8+v*0.35;let c=[112*t,88*t,66*t];if((sx&3)===0)c=sh(c,0.75);return nz(c,r,8);});
+  const marble=(name,base,vein,seed)=>P(name,(x,y,r)=>{const v=Math.abs(Math.sin((x*0.7+y*0.45+arNoise(x,y,4,seed)*6)));return nz(v<0.1?vein:[base[0]*(0.95+0.08*arNoise(x,y,8,seed+1)),base[1]*(0.95+0.08*arNoise(x,y,8,seed+1)),base[2]*(0.95+0.08*arNoise(x,y,8,seed+1))],r,5);});
+  marble('AR_MARBLE_W',[224,220,210],[176,172,166],731);marble('AR_MARBLE_G',[204,160,70],[160,118,44],732);marble('AR_MARBLE_R',[170,70,52],[128,46,36],733);
+  marble('AR_MARBLE_B',[64,92,146],[44,64,108],734);marble('AR_MARBLE_D',[62,62,68],[90,90,96],735);
+  P('AR_BRONZE',(x,y,r)=>r()<0.15?[82,128,104]:nz([150,104,58],r,16));
+});
+MODHOOK.tileFlags=(MODHOOK.tileFlags||[]);MODHOOK.tileFlags.push(()=>[[T.AR_TUFT_A,2],[T.AR_TUFT_B,2],[T.AR_FLOWERS,2],[T.AR_REED,2],[T.AR_LEAVES,1]]);
+
+// ---- the arena blocks
+MODHOOK.items.push(()=>{
+  const A={hard:-1,inv:false,drop:null,cat:'build'};
+  mk('AR_TURF','闘技場の芝',Object.assign({tiles:[T.AR_TURF_T1,T.AR_SOIL,T.AR_TURF_S],sound:'grass'},A));
+  mk('AR_TURF2','闘技場の芝',Object.assign({tiles:[T.AR_TURF_T2,T.AR_SOIL,T.AR_TURF_S],sound:'grass'},A));
+  mk('AR_EARTH','踏み固めた土',Object.assign({tiles:[T.AR_EARTH_T,T.AR_SOIL,T.AR_EARTH_S],sound:'gravel'},A));
+  mk('AR_PAVE','闘技場の石畳',Object.assign({tiles:[T.CA_FLAGS,T.CA_A,T.CA_A]},A));
+  mk('AR_STONE','闘技場の石材',Object.assign({tiles:T.CA_B},A));
+  mk('AR_SAND','闘技場の砂',Object.assign({tiles:T.AR_SAND_T,sound:'sand'},A));
+  // invisible blocks that give the models their solidity
+  for(const[k,s,shape]of[['AR_SOLID','stone',null],['AR_SOLID_W','wood',null],['AR_BUSH','grass',null],['AR_HALF','stone','slab'],['AR_HALF_W','wood','slab']]){
+    const o=Object.assign({tiles:T.CA_DARK,opaque:false,sound:s},A);const id=mk(k,'闘技場の当たり判定',shape?SH(shape,o):o);INVIS[id]=1;}
+});
+
+// ---- model helpers working in "local" coordinates (u, y, v) that a mapper m turns into world points;
+// the arena is mirror-symmetric, so most pieces are written once and mapped into all four quarters
+function arM(sx,sz){return(u,y,v)=>[sx*u,y,sz*v];}
+function mPlane(m,o,U,V,w,h,ts,tile,ao){if(w<=1e-4||h<=1e-4)return;const nx=Math.max(1,Math.ceil(w/ts-1e-6)),ny=Math.max(1,Math.ceil(h/ts-1e-6));
+  const P=(x,y)=>m(o[0]+U[0]*x+V[0]*y,o[1]+U[1]*x+V[1]*y,o[2]+U[2]*x+V[2]*y);
+  for(let j=0;j<ny;j++){const y0=j*ts,y1=Math.min(h,(j+1)*ts);for(let i=0;i<nx;i++){const x0=i*ts,x1=Math.min(w,(i+1)*ts);
+    const t=typeof tile==='function'?tile(i,j):tile,a=typeof ao==='function'?[ao(o[1]+V[1]*y0),ao(o[1]+V[1]*y0),ao(o[1]+V[1]*y1),ao(o[1]+V[1]*y1)]:(ao==null?1:ao);
+    caQ([P(x0,y0),P(x1,y0),P(x1,y1),P(x0,y1)],t,[0,0,(x1-x0)/ts,(y1-y0)/ts],a);}}}
+function mBox(m,u0,u1,y0,y1,v0,v1,tile,o={}){const ts=o.ts||1,ao=o.ao==null?1:o.ao;
+  mPlane(m,[u0,y0,v0],[0,0,1],[0,1,0],v1-v0,y1-y0,ts,tile,ao);mPlane(m,[u1,y0,v0],[0,0,1],[0,1,0],v1-v0,y1-y0,ts,tile,ao);
+  mPlane(m,[u0,y0,v0],[1,0,0],[0,1,0],u1-u0,y1-y0,ts,tile,ao);mPlane(m,[u0,y0,v1],[1,0,0],[0,1,0],u1-u0,y1-y0,ts,tile,ao);
+  if(!o.noTop)mPlane(m,[u0,y1,v0],[1,0,0],[0,0,1],u1-u0,v1-v0,ts,o.top||tile,o.topAo==null?1:o.topAo);
+  if(o.bottom)mPlane(m,[u0,y0,v0],[1,0,0],[0,0,1],u1-u0,v1-v0,ts,o.bottom,0.6);}
+function mRev(m,cu,cv,prof,a0,a1,tile,o={}){const ts=o.ts||1,rmax=Math.max(...prof.map(p=>p[0])),segs=o.segs||Math.max(3,Math.ceil(rmax*Math.abs(a1-a0)/ts));
+  for(let s=0;s<segs;s++){const aa=a0+(a1-a0)*s/segs,ab=a0+(a1-a0)*(s+1)/segs,ca=Math.cos(aa),sa=Math.sin(aa),cb=Math.cos(ab),sb=Math.sin(ab);
+    for(let k=0;k<prof.length-1;k++){const[r0,y0]=prof[k],[r1,y1]=prof[k+1],t=typeof tile==='function'?tile(s,k):tile;
+      const a=o.ao?(typeof o.ao==='function'?[o.ao(y0),o.ao(y0),o.ao(y1),o.ao(y1)]:o.ao):1;
+      caQ([m(cu+ca*r0,y0,cv+sa*r0),m(cu+cb*r0,y0,cv+sb*r0),m(cu+cb*r1,y1,cv+sb*r1),m(cu+ca*r1,y1,cv+sa*r1)],t,[0,0,Math.min(1,Math.max(r0,r1)*Math.abs(ab-aa)/ts),Math.min(1,Math.hypot(r1-r0,y1-y0)/ts)],a);}}}
+function mDisc(m,cu,cv,r,y,tile,segs,ao){for(let s=0;s<segs;s++){const a=Math.PI*2*s/segs,b=Math.PI*2*(s+1)/segs;caTri(m(cu,y,cv),m(cu+Math.cos(a)*r,y,cv+Math.sin(a)*r),m(cu+Math.cos(b)*r,y,cv+Math.sin(b)*r),tile,ao==null?1:ao);}}
+function mCross(m,u,y,v,s,h,tile,rot,bl,ao){const c=Math.cos(rot||0)*s*0.5,d=Math.sin(rot||0)*s*0.5;
+  for(const[a,b]of[[c,d],[-d,c]])caQ([m(u-a,y,v-b),m(u+a,y,v+b),m(u+a,y+h,v+b),m(u-a,y+h,v-b)],tile,[0,0,1,1],ao==null?1:ao,bl||0);}
+// a beam between two local points, square in section (posts, rails, braces, branches)
+function mBeam(m,p,q,w,tile,ao){const d=[q[0]-p[0],q[1]-p[1],q[2]-p[2]],L=Math.hypot(...d);if(L<1e-4)return;const f=[d[0]/L,d[1]/L,d[2]/L];
+  let a=Math.abs(f[1])<0.9?[0,1,0]:[1,0,0];let s=[f[1]*a[2]-f[2]*a[1],f[2]*a[0]-f[0]*a[2],f[0]*a[1]-f[1]*a[0]];const sl=Math.hypot(...s);s=s.map(x=>x/sl*w/2);
+  let t=[f[1]*s[2]-f[2]*s[1],f[2]*s[0]-f[0]*s[2],f[0]*s[1]-f[1]*s[0]];const tl=Math.hypot(...t);t=t.map(x=>x/tl*w/2);
+  const C=(o,i,j)=>m(o[0]+s[0]*i+t[0]*j,o[1]+s[1]*i+t[1]*j,o[2]+s[2]*i+t[2]*j),uv=[0,0,Math.min(1,w),Math.min(1,L)];
+  for(const[i0,j0,i1,j1]of[[-1,-1,1,-1],[1,-1,1,1],[1,1,-1,1],[-1,1,-1,-1]])caQ([C(p,i0,j0),C(p,i1,j1),C(q,i1,j1),C(q,i0,j0)],tile,uv,ao==null?1:ao);}
+// a rough rock: a squashed, jittered octagonal lump
+function mRock(m,u,y,v,rx,ry,seed,tile){const n=7,pts=[];for(let k=0;k<n;k++){const a=Math.PI*2*k/n+seed,j=0.8+hash3(seed*100|0,k,0,741)*0.4;pts.push([u+Math.cos(a)*rx*j,v+Math.sin(a)*rx*j*0.85]);}
+  const top=[u,y+ry,v];for(let k=0;k<n;k++){const a=pts[k],b=pts[(k+1)%n],ma=[u+(a[0]-u)*0.6,y+ry*0.75,v+(a[1]-v)*0.6],mb=[u+(b[0]-u)*0.6,y+ry*0.75,v+(b[1]-v)*0.6];
+    caQ([m(a[0],y-0.05,a[1]),m(b[0],y-0.05,b[1]),m(mb[0],mb[1],mb[2]),m(ma[0],ma[1],ma[2])],tile||T.AR_ROCK,[0,0,0.8,0.6],1);caTri(m(ma[0],ma[1],ma[2]),m(mb[0],mb[1],mb[2]),m(top[0],top[1],top[2]),tile||T.AR_ROCK);}}
+// foliage: leaf cards (crossed quads, a few laid flat) packed into a rough ball
+function mFoliage(m,cu,cy,cv,R,n,seed,size){const rr=mulberry32(seed);for(let k=0;k<n;k++){
+  const a=rr()*Math.PI*2,e=(rr()-0.35)*1.2,d=R*Math.cbrt(rr()),u=cu+Math.cos(a)*Math.cos(e)*d,y=cy+Math.sin(e)*d*0.8,v=cv+Math.sin(a)*Math.cos(e)*d,s=(size||1.6)*(0.75+rr()*0.5),rot=rr()*Math.PI;
+  const ao=0.72+0.28*Math.min(1,(y-cy+R)/(2*R))*(0.6+0.4*d/R);mCross(m,u,y-s*0.5,v,s,s,T.AR_LEAVES,rot,0,ao);
+  if(k%3===0){const c=Math.cos(rot)*s*0.5,dd=Math.sin(rot)*s*0.5;caQ([m(u-c-dd,y,v-dd+c),m(u+c-dd,y,v+dd+c),m(u+c+dd,y,v+dd-c),m(u-c+dd,y,v-dd-c)],T.AR_LEAVES,[0,0,1,1],ao);}}}
+
+// ---- the models
+function buildArenaInterior(){
+  const G=AR.G,TAU=Math.PI*2,Q4=[[1,1],[1,-1],[-1,1],[-1,-1]],ST=(s)=>(i,j)=>caStone(i,j,s),I=arM(1,1);
+  // ---- the enclosure wall: a rounded parapet with a coping and lanterns (solid as a ring of arena blocks underneath)
+  caRev(0,0,[[33.75,G-0.05],[33.75,G+0.35],[33.68,G+0.35],[33.68,G+2.0]],0,TAU,(s,k)=>k===0?T.CA_LOW:k===1?T.CA_PALE:caStone(s,k,51),{ts:1.4,ao:y=>y<G+0.3?0.75:1});
+  caAnn(0,0,33.55,35.75,G+2.0,0,TAU,T.CA_PALE,{ts:1.2,ao:0.6});caRev(0,0,[[33.55,G+2.0],[33.55,G+2.5]],0,TAU,T.CA_PALE,{ts:1});
+  caAnn(0,0,33.55,35.75,G+2.5,0,TAU,T.CA_PALE,{ts:1.2});caRev(0,0,[[35.75,G+2.0],[35.75,G+2.5]],0,TAU,T.CA_PALE,{ts:1});
+  caRev(0,0,caRows(35.6,35.6,G-3,G+2.0,1.5),0,TAU,(s,k)=>k<2?T.CA_LOW:caStone(s,k,52),{ts:1.5});
+  for(let s=0;s<36;s++){const a=TAU*(s+0.5)/36,F=caFrame(a);if(Math.abs(Math.cos(a))>0.995)continue;caBox(F,34.4,34.9,-0.25,0.25,G+2.5,G+3.0,T.CA_PALE);
+    const p=F.P(34.65,0,G+3.0);caCross(p[0],p[1],p[2],0.62,0.62,T.LANTERN,1);}
+  // ---- the central plaza: a mosaic ring, the two-step octagonal dais with its sun-and-moon star, four columns with braziers
+  caAnn(0,0,6.75,7.45,G+0.012,0,TAU,T.AR_MARBLE_D,{ts:1});caAnn(0,0,6.45,6.75,G+0.012,0,TAU,T.AR_MARBLE_G,{ts:1});
+  {const oct=(a,b)=>[[a,b],[b,a],[-b,a],[-a,b],[-a,-b],[-b,-a],[b,-a],[a,-b]],prism=(P,y0,y1,top,side)=>{for(let k=0;k<8;k++){const p=P[k],q=P[(k+1)%8],L=Math.hypot(q[0]-p[0],q[1]-p[1]);
+        caQ([[p[0],y0,p[1]],[q[0],y0,q[1]],[q[0],y1,q[1]],[p[0],y1,p[1]]],side,[0,0,Math.min(1,L/1.5),Math.min(1,(y1-y0))],y0<=G?[0.8,0.8,1,1]:1);caTri([0,y1,0],[p[0],y1,p[1]],[q[0],y1,q[1]],top);}};
+    prism(oct(4,3),G-0.02,G+0.5,T.CA_FLAGS,T.CA_PALE);prism(oct(3.02,2.02),G+0.5,G+1.0,T.AR_MARBLE_W,T.CA_PALE);
+    // the star: long rays to the four quarters, short ones between; the red side's rays are terracotta, the blue side's lapis
+    const y=G+1.012;for(let k=0;k<16;k++){const a=TAU*k/16,long=!(k&1),R=long?2.75:1.75,w=TAU/32,c=Math.cos(a),col=long?(Math.abs(c)<0.2?T.AR_MARBLE_G:c<0?T.AR_MARBLE_R:T.AR_MARBLE_B):T.AR_MARBLE_D;
+      caTri([Math.cos(a-w)*0.75,y,Math.sin(a-w)*0.75],[Math.cos(a)*R,y,Math.sin(a)*R],[Math.cos(a+w)*0.75,y,Math.sin(a+w)*0.75],col);}
+    mDisc(I,0,0,0.8,y+0.002,T.AR_MARBLE_G,16);caAnn(0,0,2.55,2.7,y,0,TAU,T.AR_MARBLE_D,{segs:32});}
+  for(const[sx,sz]of Q4){const m=arM(sx,sz);
+    mBox(m,4.02,6.98,G-0.02,G+0.5,4.02,6.98,T.CA_PALE,{top:T.CA_FLAGS});mBox(m,4.9,6.1,G+0.5,G+0.85,4.9,6.1,T.CA_PALE);
+    mRev(m,5.5,5.5,[[0.5,G+0.85],[0.44,G+1.05],[0.4,G+1.2],[0.36,G+5.3],[0.44,G+5.45]],0,TAU,(s,k)=>k===3?T.CA_A:T.CA_PALE,{segs:12,ts:1});
+    mBox(m,4.98,6.02,G+5.45,G+5.85,4.98,6.02,T.CA_PALE);mRev(m,5.5,5.5,[[0.12,G+5.85],[0.42,G+6.1],[0.5,G+6.45]],0,TAU,T.AR_BRONZE,{segs:10,ts:1});
+    mCross(m,5.5,G+6.0,5.5,0.75,0.75,T.LANTERN,0.4,1);}
+  // ---- per quarter: cover walls, trees, crates, columns, shrubs
+  for(const[sx,sz]of Q4){const m=arM(sx,sz);
+    for(const M of[m,(u,y,v)=>[sx*v,y,sz*u]]){   // the second wall runs the other way (u and v swapped)   // low cover walls (2 high) ending in a heap of fallen stones
+      mBox(M,10.0,13.0,G-0.02,G+0.3,3.02,3.98,T.CA_LOW);mBox(M,10.04,13.0,G+0.3,G+1.82,3.1,3.9,ST(53),{noTop:true,ao:y=>y<G+0.6?0.8:1});
+      mBox(M,9.96,13.04,G+1.82,G+2.0,3.0,4.0,T.CA_PALE,{bottom:T.CA_PALE});
+      mBox(M,13.0,13.95,G-0.02,G+0.5,3.05,3.95,T.CA_A,{top:T.CA_PALE});mRock(M,13.6,G,4.5,0.3,0.25,sx*3+sz,T.CA_A);mRock(M,14.3,G,3.3,0.25,0.2,sx*5+sz,T.CA_PALE);}
+    // a tree: flared trunk, branches, a crown of leaves
+    {const cu=18.5,cv=12.5,seed=(sx>0?1:2)+(sz>0?0:2);
+      mRev(m,cu,cv,[[0.78,G-0.05],[0.52,G+0.6],[0.45,G+2.5],[0.36,G+4.6],[0.26,G+5.6]],0,TAU,T.AR_BARK,{segs:10,ts:1.2});
+      const rr=mulberry32(900+seed);for(let b=0;b<6;b++){const a=b*TAU/6+rr(),y0=G+3.4+rr()*1.6,L=1.6+rr()*1.2;mBeam(m,[cu,y0,cv],[cu+Math.cos(a)*L,y0+0.9+rr()*0.8,cv+Math.sin(a)*L],0.2,T.AR_BARK);}
+      mFoliage(m,cu,G+6.0,cv,2.5,46,700+seed,1.9);mFoliage(m,cu,G+7.4,cv,1.5,14,720+seed,1.6);}
+    // barrels, hay and crates
+    const barrel=(u,y,v)=>{mRev(m,u,v,[[0.4,y],[0.46,y+0.25],[0.48,y+0.49],[0.46,y+0.73],[0.4,y+0.98]],0,TAU,T.AR_STAVES,{segs:12,ts:1});
+      for(const h of[0.1,0.3,0.68,0.88])mRev(m,u,v,[[0.44+(h>0.2&&h<0.8?0.035:0)+0.012,y+h],[0.44+(h>0.2&&h<0.8?0.035:0)+0.012,y+h+0.06]],0,TAU,T.CA_IRON,{segs:12,ts:1});
+      mDisc(m,u,v,0.4,y+0.95,T.CA_WOOD,12);};
+    const hay=(u,y,v)=>{mBox(m,u-0.48,u+0.48,y,y+0.92,v-0.48,v+0.48,T.AR_STRAW,{top:T.AR_STRAW_END});
+      for(const d of[-0.22,0.22])mBox(m,u-0.49,u+0.49,y+0.002,y+0.925,v+d-0.03,v+d+0.03,T.AR_STAVES,{ts:1});};
+    const crate=(u,y,v,h)=>mBox(m,u-0.47,u+0.47,y,y+h,v-0.47,v+0.47,T.AR_CRATE,{ts:1});
+    barrel(20.5,G,5.5);hay(20.5,G+1,5.5);crate(20.5,G+1.92,5.5,0.55);barrel(20.5,G,6.5);barrel(21.5,G,5.5);crate(21.5,G,6.5,0.5);
+    hay(8.5,G,24.5);barrel(8.5,G+0.92,24.5);crate(9.5,G,25.5,0.5);hay(8.5,G,25.5);hay(9.5,G,24.5);
+    // ruined columns with a plinth of fallen blocks and a brazier
+    for(const[pu,pv]of[[16.5,26.5],[27.5,12.5]]){mBox(m,pu-0.5,pu+0.5,G-0.02,G+0.4,pv-0.5,pv+0.5,T.CA_PALE);
+      mRev(m,pu,pv,[[0.46,G+0.4],[0.4,G+0.6],[0.38,G+3.55]],0,TAU,(s,k)=>k===0?T.CA_PALE:T.CA_A,{segs:12,ts:1});
+      mBox(m,pu-0.5,pu+0.5,G+3.55,G+4.0,pv-0.5,pv+0.5,T.CA_PALE);mRev(m,pu,pv,[[0.1,G+4.0],[0.36,G+4.25],[0.42,G+4.55]],0,TAU,T.AR_BRONZE,{segs:10,ts:1});
+      mCross(m,pu,G+4.1,pv,0.7,0.7,T.LANTERN,0.3,1);
+      for(const[du,dv]of[[1,0],[-1,0],[0,1],[0,-1]])mBox(m,pu+du-0.48,pu+du+0.48,G-0.02,G+0.5,pv+dv-0.48,pv+dv+0.48,T.CA_A,{top:T.CA_PALE});}
+    // shrubs (two cells each)
+    for(const[bu,bv]of[[24,16.5],[12,17.5]])for(const d of[-0.5,0.5])mFoliage(m,bu+d,G+0.6,bv,0.62,11,760+bu+d*4,0.95);
+  }
+  // ---- per side (the two players' sides): the pond with its bridge, the ruined gateway behind the start point
+  for(const sx of[1,-1]){const m=arM(sx,1),cu=12.5;
+    // rim stones round the water (left clear where the bridge lands)
+    for(let k=0;k<26;k++){const a=TAU*k/26+0.1,u=cu+Math.cos(a)*3.75,v=Math.sin(a)*3.75;if(Math.abs(v)<2.3)continue;mRock(m,u,G,v,0.42+hash3(k,sx,0,742)*0.2,0.14+hash3(k,sx,1,742)*0.16,k*1.7+sx,T.AR_ROCK);}
+    for(const[a,n]of[[1.2,5],[2.1,4],[-1.0,5],[-2.3,4]])for(let i=0;i<n;i++){const aa=a+(i-n/2)*0.09,d=3.05+hash3(i,n,sx,743)*0.4;mCross(m,cu+Math.cos(aa)*d,G-0.4,Math.sin(aa)*d,0.9,1.3+hash3(i,0,sx,744)*0.5,T.AR_REED,aa*3);}
+    for(const[pu,pv,s]of[[cu-1.6,2.6,0.8],[cu+1.2,-2.7,0.7],[cu+2.4,2.2,0.6],[cu-2.4,-2.0,0.65],[cu+0.3,2.85,0.5]]){const y=G-0.085,r=s/2,a=pu*1.3;
+      caQ([m(pu-r*Math.cos(a)+r*Math.sin(a),y,pv-r*Math.sin(a)-r*Math.cos(a)),m(pu+r*Math.cos(a)+r*Math.sin(a),y,pv+r*Math.sin(a)-r*Math.cos(a)),m(pu+r*Math.cos(a)-r*Math.sin(a),y,pv+r*Math.sin(a)+r*Math.cos(a)),m(pu-r*Math.cos(a)-r*Math.sin(a),y,pv-r*Math.sin(a)+r*Math.cos(a))],T.AR_LILY,[0,0,1,1],1);}
+    // the bridge: plank deck, beams, posts in the water, a railing on both sides
+    {const u0=cu-3.7,u1=cu+3.7;mBox(m,u0,u1,G-0.22,G,-2,2,T.CA_WOOD,{ts:1,bottom:T.CA_WOOD});
+      for(const v of[-1.85,1.85])mBox(m,u0-0.1,u1+0.1,G-0.5,G-0.22,v-0.13,v+0.13,T.AR_STAVES,{bottom:T.AR_STAVES});
+      for(let u=u0+0.4;u<=u1;u+=2.25)for(const v of[-1.6,1.6])mBox(m,u-0.13,u+0.13,G-2.2,G-0.22,v-0.13,v+0.13,T.CA_WOOD);
+      const r0=cu-2.5,r1=cu+2.5;for(const v of[-1.5,1.5]){for(let u=r0+0.1;u<=r1;u+=1.25)mBox(m,u-0.08,u+0.08,G,G+1.0,v-0.08,v+0.08,T.CA_WOOD);
+        mBox(m,r0,r1,G+0.92,G+1.06,v-0.1,v+0.1,T.CA_WOOD);mBox(m,r0,r1,G+0.5,G+0.58,v-0.05,v+0.05,T.CA_WOOD);}}
+    // the ruined gateway: two piers carrying a lintel, broken outer piers, a fallen drum
+    mBox(m,27.04,27.96,G-0.02,G+3.7,2.04,2.96,ST(54),{noTop:true,ao:y=>y<G+0.5?0.8:1});mBox(m,27.04,27.96,G-0.02,G+3.7,-2.96,-2.04,ST(54),{noTop:true,ao:y=>y<G+0.5?0.8:1});
+    mBox(m,26.98,28.02,G+3.7,G+4.0,1.98,3.02,T.CA_PALE);mBox(m,26.98,28.02,G+3.7,G+4.0,-3.02,-1.98,T.CA_PALE);
+    mBox(m,27.0,28.0,G+4.0,G+4.82,-3.05,3.05,ST(55),{noTop:true,bottom:T.CA_A});mBox(m,26.92,28.08,G+4.82,G+5.0,-3.12,3.12,T.CA_PALE);
+    for(const sv of[1,-1]){const v0=sv>0?3:-4;mBox(m,27.06,27.94,G-0.02,G+2.0,v0+0.06,v0+0.94,ST(56),{top:T.CA_A});mBox(m,27.1,27.9,G+2.0,G+2.5,v0+0.1,v0+0.8,T.CA_A,{top:T.CA_PALE});}
+    mRock(m,29.4,G,1.6,0.5,0.32,sx*7,T.CA_PALE);mRock(m,25.8,G,-3.8,0.35,0.22,sx*9,T.CA_A);
+  }
+  // ---- the two timber watchtowers (north and south) on their stone stairs
+  for(const sz of[1,-1]){const m=arM(1,sz);
+    // stairs: four big stone steps between low cheek walls
+    for(let k=0;k<4;k++){mBox(m,-1,1,G-0.02,G+1+k,15+k,16+k,ST(57+k),{top:T.CA_PALE,ao:y=>y<G+0.4?0.82:1});
+      for(const su of[1,-1])mBox(m,su>0?1:-2,su>0?2:-1,G-0.02,G+0.5+k,15+k,16+k,T.CA_A,{top:T.CA_PALE});}
+    // stone footings, posts, knee braces, the deck with its joists, a plank breastwork, a hipped shingle roof
+    const posts=[[1.5,19.5],[-1.5,19.5],[1.5,22.5],[-1.5,22.5]];
+    const D=G+4,RF=G+7;
+    for(const[pu,pv]of posts){mBox(m,pu-0.5,pu+0.5,G-0.02,G+0.6,pv-0.5,pv+0.5,T.CA_A,{top:T.CA_PALE});mBox(m,pu-0.3,pu+0.3,G+0.6,RF,pv-0.3,pv+0.3,T.AR_BARK,{ts:1.5});}
+    for(const[pu,pv]of posts){const du=pu>0?-1:1,dv=pv>21?-1:1;mBeam(m,[pu,D-2.0,pv+dv*0.25],[pu,D-0.95,pv+dv*1.15],0.16,T.CA_WOOD);mBeam(m,[pu+du*0.25,D-2.0,pv],[pu+du*1.15,D-0.95,pv],0.16,T.CA_WOOD);
+      mBeam(m,[pu,RF-1.2,pv+dv*0.25],[pu,RF-0.15,pv+dv*1.1],0.14,T.CA_WOOD);mBeam(m,[pu+du*0.25,RF-1.2,pv],[pu+du*1.1,RF-0.15,pv],0.14,T.CA_WOOD);}
+    mBox(m,-2,2,D-0.65,D,19,23,T.CA_WOOD,{ts:1,bottom:T.CA_WOOD});
+    for(const v of[19.25,21,22.75])mBox(m,-2.02,2.02,D-1.0,D-0.65,v-0.17,v+0.17,T.AR_STAVES,{bottom:T.AR_STAVES});
+    for(const u of[-1.75,1.75])mBox(m,u-0.17,u+0.17,D-1.0,D-0.65,19,23,T.AR_STAVES,{bottom:T.AR_STAVES});
+    for(const su of[1,-1]){const u=su*1.06;mBox(m,su>0?u:u-0.12,su>0?u+0.12:u,D,D+1.05,19.0,22.94,T.CA_WOOD,{ts:1});}
+    mBox(m,-1.06,1.06,D,D+1.05,22.0,22.12,T.CA_WOOD,{ts:1});
+    {const y0=RF,y1=RF+2.6,e=[[-2.45,18.55],[2.45,18.55],[2.45,23.45],[-2.45,23.45]],ap=[[-0.3,21],[0.3,21]];
+      mBox(m,-2.1,2.1,RF-0.2,RF,18.9,23.1,T.AR_STAVES,{bottom:T.CA_WOOD});
+      caQ([m(e[0][0],y0,e[0][1]),m(e[1][0],y0,e[1][1]),m(ap[1][0],y1,ap[1][1]),m(ap[0][0],y1,ap[0][1])],T.AR_SHINGLE,[0,0,1,1],1);
+      caQ([m(e[2][0],y0,e[2][1]),m(e[3][0],y0,e[3][1]),m(ap[0][0],y1,ap[0][1]),m(ap[1][0],y1,ap[1][1])],T.AR_SHINGLE,[0,0,1,1],1);
+      caTri(m(e[1][0],y0,e[1][1]),m(e[2][0],y0,e[2][1]),m(ap[1][0],y1,ap[1][1]),T.AR_SHINGLE);caTri(m(e[3][0],y0,e[3][1]),m(e[0][0],y0,e[0][1]),m(ap[0][0],y1,ap[0][1]),T.AR_SHINGLE);
+      mBeam(m,[-0.35,y1+0.02,21],[0.35,y1+0.02,21],0.14,T.CA_WOOD);mBeam(m,[0,y1,21],[0,y1+1.6,21],0.08,T.CA_IRON);
+      caCloth(m(0.04,y1+1.55,21),[0,0,sz],[0,-1,0],[1,0,0],1.3,0.55,T.CA_PURPLE,{flag:true,amp:0.12,cell:0.45});
+      const lp=m(0,RF-1.0,21);caCross(lp[0],RF-0.7,lp[2],0.08,0.5,T.CA_IRON);caCross(lp[0],lp[1],lp[2],0.65,0.65,T.LANTERN,1);}
+  }
+  // ---- tufts of grass and flowers wherever the turf is open
+  {const S=new Map();for(let cx=-3;cx<=2;cx++)for(let cz=-3;cz<=2;cz++){const c={cx,cz,blocks:new Uint16Array(CS*CS*H)};World.prototype.genArena.call(world,c);S.set(cx+','+cz,c.blocks);}
+    const at=(x,y,z)=>{const b=S.get((x>>4)+','+(z>>4));return b?b[bidx(x&15,y,z&15)]:0;};
+    for(let wz=-34;wz<34;wz++)for(let wx=-34;wx<34;wx++){const r=Math.hypot(wx+0.5,wz+0.5);if(r>33.2||r<8.6)continue;const t=at(wx,G-1,wz);
+      if((t!==B.AR_TURF&&t!==B.AR_TURF2)||at(wx,G,wz)!==0)continue;const h=hash3(wx,7,wz,745),n=h<0.35?1:h<0.85?2:3;
+      for(let k=0;k<n;k++){const u=wx+0.15+hash3(wx,k,wz,746)*0.7,v=wz+0.15+hash3(wx,k,wz,747)*0.7,s=0.42+hash3(wx,k,wz,748)*0.35,q=hash3(wx,k,wz,749);
+        mCross(I,u,G-0.02,v,s*1.15,s,q<0.1?T.AR_FLOWERS:q<0.45?T.AR_TUFT_B:T.AR_TUFT_A,q*Math.PI*7);}}}
+}
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
