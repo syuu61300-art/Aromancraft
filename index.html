@@ -4375,7 +4375,8 @@ function updatePlayer(dt){
     const fx0=Math.floor(p.pos[0]),fz0=Math.floor(p.pos[2]),b0=world.getBlock(fx0,Math.floor(p.pos[1]+0.1),fz0),b1=world.getBlock(fx0,Math.floor(p.pos[1]+1),fz0);
     if(CLIMB[b0]||CLIMB[b1]){p.fall=0;if(jump||(p.collH&&fwd>0.1))p.vel[1]=3.4;else if(p.sneak)p.vel[1]=Math.max(p.vel[1],0);else p.vel[1]=Math.max(p.vel[1],-2.4);}
     const w=WEB[b0]||WEB[b1];p.berryT=Math.max(0,(p.berryT||0)-dt);
-    if(w){const kk=w===1?0.1:w===2?0.45:0.4;p.vel[0]*=kk;p.vel[2]*=kk;p.vel[1]=w===3?Math.max(p.vel[1]*0.3,-1.2):p.vel[1]*(w===1?0.08:0.6);p.fall=0;
+    if(w){const f=dt*60,kk=Math.pow(w===1?0.1:w===2?0.45:0.4,f);p.vel[0]*=kk;p.vel[2]*=kk;   // the same at any frame rate
+      p.vel[1]=w===3?Math.max(p.vel[1]*Math.pow(0.3,f),-1.2):w===1?Math.max(-0.9,Math.min(0.5,p.vel[1]*Math.pow(0.5,f))):p.vel[1]*Math.pow(0.6,f);p.fall=0;   // cobweb: you sink slowly through it
       if(w===2&&mode==='survival'&&Math.hypot(wx,wz)>0.05&&!(p.berryT>0)){p.berryT=0.8;hurt(1,'berry');}}
   }
   glideTick(p,dt,jump,liquid);
@@ -12501,7 +12502,8 @@ function athBuild(lv,R,plan){
     if(style==='pillar'&&k!=='fence')for(let y2=ATH_FY+1;y2<y;y2++)P(Math.round((x0+x1)/2),y2,Math.round((z0+z1)/2),pil);
     if(style==='lamp'&&big&&k==='block')P(x1,y+1,z1,B.LANTERN);
     if(style==='under'&&k==='block')P(Math.round((x0+x1)/2),y-1,Math.round((z0+z1)/2),athB(T.light));
-    lv.minY=Math.min(lv.minY,y);};
+    lv.minY=Math.min(lv.minY,y);if(!plat.quiet)lv.path.push({x0,x1,y,z0,z1,k});};
+  lv.path=[];const wp=(x0,x1,y,z0,z1,k)=>lv.path.push({x0,x1,y,z0,z1,k:k||'block'});
   const cz=c=>Math.round((c.z0+c.z1)/2);
   // ---- an ordinary hop: the landing size and the gap follow the phase; every gap is checked against the player's reach
   const hop=(cur,o={})=>{
@@ -12509,7 +12511,7 @@ function athBuild(lv,R,plan){
     const up=cur.y<60?0.5:cur.y>76?0.03:0.25,dn=cur.y>70?0.4:0.18;let r=R()*(up+0.4+dn),dy=o.dy!==undefined?o.dy:r<up?1:r<up+0.4?0:-1;
     let ny=Math.max(54,Math.min(80,cur.y+dy)),dyS=ny+ATH_SURF[k]-(cur.y+ATH_SURF[cur.k]);while(dyS>1.0001){ny--;dyS-=1;}
     const run=cur.x1-cur.x0+1,D=athMaxGap(o.d!==undefined?o.d:d,dyS,cur.k,k,run);
-    let gx=1;if(D>=2){const top=Math.floor(D+1e-6),u=Math.pow(R(),1.25-1.0*d);gx=1+Math.min(top-1,Math.floor(u*top));}
+    let gx=1;if(D>=2){const top=Math.floor(D+1e-6),u=Math.pow(R(),1.25-1.0*d),lo=Math.min(top,ph>=1?2:1);gx=Math.max(lo,1+Math.min(top-1,Math.floor(u*top)));}
     if(o.gap)gx=Math.max(1,Math.min(o.gap,Math.floor(D+1e-6)));
     let gz=0;if(o.lat!==false&&R()<0.15+0.35*d)for(const c of[2,1])if(Math.hypot(gx,c)<=D+1e-6){gz=c;break;}
     const c=cz(cur),side=c>2?-1:c<-3?1:(R()<0.5?-1:1),lo=o.zmin!==undefined?o.zmin:-6,hi=o.zmax!==undefined?o.zmax:5;
@@ -12519,21 +12521,49 @@ function athBuild(lv,R,plan){
   // the safe version of a gimmick seen for the first time: a floor under it, with steps up to where it ends
   const safety=(x0,x1,y,z0,z1,exit)=>{fill(x0,x1,y-3,y-3,z0,z1,athB(T.edge));if(exit){for(let s=0;s<3;s++)fill(exit.x0-1-s,exit.x0-1-s,y-3,exit.y-s,exit.z0,exit.z0,pl[0]);}lv.minY=Math.min(lv.minY,y-3);};
   const SP={
+    // a staircase of single pillars, each a jump up and to the side
+    spiral:(cur,v)=>{if(cur.y>74){cur=hop(cur,{dy:-1});cur=hop(cur,{dy:-1});}const n0=3+v+(R()<0.5?1:0),sz=ph===0?2:1,g=v===0?1:2;let n=cur,side=cz(cur)>0?-1:1;
+      for(let i=0;i<n0;i++){const c=cz(n);let m;
+        if(i%2===0){const x0=n.x1+g+1;m={x0,x1:x0+sz-1,y:n.y+1,z0:Math.max(-6,Math.min(6-sz,c-(sz>1?0:0))),k:'block'};m.z1=m.z0+sz-1;lv.jumps.push({gx:g,gz:0,dyS:1,from:n.k,to:'block',d,run:n.x1-n.x0+1});}
+        else{let z0=side>0?n.z1+g+1:n.z0-g-sz;if(z0<-6||z0+sz-1>5){side=-side;z0=side>0?n.z1+g+1:n.z0-g-sz;}m={x0:n.x0+(n.x1>n.x0?1:0),x1:n.x0+(n.x1>n.x0?1:0)+sz-1,y:n.y+1,z0,z1:z0+sz-1,k:'block'};side=-side;lv.jumps.push({gx:0,gz:g,dyS:1,from:n.k,to:'block',d,run:1});}
+        plat(m.x0,m.x1,m.y,m.z0,m.z1,'block');for(let yy=ATH_FY+1;yy<m.y;yy++)P(m.x0,yy,m.z0,pil);n=m;}
+      return n;},
+    // fence posts to land on (narrow)
+    fence:(cur,v)=>{let n=cur;const k=2+v;for(let i=0;i<k;i++)n=hop(n,{kind:'fence',size:1,dy:i===0?0:(R()<0.5?0:-1),gap:v===0?1:2,lat:v>0});return hop(n,{size:1,dy:0,gap:1});},
+    // jumps sideways across the corridor, left and right
+    zigzag:(cur,v)=>{let n=cur;const k=3+v,gz=v===0?1:2;let side=cz(cur)>0?-1:1;
+      for(let i=0;i<k;i++){const c=cz(n),z=c+side*(gz+1);if(z<-6||z>5){side=-side;}const zz=Math.max(-6,Math.min(5,c+side*(gz+1)));
+        const m={x0:n.x1+1,x1:n.x1+1,y:n.y+(i%2&&v>0?1:0),z0:zz,z1:zz,k:'block'};plat(m.x0,m.x1,m.y,m.z0,m.z1,'block');
+        lv.jumps.push({gx:0,gz:Math.abs(zz-c)-1,dyS:m.y-n.y,from:n.k,to:'block',d,run:1});n=m;side=-side;}
+      return hop(n,{size:2,dy:0,gap:1});},
+    // drops onto small targets further down
+    drop:(cur,v)=>{if(cur.y<64){for(let i=0;i<3;i++)cur=hop(cur,{dy:1,size:1,gap:1});}let n=cur;const k=2+(v>0?1:0);
+      for(let i=0;i<k;i++)n=hop(n,{dy:-(2+(v===2?1:0)),size:v===0?2:1,kind:v>0&&i===k-1&&R()<0.5?'slab':'block',gap:v===0?2:3});return n;},
+    // half-block steps upward: each a jump, half a block higher
+    slabs:(cur,v)=>{let n=cur;const k=3+v;for(let i=0;i<k;i++){const toSlab=n.k!=='slab';const m=hop(n,{kind:toSlab?'slab':'block',dy:toSlab?1:0,size:v===0?2:1,gap:v===0?2:3,lat:v>0});n=m;}return hop(n,{dy:0,size:2,gap:1});},
+    // a full-length running jump
+    sprint4:(cur,v)=>{const c=Math.max(-6,Math.min(4,cz(cur))),x=cur.x1+2;plat(x,x+3,cur.y,c,c+1,'block');const g=v===2?4:3;
+      lv.jumps.push({gx:1,gz:0,dyS:0,from:cur.k,to:'block',d,run:1},{gx:g,gz:0,dyS:0,from:'block',to:'block',d:Math.max(d,0.72),run:4});
+      const n={x0:x+4+g,x1:x+5+g,y:cur.y,z0:c,z1:c+1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
     jump:(cur,v)=>{const n=2+v+(ph>=3?1:0);for(let i=0;i<n;i++)cur=hop(cur,v===2?{size:1}:{});return cur;},
-    ladder:(cur,v,demo)=>{const z=Math.max(-6,Math.min(5,cz(cur))),lad=BLOCKS[B.LADDER].vars?BLOCKS[B.LADDER].vars[0]:B.LADDER,x=cur.x1+1;let y=cur.y;
-      const h1=3+(v>0?0:R()<0.5?1:0);for(let yy=y-1;yy<=y+h1;yy++){P(x,yy,z,lad);P(x+1,yy,z,pil);}
-      if(v===0){plat(x+1,x+2,y+h1,z-1>=-6?z-1:z,z-1>=-6?z:z+1,'block');return{x0:x+1,x1:x+2,y:y+h1,z0:z-1>=-6?z-1:z,z1:z-1>=-6?z:z+1,k:'block'};}
-      if(v===1){ // the ladder stops: walk sideways along a ledge to where it goes on
-        const s=z<=1?1:-1,z2=z+2*s;fill(x,x,y+h1,y+h1,Math.min(z,z2),Math.max(z,z2),pil);for(let zz=Math.min(z,z2);zz<=Math.max(z,z2);zz++)P(x+1,y+h1,zz,pil);
-        const h2=3;for(let yy=y+h1+1;yy<=y+h1+h2;yy++){P(x,yy,z2,lad);P(x+1,yy,z2,pil);}plat(x+1,x+1,y+h1+h2,z2,z2,'block');return{x0:x+1,x1:x+1,y:y+h1+h2,z0:z2,z1:z2,k:'block'};}
-      // hard: from the top of the first ladder jump across into a second one
-      plat(x+1,x+1,y+h1,z,z,'block');const x2=x+3;for(let yy=y+h1-1;yy<=y+h1+3;yy++){P(x2,yy,z,lad);P(x2+1,yy,z,pil);}plat(x2+1,x2+1,y+h1+3,z,z,'block');
-      lv.jumps.push({ladder:2});return{x0:x2+1,x1:x2+1,y:y+h1+3,z0:z,z1:z,k:'block'};},
+    ladder:(cur,v,demo)=>{const z=Math.max(-5,Math.min(4,cz(cur))),lad=BLOCKS[B.LADDER].vars?BLOCKS[B.LADDER].vars[0]:B.LADDER,lx=cur.x1+1,y=cur.y,h1=3+(v===0&&R()<0.5?1:0);
+      // ladder 1 on the face of pillar A; you climb out onto the pillar's top
+      for(let yy=y-1;yy<=y+h1;yy++){P(lx,yy,z,lad);P(lx+1,yy,z,pil);}P(lx,y+h1,z,lad);if(v>0)wp(lx+1,lx+1,y+h1,z,z);
+      if(v===0){const zz=z>3?z-1:z,z3=zz===z?z+1:z-1;for(let yy=y-1;yy<=y+h1;yy++){P(lx,yy,z3,lad);P(lx+1,yy,z3,pil);}   // the first ladders are two wide
+        plat(lx+1,lx+2,y+h1,zz,zz+1,'block');P(lx+1,y+h1,z,pil);P(lx+1,y+h1,z3,pil);return{x0:lx+1,x1:lx+2,y:y+h1,z0:zz,z1:zz+1,k:'block'};}
+      if(v===1){ // the ladder stops: walk sideways along a ledge on the pillar top to where a second ladder goes on up
+        const s2=z<=0?1:-1,z2=z+2*s2,h2=3;for(let zz=Math.min(z,z2);zz<=Math.max(z,z2);zz++)P(lx+1,y+h1,zz,pil);wp(lx+1,lx+1,y+h1,z2,z2);
+        for(let yy=y+h1+1;yy<=y+h1+h2;yy++){P(lx+1,yy,z2,lad);P(lx+2,yy,z2,pil);}for(let yy=y+1;yy<=y+h1;yy++)P(lx+2,yy,z2,pil);
+        plat(lx+2,lx+3,y+h1+h2,z2,z2,'block');return{x0:lx+2,x1:lx+3,y:y+h1+h2,z0:z2,z1:z2,k:'block'};}
+      // hard: from the top of pillar A jump across into a second ladder and climb it
+      const x2=lx+3;for(let yy=y+h1-1;yy<=y+h1+3;yy++){P(x2,yy,z,lad);P(x2+1,yy,z,pil);}plat(x2+1,x2+2,y+h1+3,z,z,'block');
+      lv.jumps.push({ladder:2});return{x0:x2+1,x1:x2+2,y:y+h1+3,z0:z,z1:z,k:'block'};},
     slime:(cur,v,demo)=>{if(cur.y<62){cur=hop(cur,{dy:1,gap:1,size:2});cur=hop(cur,{dy:1,gap:1,size:2});}
       const z0=Math.max(-6,Math.min(3,cz(cur)-1)),L=3,W=v===0?3:2,x=cur.x1+2;fill(x,x+L-1,cur.y-6,cur.y-6,z0,z0+W-1,B.SLIME_BLOCK);
       lv.minY=Math.min(lv.minY,cur.y-6);const n={x0:x+L+2,x1:x+L+3,y:cur.y-3,z0,z1:z0+(v===2?0:1),k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');lv.jumps.push({slime:true});return n;},
     ice:(cur,v,demo)=>{const ice=v===2?B.BLUE_ICE:B.PACKED_ICE,c=Math.max(-5,Math.min(4,cz(cur)));
-      if(v===0){const W=ph===0?3:2,z0=Math.max(-6,Math.min(6-W,c-1)),x=cur.x1+1;fill(x,x+7,cur.y,cur.y,z0,z0+W-1,ice);const n={x0:x+8,x1:x+9,y:cur.y+1,z0,z1:z0+W-1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;}
+      if(v===0){const W=2,z0=Math.max(-6,Math.min(6-W,c-1)),x=cur.x1+1;fill(x,x+4,cur.y,cur.y,z0,z0+W-1,ice);fill(x+7,x+10,cur.y,cur.y,z0,z0+W-1,ice);   // slide, jump the gap, slide again
+        lv.jumps.push({gx:2,gz:0,dyS:0,from:'ice',to:'ice',d,run:5});const n={x0:x+12,x1:x+13,y:cur.y+1,z0,z1:z0+W-1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');lv.jumps.push({gx:1,gz:0,dyS:1,from:'ice',to:'block',d,run:4});return n;}
       if(v===1){const x=cur.x1+1,y=cur.y,s=c<=0?1:-1,za=s>0?c:c-1,zb=za+1,z1=za+4*s,zc=Math.min(z1,z1+s),zd=Math.max(z1,z1+s),e=athB(T.edge);
         fill(x,x+5,y,y,za,zb,ice);fill(x+6,x+6,y,y+1,za,zb,e);                                   // run in, bumper ahead
         fill(x+4,x+5,y,y,Math.min(za,zd),Math.max(zb,zc),ice);for(let xx=x+4;xx<=x+5;xx++)P(xx,y+1,s>0?zd+1:zc-1,e);   // turn, bumper at the side
@@ -12543,7 +12573,7 @@ function athBuild(lv,R,plan){
     ceiling:(cur,v,demo)=>{const top=athSlabTop('STONEBRICK');let n=cur;const pts=[cur];for(let i=0;i<2+v;i++){n=hop(n,{dy:0,gap:v===0?1:2,size:v===2?1:2,lat:false});pts.push(n);}
       for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],z0=Math.min(a.z0,b.z0)-1,z1=Math.max(a.z1,b.z1)+1;fill(a.x0,b.x1,a.y+3,a.y+3,z0,z1,top);}return n;},
     swim:(cur,v,demo)=>{const W=v===0?3:2,c=Math.max(-5,Math.min(4,cz(cur))),z0=Math.max(-6,Math.min(6-W,c-1)),z1=z0+W-1,x0=cur.x1+1,L=9+v*2,y=cur.y,deep=v>0?3:2;
-      fill(x0,x0+L-1,y-deep,y-1,z0,z1,B.WATER);fill(x0,x0+L-1,y,y,z0,z1,B.WATER);fill(x0,x0+L-1,y-deep-1,y-deep-1,z0-1,z1+1,wa);fill(x0,x0+L-1,y-deep,y+1,z0-1,z0-1,wa);fill(x0,x0+L-1,y-deep,y+1,z1+1,z1+1,wa);
+      fill(x0,x0+L-1,y-deep,y-1,z0,z1,B.WATER);fill(x0,x0+L-1,y,y,z0,z1,B.WATER);fill(x0,x0+L-1,y-deep-1,y-deep-1,z0-1,z1+1,wa);fill(x0,x0+L-1,y-deep,y+3,z0-1,z0-1,wa);fill(x0,x0+L-1,y-deep,y+3,z1+1,z1+1,wa);   // tall: you cannot climb out over the side
       if(v>0)for(let g=0;g<v*2;g++){const gx=x0+2+g*3,open=(g&1)?z1:z0;for(let z=z0;z<=z1;z++)if(z!==open)fill(gx,gx,y-deep,y+2,z,z,wa);}   // walls across with a gap at alternate sides: swim a slalom
       lv.minY=Math.min(lv.minY,y-deep-1);const n={x0:x0+L,x1:x0+L+1,y,z0,z1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
     elevator:(cur,v,demo)=>{const c=Math.max(-5,Math.min(4,cz(cur))),x=cur.x1+1,y=cur.y,H=5+v*2,S=v===0?2:1,z0=c,z1=c+S-1;
@@ -12553,9 +12583,9 @@ function athBuild(lv,R,plan){
     branch:(cur,v,demo)=>{const x=cur.x1+2,y=cur.y;fill(x,x+2,y,y,-6,5,pl[0]);fill(x,x,y,y,-6,-4,B.CONCRETE_LIME);fill(x,x,y,y,3,5,B.CONCRETE_RED);
       // the easy lane (green, z<0): many small hops; the hard lane (red, z>0): a few long ones; both end on one platform
       let a={x0:x,x1:x+2,y,z0:-6,z1:-3,k:'block'},b={x0:x,x1:x+2,y,z0:2,z1:5,k:'block'};
-      for(let i=0;i<6;i++)a=hop(a,{size:2,gap:1,dy:0,zmin:-6,zmax:-2,d:0,lat:false});
+      for(let i=0;i<6;i++)a=hop(a,{size:2,gap:2,dy:i%3===1?1:i%3===2?-1:0,zmin:-6,zmax:-2,d:0.3,lat:false});
       const gHard=v===2?4:3,hd=Math.max(d,0.72);
-      for(let it=0;it<12;it++){if(b.x1<a.x1-(gHard-1))b=hop(b,{size:1,gap:gHard,dy:0,zmin:2,zmax:5,lat:false,d:hd});else if(a.x1<b.x1-1)a=hop(a,{size:2,gap:1,dy:0,zmin:-6,zmax:-2,d:0,lat:false});else break;}
+      for(let it=0;it<12;it++){if(b.x1<a.x1-(gHard-1))b=hop(b,{size:1,gap:gHard,dy:0,zmin:2,zmax:5,lat:false,d:hd});else if(a.x1<b.x1-1)a=hop(a,{size:2,gap:1,dy:0,zmin:-6,zmax:-2,d:0.3,lat:false});else break;}
       const xe=Math.max(a.x1,b.x1)+2;fill(xe,xe+2,y,y,-6,5,pl[1]);lv.jumps.push({gx:xe-a.x1-1,gz:0,dyS:0,from:'block',to:'block',d:0.4,run:2},{gx:xe-b.x1-1,gz:0,dyS:0,from:'block',to:'block',d:hd,run:1});
       fill(x-1,x-1,y+1,y+1,-6,-6,B.LANTERN);return{x0:xe,x1:xe+2,y,z0:-2,z1:1,k:'block'};},
     maze:(cur,v,demo)=>{const N=6,S=2*N+1,x0=cur.x1+2,y=cur.y,zb=-6,w=athB(T.deco==='jungle'||T.deco==='plains'?'LEAVES':T.wa);
@@ -12572,16 +12602,14 @@ function athBuild(lv,R,plan){
         dyn.push({t:'blink',cells,id:pl[i&1],P:Pd,on,ph:(i%G)/G});}
       const e=hop(n,{size:2,gap:1,dy:0});if(demo)safety(x0+1,e.x0-1,cur.y,Math.min(cur.z0,e.z0)-1,Math.max(cur.z1,e.z1)+1,e);return e;},
     crumble:(cur,v,demo)=>{const dl=v===0?0.95:v===1?0.65:0.45;let cells=[],n;const x0=cur.x1;
-      if(v<2){const W=v===0?2:1,c=Math.max(-6,Math.min(6-W,cz(cur))),x=cur.x1+2,L=8;for(let xx=x;xx<x+L;xx++)for(let z=c;z<c+W;z++)cells.push([xx,cur.y,z]);
-        lv.jumps.push({gx:1,gz:0,dyS:0,from:'block',to:'block',d,run:2});n={x0:x+L-1,x1:x+L-1,y:cur.y,z0:c,z1:c+W-1,k:'block'};}
-      else{n=cur;for(let i=0;i<5;i++){n=hop(n,{size:1,gap:1,dy:0});cells.push([n.x0,n.y,n.z0]);}}
+      n=cur;const sz=v===0?2:1;for(let i=0;i<5+v;i++){n=hop(n,{size:sz,gap:v===2?2:1,dy:0,lat:v>0});for(let x=n.x0;x<=n.x1;x++)for(let z=n.z0;z<=n.z1;z++)cells.push([x,n.y,z]);}
       for(const c of cells)P(c[0],c[1],c[2],pl[1]);dyn.push({t:'crumble',cells,id:pl[1],delay:dl,back:3});
       const e=hop(n,{size:2,gap:1,dy:0});if(demo)safety(x0+1,e.x0-1,cur.y,Math.min(cur.z0,e.z0)-1,Math.max(cur.z1,e.z1)+1,e);return e;},
     color:(cur,v,demo)=>{const nc=v===0?2:v===1?3:4,ci=(R()*ATH_COLORS.length)|0,cols=[ci];while(cols.length<nc){const k=(R()*ATH_COLORS.length)|0;if(!cols.includes(k))cols.push(k);}
       const L=v===0?9:11,W=v===0?5:7,c=Math.max(-6+((W-1)>>1),Math.min(5-((W-1)>>1),cz(cur))),z0=c-((W-1)>>1),x0=cur.x1+1,y=cur.y,path=new Set();
       let pz=c;for(let x=0;x<L;x++){path.add(x+','+pz);const r=R();if(x<L-1&&r<0.45){const nz2=Math.max(z0,Math.min(z0+W-1,pz+(R()<0.5?-1:1)));path.add(x+','+nz2);pz=nz2;}}
       for(let x=0;x<L;x++)for(let z=z0;z<z0+W;z++){const real=path.has(x+','+z);
-        if(real){if(v===2&&x%3===1&&x<L-1)continue;P(x0+x,y,z,athB(ATH_COLORS[ci][1]));}
+        if(real){if(x%3===1&&x<L-1&&x>0)continue;if(v===2&&x%3===2&&x<L-1)continue;P(x0+x,y,z,athB(ATH_COLORS[ci][1]));}
         else{const k=cols[1+((R()*(nc-1))|0)];P(x0+x,y,z,B[ATH_COLORS[k][2]]);}}
       lv.color=ATH_COLORS[ci][0];for(let z=z0-1;z<=z0+W;z++)P(x0,y+4,z,athB(ATH_COLORS[ci][1]));
       lv.minY=Math.min(lv.minY,y);const n={x0:x0+L+1,x1:x0+L+2,y,z0:pz-1<-6?pz:pz-1,z1:pz-1<-6?pz+1:pz,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');
@@ -12595,12 +12623,12 @@ function athBuild(lv,R,plan){
     door:(cur,v,demo)=>{const W=v===0?3:2,c=Math.max(-6,Math.min(6-W,cz(cur)-1)),nd=1+v,L=3+nd*4,x0=cur.x1+1,y=cur.y,Pd=v===0?3.6:v===1?3.0:2.6,op=v===0?0.55:v===1?0.48:0.42;
       fill(x0,x0+L-1,y,y,c,c+W-1,pl[0]);
       for(let k=0;k<nd;k++){const dx=x0+2+k*4,cells=[];for(let yy=y+1;yy<=y+3;yy++)for(let z=c;z<c+W;z++)cells.push([dx,yy,z]);
-        fill(dx,dx,y+1,y+4,c-1,c-1,athB(T.arch));fill(dx,dx,y+1,y+4,c+W,c+W,athB(T.arch));fill(dx,dx,y+4,y+4,c,c+W-1,athB(T.arch));
+        fill(dx,dx,y-1,y+4,c-2,c-1,athB(T.arch));fill(dx,dx,y-1,y+4,c+W,c+W+1,athB(T.arch));fill(dx,dx,y+4,y+4,c,c+W-1,athB(T.arch));
         for(const q of cells)P(q[0],q[1],q[2],athB(T.wb));dyn.push({t:'door',cells,id:athB(T.wb),P:Pd,open:op,ph:k*0.28});
-        if(v===2&&k<nd-1){for(let z=c;z<c+W;z++)P(dx+2,y,z,0);}}
+        if(k<nd-1){for(let z=c;z<c+W;z++){P(dx+2,y,z,0);if(v>0)P(dx+1,y,z,0);}}}   // gaps to jump between the doors
       const n={x0:x0+L,x1:x0+L+1,y,z0:c,z1:c+W-1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
     lava:(cur,v,demo)=>{const W=5,c=Math.max(-4,Math.min(3,cz(cur))),z0=c-2,z1=c+2,x0=cur.x1+1,y=cur.y,Lx=10+v*2,Pd=v===0?7:v===1?5.6:4.6,rise=v===0?2:2.2;
-      fill(x0,x0+Lx-1,y-2,y-2,z0-1,z1+1,wa);fill(x0,x0+Lx-1,y-1,y+1,z0-1,z0-1,wa);fill(x0,x0+Lx-1,y-1,y+1,z1+1,z1+1,wa);fill(x0,x0+Lx-1,y-1,y-1,z0,z1,B.LAVA);
+      fill(x0,x0+Lx-1,y-2,y-2,z0-1,z1+1,wa);fill(x0,x0+Lx-1,y-1,y+4,z0-1,z0-1,wa);fill(x0,x0+Lx-1,y-1,y+4,z1+1,z1+1,wa);fill(x0,x0+Lx-1,y-1,y-1,z0,z1,B.LAVA);   // tall walls: no walking along the rim
       // stepping stones at the lava's level, and raised islands that it never reaches
       const stones=new Set(),isl=new Set();let pz=c;const gap=v===2?2:1;let x=0;
       while(x<Lx){const isIsland=(x%(gap===1?4:6))===3||x===Lx-1;if(isIsland){isl.add(x+','+pz);}else stones.add(x+','+pz);x+=gap+1;if(v>0&&R()<0.35)pz=Math.max(z0,Math.min(z1,pz+(R()<0.5?-1:1)));}
@@ -12610,9 +12638,9 @@ function athBuild(lv,R,plan){
       const n={x0:x0+Lx,x1:x0+Lx+1,y:y+1,z0:Math.max(-6,pz-1),z1:Math.max(-6,pz-1)+1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
     gate:(cur,v,demo)=>{const W=2,c=Math.max(-6,Math.min(4,cz(cur))),x0=cur.x1+1,y=cur.y,L=8+v*4;
       P(x0,y,c,B.ATH_PLATE);P(x0,y,c+1,B.ATH_PLATE);fill(x0+1,x0+L-1,y,y,c,c+1,pl[0]);
-      if(v>0)for(let k=0;k<v*2;k++){const gx=x0+3+k*3;if(gx<x0+L-2){P(gx,y,c,0);P(gx,y,c+1,0);if(v===2)P(gx+1,y,c,0);}}
+      for(let k=0;k<1+v*2;k++){const gx=x0+3+k*(v===2?4:3);if(gx<x0+L-3){P(gx,y,c,0);P(gx,y,c+1,0);if(v===2){P(gx+1,y,c,0);P(gx+1,y,c+1,0);}}}   /* 2-wide gaps leave 2 blocks to land on */   // gaps to jump on the run
       const gx=x0+L,cells=[];for(let yy=y+1;yy<=y+3;yy++)for(let z=c;z<=c+1;z++)cells.push([gx,yy,z]);
-      fill(gx,gx,y,y,c,c+1,pl[0]);fill(gx,gx,y+1,y+4,c-1,c-1,athB(T.arch));fill(gx,gx,y+1,y+4,c+2,c+2,athB(T.arch));fill(gx,gx,y+4,y+4,c,c+1,athB(T.arch));for(const q of cells)P(q[0],q[1],q[2],athB(T.wb));
+      fill(gx,gx,y,y,c,c+1,pl[0]);fill(gx,gx,y-1,y+4,c-2,c-1,athB(T.arch));fill(gx,gx,y-1,y+4,c+2,c+3,athB(T.arch));fill(gx,gx,y+4,y+4,c,c+1,athB(T.arch));for(const q of cells)P(q[0],q[1],q[2],athB(T.wb));
       dyn.push({t:'gate',plate:[[x0,y,c],[x0,y,c+1]],cells,id:athB(T.wb),dur:L/5.6+(v===0?3.2:v===1?2.2:1.4)});
       const n={x0:gx+1,x1:gx+2,y,z0:c,z1:c+1,k:'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,'block');return n;},
   };
@@ -12625,6 +12653,7 @@ function athBuild(lv,R,plan){
     wreset:(inner,cur,v,demo)=>{const x0=cur.x1+1;const n=inner(cur);const y=Math.min(cur.y,n.y)-3;fill(x0,n.x0-1,y,y,-7,6,B.WATER);fill(x0,n.x0-1,y-1,y-1,-7,6,wa);
       reg.push({t:'water',x0,x1:n.x0-1});lv.minY=Math.min(lv.minY,y-1);return n;},
   };
+  const HX={P,fill,plat,hop,wp,cz,lv,R,d,ph,pl,pil,wa,T,dyn,reg,safety,glass,bl,SP,WRAP};const SPX=typeof athSPX==='function'?athSPX(HX):{},WX=typeof athWX==='function'?athWX(HX):{};
   // ---- the level: checkpoint, a short run-up, the high point(s), a last easy hop
   const cp=lv.cp,goal=lv.n>ATH_N;
   for(let x=cp.x0;x<=cp.x1;x++)for(let z=cp.z0;z<=cp.z1;z++){const rim=z===cp.z0||z===cp.z1;P(x,cp.y,z,goal?B.ATH_GOAL:rim?athB(T.edge):B.ATH_CP);}
@@ -12634,29 +12663,46 @@ function athBuild(lv,R,plan){
   for(let i=0;i<txt.length;i++){const F=ATH_FONT[txt[i]];for(let r=0;r<5;r++)for(let c=0;c<3;c++)if(F[r][c]==='1')P(cp.x0,cp.y+12-r,zs+i*4+c,dg);}
   if(goal)return null;
   let cur={x0:cp.x0,x1:cp.x1,y:cp.y,z0:cp.z0,z1:cp.z1,k:'block'};
-  const runUp=ph===0?2+(R()<0.5?1:0):ph<4?1+(R()<0.5?1:0):1;for(let i=0;i<runUp;i++)cur=hop(cur);
-  for(let i=0;i<plan.length;i++){const[g,v,demo,wrap]=plan[i];if((g==='ladder'||g==='elevator')&&cur.y>70){cur=hop(cur,{dy:-1});cur=hop(cur,{dy:-1});}const f=c=>SP[g](c,v,demo);
-    const from=Object.assign({},cur);cur=wrap?WRAP[wrap](f,cur,v,demo):f(cur);(lv.sp=lv.sp||[]).push({g,v,wrap,from,to:Object.assign({},cur)});if(i<plan.length-1)cur=hop(cur,{size:Math.max(1,3-ph),dy:0});}
+  const runUp=1;for(let i=0;i<runUp;i++)cur=hop(cur);
+  for(let i=0;i<plan.length;i++){const[g,v0,demo,wrap,o0]=plan[i],o=o0||{};const v=v0|0;if((g==='ladder'||g==='elevator'||o.up)&&cur.y>70){cur=hop(cur,{dy:-1});cur=hop(cur,{dy:-1});}
+    if(o.high&&cur.y<o.high){while(cur.y<o.high)cur=hop(cur,{dy:1,gap:1,size:2,lat:false});}
+    let fn=c=>(SP[g]||SPX[g])(c,v,demo,o);const ws=wrap?[].concat(wrap):[];for(const w of ws){const inner=fn;fn=c=>(WRAP[w]||WX[w])(inner,c,v,demo,o);}
+    const from=Object.assign({},cur),pi0=lv.path.length;cur=fn(cur);(lv.sp=lv.sp||[]).push({g,v,t:o.t,wrap:ws.join('+')||undefined,from,to:Object.assign({},cur),p0:pi0,p1:lv.path.length});
+    if(i<plan.length-1)cur=hop(cur,{size:Math.max(2,3-ph),dy:0,gap:o.link||(ph===0?1:2),lat:false});}
   return cur;
 }
-// ---- the plan of every level: which gimmick, which strength, first time shown safely, combinations later
+// ---- parkour moves (every level is built from these and the gimmicks, in turn)
+const ATH_PK={spiral:{name:'柱のらせん',at:1},drop:{name:'下りジャンプ',at:2},zigzag:{name:'横ジャンプ',at:3},slabs:{name:'ハーフブロック登り',at:12},
+  fence:{name:'フェンス渡り',at:52},sprint4:{name:'助走ジャンプ',at:96},jump:{name:'ジャンプ',at:1}};
+// ---- the plan of every level: parkour moves and gimmicks alternate; the count grows with the phase; nothing repeats soon
 function athPlans(){
-  const out=[],seen=new Set(),R=mulberry32(ATH_SEED^0x5a17),recent=[],recentCombo=[];let prev='';
-  const avail=n=>Object.keys(ATH_GIM).filter(g=>ATH_GIM[g].at<=n);
-  const COMBOS=[['ice','slime'],['move','wreset'],['branch','dark'],['color','dark'],['ice','ceiling'],['crumble','blink'],['door','jump'],['lava','move'],['gate','crumble'],['blink','wreset'],['ladder','dark'],['maze','dark']];
-  for(let n=1;n<=ATH_N;n++){const ph=Math.floor((n-1)/30),th=Math.min(9,Math.floor((n-1)/15)),A=avail(n);
-    const fresh=A.find(g=>!seen.has(g)&&g!=='jump');
-    const strength=g=>{const age=n-ATH_GIM[g].at;if(age<6||ph===0)return 0;if(ph===1)return age<15?0:1;if(ph===2)return 1;if(ph===3)return R()<0.5?1:2;return 2;};
-    const pick=(not)=>{let tot=0;const w=A.map(g=>{let x=g===prev?0.1:1;if(not&&not.includes(g))x=0;const ri=recent.lastIndexOf(g);if(ri>=0)x*=0.15+0.12*(recent.length-1-ri);if(ATH_GIM[g].th.includes(th))x*=3.5;if(g==='jump')x*=ph===0?1.5:0.6;if(g==='wreset'||g==='dark')x*=0.6;tot+=x;return x;});
-      let r=R()*tot;for(let i=0;i<A.length;i++)if((r-=w[i])<=0)return A[i];return A[0];};
-    let plan;
-    if(fresh){seen.add(fresh);plan=fresh==='wreset'?[['move',1,false,'wreset']]:fresh==='dark'?[['jump',1,false,'dark']]:[[fresh,0,true]];plan.intro=fresh;}
-    else if(n===ATH_N){plan=[['jump',2,false],['gate',2,false]];plan.finale=true;}
-    else if(ph===3&&R()<0.75){let c=COMBOS.filter(cb=>cb.every(g=>A.includes(g))&&!recentCombo.includes(cb.join()));if(!c.length)c=COMBOS.filter(cb=>cb.every(g=>A.includes(g)));const cb=c[(R()*c.length)|0];recentCombo.push(cb.join());if(recentCombo.length>5)recentCombo.shift();
-      plan=cb[1]==='dark'||cb[1]==='wreset'?[[cb[0],strength(cb[0]),false,cb[1]]]:[[cb[0],strength(cb[0]),false],[cb[1],strength(cb[1]),false]];}
-    else if(ph===4){const k=R()<0.5?2:3;plan=[];const used=[];for(let i=0;i<k;i++){let g=pick(used);used.push(g);if(g==='color')used.push('color');if(g==='dark'||g==='wreset'){plan.push(['jump',2,false,g]);}else plan.push([g,strength(g),false]);prev=g;}}
-    else{let g=pick();if(g==='dark'||g==='wreset')plan=[['jump',strength(g),false,g]];else plan=[[g,strength(g),false]];}
-    prev=plan[0][3]||plan[0][0];for(const q of plan){recent.push(q[3]||q[0]);}while(recent.length>8)recent.shift();out.push(plan);}
+  const out=[],seen=new Set(),R=mulberry32(ATH_SEED^0x5a17),recentG=[],recentP=[],recentSig=[];
+  const COMBOS=[['ice','slime'],['move','wreset'],['branch','dark'],['color','dark'],['ice','ceiling'],['crumble','blink'],['door','crumble'],['lava','move'],['gate','crumble'],['blink','wreset'],['ladder','dark'],['maze','dark'],['blink','move'],['door','blink'],['ice','crumble']];
+  const wrapG=g=>g==='dark'||g==='wreset';
+  for(let n=1;n<=ATH_N;n++){const ph=Math.floor((n-1)/30),th=Math.min(9,Math.floor((n-1)/15));
+    const AG=Object.keys(ATH_GIM).filter(g=>g!=='jump'&&ATH_GIM[g].at<=n),AP=Object.keys(ATH_PK).filter(g=>(g!=='jump'||n<8)&&ATH_PK[g].at<=n);
+    const strength=(g,tab)=>{const age=n-tab[g].at;if(age<6||ph===0)return 0;if(ph===1)return age<15?0:1;if(ph===2)return R()<0.6?1:2;return R()<0.35?1:2;};
+    const pickFrom=(A,recent,tab,not,thW)=>{let tot=0;const w=A.map(g=>{let x=1;if(not.includes(g))x=0;const ri=recent.lastIndexOf(g);if(ri>=0)x*=0.08+0.09*(recent.length-1-ri);
+        if(thW&&tab[g].th&&tab[g].th.includes(th))x*=3;if(g==='swim'||g==='maze')x*=0.45;if(wrapG(g))x*=0.6;tot+=x;return x;});
+      let r=R()*tot;for(let i=0;i<A.length;i++)if((r-=w[i])<=0)return A[i];return A.find(g=>!not.includes(g))||A[0];};
+    const fresh=AG.find(g=>!seen.has(g));const nG=fresh?1:ph===0?1:ph===1?(R()<0.5?1:2):ph<4?2:(R()<0.5?2:3),nP=2;
+    let G=[];
+    for(let tries=0;tries<8;tries++){G=[];
+      if(fresh)G.push(fresh);
+      else if(ph===3&&R()<0.7){const c=COMBOS.filter(cb=>cb.every(g=>AG.includes(g)));const cb=c[(R()*c.length)|0];if(cb)G.push(...cb);}
+      while(G.length<nG){const g=pickFrom(AG,recentG,ATH_GIM,G,true);if(G.includes(g))break;G.push(g);}
+      var sig=G.slice().sort().join();if(fresh||!recentSig.includes(sig))break;}
+    const Pm=[];for(let i=0;i<nP;i++)Pm.push(pickFrom(AP,recentP,ATH_PK,Pm,false));
+    // put it together: move, gimmick, move, gimmick...; the wrappers (dark / water) go round a move or the next gimmick
+    const plan=[];let gi=0,pi=0;
+    const addG=g=>{const v=fresh===g?0:strength(g,ATH_GIM);if(wrapG(g)){const inner=G.find((x,k)=>k>G.indexOf(g)&&!wrapG(x));if(inner&&!plan.some(q=>q[0]===inner)){plan.push([inner,strength(inner,ATH_GIM),false,g]);G.splice(G.indexOf(inner),1);}else{const m=AP.filter(x=>x!=='jump'&&!Pm.includes(x));const mv=m.length?m[(R()*m.length)|0]:'spiral';plan.push([mv,strength(mv,ATH_PK),false,g]);}}
+      else plan.push([g,v,fresh===g]);};
+    if(fresh){plan.push([Pm[0],strength(Pm[0],ATH_PK)]);addG(fresh);if(Pm[1])plan.push([Pm[1],strength(Pm[1],ATH_PK)]);plan.intro=fresh;}
+    else{for(let k=0;k<12&&(pi<Pm.length||gi<G.length);k++){if((k%2===0&&pi<Pm.length)||gi>=G.length){const m=Pm[pi++];plan.push([m,strength(m,ATH_PK)]);}else{const g=G[gi++];if(g)addG(g);}}}
+    if(n===ATH_N){plan.length=0;plan.push(['drop',2],['spiral',2],['gate',2,false],['sprint4',2]);plan.finale=true;}
+    seen.add(fresh);for(const q of plan){if(ATH_GIM[q[0]]&&q[0]!=='jump')recentG.push(q[0]);if(q[3])recentG.push(q[3]);if(ATH_PK[q[0]])recentP.push(q[0]);}
+    while(recentG.length>14)recentG.shift();while(recentP.length>8)recentP.shift();recentSig.push(sig);if(recentSig.length>10)recentSig.shift();
+    out.push(plan);}
   return out;}
 const ATH_STYLES=['float','pillar','rim','lamp','under'];
 function athLayout(){if(ATH.L)return ATH.L;
@@ -12675,13 +12721,15 @@ function athLayout(){if(ATH.L)return ATH.L;
   }
   ATH.L=L;return L;}
 function athBlocks(n){return athLayout()[n-1].blocks;}
-function athGimName(lv){const p=lv.plan||[];if(!p.length)return'';const nm=p.map(([g,,,w])=>w?(ATH_GIM[w].name+'＋'+(g==='jump'?'ジャンプ':ATH_GIM[g].name)):ATH_GIM[g].name);
-  return(p.finale?'フィナーレ：':'')+nm.join('・')+(lv.color?'（'+lv.color+'だけ）':'');}
+function athGimName(lv){const p=lv.plan||[];if(!p.length)return'';const nm=k=>(ATH_GIM[k]&&ATH_GIM[k].name)||(ATH_PK[k]&&ATH_PK[k].name)||k;
+  const list=p.map(([g,,,w])=>w?nm(w)+'＋'+nm(g):nm(g));return(p.finale?'フィナーレ：':'')+list.join('・')+(lv.color?'（'+lv.color+'だけ）':'');}
 
 // ---- the moving parts, run only for the levels around the player
 const ATHD={clock:0,lastLv:-1};
 function athSet(x,y,z,id){if(world.getBlock(x,y,z)!==id)world.setBlock(x,y,z,id,false,true);}
 function athStandCell(){const p=player;if(!p.onGround)return null;return[Math.floor(p.pos[0]),Math.floor(p.pos[1]-0.08),Math.floor(p.pos[2])];}
+// standing on this cell, even with only part of the feet on it
+function athOnCell(x,y,z){const p=player;return p.onGround&&Math.abs(p.pos[1]-(y+1))<0.15&&p.pos[0]+0.3>x&&p.pos[0]-0.3<x+1&&p.pos[2]+0.3>z&&p.pos[2]-0.3<z+1;}
 function athInCells(cells){const p=player,x0=p.pos[0]-0.3,x1=p.pos[0]+0.3,z0=p.pos[2]-0.3,z1=p.pos[2]+0.3,y0=p.pos[1],y1=p.pos[1]+1.8;
   return cells.some(c=>c[0]+1>x0&&c[0]<x1&&c[2]+1>z0&&c[2]<z1&&c[1]+1>y0&&c[1]<y1);}
 function athDynReset(lv){for(const o of lv.dyn||[]){if(o.t==='crumble'){o.st=null;for(const c of o.cells)athSet(c[0],c[1],c[2],o.id);}if(o.t==='gate'){o.openT=0;for(const c of o.cells)athSet(c[0],c[1],c[2],o.id);for(const c of o.plate)athSet(c[0],c[1],c[2],B.ATH_PLATE);}}}
@@ -12689,13 +12737,14 @@ function athDynTick(dt){
   ATHD.clock+=dt;const t=ATHD.clock,L=athLayout(),sc=athStandCell(),p=player;
   for(let n=Math.max(1,ATH.lv-1);n<=Math.min(ATH_N,ATH.lv+1);n++){const lv=L[n-1];
     for(const o of lv.dyn||[]){
-      if(o.t==='blink'){const f=((t/o.P+o.ph)%1+1)%1,s=f<o.on-0.16?1:f<o.on?2:0;if(s===o.s)continue;o.s=s;
-        if(s===0&&athInCells(o.cells.map(c=>[c[0],c[1]+1,c[2]])))p.onGround=false;for(const c of o.cells)athSet(c[0],c[1],c[2],s===1?o.id:s===2?B.ATH_WARN:0);}
+      if(o.t==='blink'){const f=((t/o.P+o.ph)%1+1)%1,s=f<o.on-0.16?1:f<o.on?2:0;if(s===o.s)continue;if(s!==0&&o.s===0&&athInCells(o.cells))continue;o.s=s;   /* never come back inside the player */
+       
+        if(s===0&&athInCells(o.cells.map(c=>[c[0],c[1]+1,c[2]])))p.onGround=false;for(const c of o.cells)athSet(c[0],c[1],c[2],s===1?o.id:s===2?(o.warn||B.ATH_WARN):(o.off||0));}
       else if(o.t==='door'){const f=((t/o.P+o.ph)%1+1)%1,open=f<o.open;if(open===o.s)continue;if(!open&&athInCells(o.cells))continue;o.s=open;for(const c of o.cells)athSet(c[0],c[1],c[2],open?0:o.id);}
       else if(o.t==='move'){const cyc=2*(o.len*o.st+o.pause),f=((t/cyc+o.ph)%1+1)%1*cyc;let pos;
         if(f<o.pause)pos=0;else if(f<o.pause+o.len*o.st)pos=Math.floor((f-o.pause)/o.st);else if(f<2*o.pause+o.len*o.st)pos=o.len;else pos=o.len-Math.floor((f-2*o.pause-o.len*o.st)/o.st);
         pos=Math.max(0,Math.min(o.len,pos));if(pos===o.pos)continue;const old=o.pos===undefined?0:o.pos,dx=pos-old;
-        const riding=sc&&o.cells.some(c=>sc[0]===o.ox+old+c[0]&&sc[1]===o.oy&&sc[2]===o.oz+c[2]);
+        const riding=o.cells.some(c=>athOnCell(o.ox+old+c[0],o.oy,o.oz+c[2]));
         for(const c of o.cells)athSet(o.ox+old+c[0],o.oy,o.oz+c[2],0);for(const c of o.cells)athSet(o.ox+pos+c[0],o.oy,o.oz+c[2],o.id);o.pos=pos;
         if(riding)p.pos[0]+=dx;}
       else if(o.t==='crumble'){o.st=o.st||new Map();const k=sc?sc.join():null;
@@ -12723,6 +12772,416 @@ function athAmbient(dt,th){const a=ATH_AMB[th];if(!a||typeof wq!=='function')ret
   if(Math.random()>dt*a.n*4)return;const p=player.pos;
   wq({x:p[0]+(Math.random()-0.3)*18,y:p[1]+(a.vy<0?6+Math.random()*4:-3+Math.random()*3),z:p[2]+(Math.random()-0.5)*12,vx:(a.side||0.3)*(Math.random()-0.3),vy:a.vy,vz:(Math.random()-0.5)*0.4,g:0,dr:0,tile:tl,s:0.02,life:5,glow:th===8,
     fn:(q,dt2)=>{q.t+=dt2;q.x+=q.vx*dt2+Math.sin(q.t*1.7+q.z)*0.01;q.y+=q.vy*dt2;q.z+=q.vz*dt2;}});}
+
+// ================================================================ parkour mod: the 150 levels, one subject each, and the pieces they need
+// every level has its own subject (no two alike); chapters of ten: basics, ice, slime, pistons & timing, water, dark & memory,
+// special blocks, judgement, moving platforms, mazes, time limits, combinations, precision, no-checkpoint precision, finals
+Object.assign(ATH_SURF,{honey:1,soul:0.875,magma:1,trap:0.1875,plate:1});
+MODHOOK.tex.push(()=>{
+  P('ATH_FAKEFLOOR_T',(x,y,r)=>{const crack=(Math.abs(x-y-2)<1&&x>3&&x<12)||(Math.abs(x+y-17)<1&&x>6&&x<14)||(y===8&&x>1&&x<6);return nz(crack?[40,38,36]:[128,124,118],r,10);});
+  P('ATH_FAKECP_T',(x,y,r)=>{const e=x<2||y<2||x>13||y>13,c=Math.abs(x-7.5)+Math.abs(y-7.5)<5;return nz(e?[60,150,210]:c?[200,250,255]:[90,200,240],r,6);});
+  P('ATH_VINE_T',(x,y,r)=>{const s=Math.sin(y*0.8+x*0.3);const stem=Math.abs(x-4-s*1.5)<1.1||Math.abs(x-11+s*1.2)<1.1;const leaf=((x*7+y*13)%11)<4;return nz(stem?[46,96,30]:leaf?[78,150,52]:[36,70,26],r,12);});
+  P('ATH_SHOOT_T',(x,y,r)=>{const h=Math.hypot(x-7.5,y-7.5)<3;const e=x<1||y<1||x>14||y>14;return nz(h?[20,20,22]:e?[70,70,74]:[120,118,114],r,8);});
+  P('ATH_GLOW_T',(x,y,r)=>{const d=Math.hypot(x-7.5,y-7.5);return nz(d<4?[255,255,220]:[255,230,120],r,4);});
+});
+MODHOOK.items.push(()=>{
+  const A={hard:-1,inv:false,drop:null,cat:'build'};
+  mk('ATH_FAKEFLOOR','アスレのひび割れた偽の床',Object.assign({tiles:T.ATH_FAKEFLOOR_T,solid:false,opaque:false},A));
+  mk('ATH_FAKECP','アスレの偽チェックポイント',Object.assign({tiles:T.ATH_FAKECP_T,light:9,glow:true,solid:false,opaque:false},A));
+  mk('ATH_FAKE_ICE','アスレの偽の氷',Object.assign({tiles:FT[B.PACKED_ICE*6],solid:false,opaque:false},A));
+  mk('ATH_SHOOT','アスレの矢の発射台',Object.assign({tiles:T.ATH_SHOOT_T},A));
+  mk('ATH_GLOW','アスレの光る板',Object.assign({tiles:T.ATH_GLOW_T,light:13,glow:true},A));
+  const vine=mk('ATH_VINE','アスレのツタ',SH('ladder',Object.assign({tiles:T.ATH_VINE_T,icon:T.ATH_VINE_T,cutout:true,f:3},A)));CLIMB[vine]=1;
+});
+function athTrapIds(){if(athTrapIds.c)return athTrapIds.c;const b=B.OAK_TRAPDOOR,v=(BLOCKS[b]&&BLOCKS[b].vars)||[b,0];let f=0;
+  // the open trapdoor must swing to the side of the course, never across it
+  try{for(let k=0;k<4;k++){const bb=worldBoxes(v[k*2+1],0,0,0,true)[0];if(bb&&bb[3]-bb[0]>0.9){f=k;break;}}}catch(e){}
+  const w=B.ACACIA_TRAPDOOR!==undefined&&BLOCKS[B.ACACIA_TRAPDOOR].vars?BLOCKS[B.ACACIA_TRAPDOOR].vars[f*2]:v[f*2];return athTrapIds.c={on:v[f*2],off:v[f*2+1]||0,warn:w};}
+function athGateIds(){if(athGateIds.c)return athGateIds.c;const b=B.OAK_GATE,v=(BLOCKS[b]&&BLOCKS[b].vars)||[b,0,b,0];let i=0;
+  // the closed gate must stand across the course (thin along x)
+  try{for(const k of[0,2]){const bb=worldBoxes(v[k],0,0,0,true)[0];if(bb&&bb[5]-bb[2]>0.9){i=k;break;}}}catch(e){}
+  return athGateIds.c={shut:v[i],open:v[i+1]};}
+// ---- the pieces (built with the same helpers as the rest of the course)
+function athSPX(H){const{P,fill,plat,hop,wp,cz,lv,R,d,ph,pl,pil,wa,T,dyn,reg,safety,glass,SP}=H;
+  const cl=(v,a,b)=>Math.max(a,Math.min(b,v)),A=x=>[].concat(x);
+  const J=(n,m,run)=>lv.jumps.push({gx:Math.max(0,m.x0-n.x1-1),gz:Math.max(0,m.z0-n.z1-1,n.z0-m.z1-1),dyS:m.y+ATH_SURF[m.k]-(n.y+ATH_SURF[n.k]),from:n.k,to:m.k,d:Math.max(d,0.5),run:run||(n.x1-n.x0+1)});
+  const KID={honey:()=>B.HONEY_BLOCK,soul:()=>B.SOUL_SAND,magma:()=>B.MAGMA,trap:()=>athTrapIds().on};
+  // one landing placed exactly: gx blocks of gap ahead (-1 = the same column), gz to the side, dy up or down
+  const step=(n,o)=>{const k=o.k||'block',sz=k==='fence'?1:(o.w||1),gx=o.gx===undefined?1:o.gx,gz=o.gz||0;let side=o.side||1;const c=cz(n);let z0;
+    if(!gz)z0=cl(c-((sz-1)>>1),-6,6-sz);else{z0=side>0?n.z1+gz+1:n.z0-gz-sz;if(z0<-6||z0+sz-1>5){side=-side;z0=side>0?n.z1+gz+1:n.z0-gz-sz;}z0=cl(z0,-6,6-sz);}
+    const x0=n.x1+gx+1,len=o.len||(k==='ice'?Math.max(sz,2):sz),y=cl(n.y+(o.dy||0),54,84),m={x0,x1:x0+len-1,y,z0,z1:z0+sz-1,k,side};
+    plat(m.x0,m.x1,m.y,m.z0,m.z1,k,KID[k]?KID[k]():k==='ice'?B.PACKED_ICE:undefined);return m;};
+  const ceilOver=(n,m,h)=>fill(Math.min(n.x0,m.x0),Math.max(n.x1,m.x1),Math.max(n.y,m.y)+h+1,Math.max(n.y,m.y)+h+1,Math.min(n.z0,m.z0)-1,Math.max(n.z1,m.z1)+1,wa);
+  const exitAt=(x0,y,z0,w,k)=>{const n={x0,x1:x0+1,y,z0,z1:z0+(w||2)-1,k:k||'block'};plat(n.x0,n.x1,n.y,n.z0,n.z1,n.k);return n;};
+  const walls=(x0,x1,y0,y1,z0,z1)=>{fill(x0,x1,y0,y1,z0-1,z0-1,wa);fill(x0,x1,y0,y1,z1+1,z1+1,wa);};
+  // an arrow sign made of blocks, facing back down the course: s>0 points to +z (the player's right)
+  const sign=(x,y,zc,s,col)=>{const id=athB(col);for(let yy=y;yy<y+2;yy++)P(x,yy,zc,athB(T.arch));const Y=y+3;for(let i=-2;i<=1;i++)P(x,Y,zc+i*s,id);P(x,Y-1,zc+1*s,id);P(x,Y+1,zc+1*s,id);P(x,Y,zc+2*s,id);};
+  const X={
+    // ordinary jumps, every detail set by the table: width, gap, height steps, diagonal / zigzag, block kind, a low ceiling, cobwebs
+    run:(cur,v,demo,o)=>{let n=cur,side=o.side||(cz(cur)>0?-1:1);const N=o.n||4,dyA=A(o.dy||0),kA=A(o.k||'block'),gA=A(o.g===undefined?1:o.g),wA=A(o.w||2),lA=o.len?A(o.len):null,gzA=A(o.gz||0);
+      for(let i=0;i<N;i++){const k=kA[i%kA.length],m=step(n,{k,w:wA[i%wA.length],gx:gA[i%gA.length],gz:gzA[i%gzA.length],dy:dyA[i%dyA.length],side,len:lA?lA[i%lA.length]:undefined});
+        side=o.zig?-m.side:m.side;J(n,m);if(o.ceil)ceilOver(n,m,o.ceil);/* the ceiling starts over the take-off too: you never hit its edge */if(o.web&&m.x1-m.x0>=2){P(m.x0+1,m.y+1,i%2?m.z0:m.z1,B.COBWEB);P(m.x0+1,m.y+2,i%2?m.z0:m.z1,B.COBWEB);}n=m;}
+      return n;},
+    // ice, used for something different each time
+    icex:(cur,v,demo,o)=>{const t=o.t,c=cl(cz(cur),-5,4),y=cur.y,z0=cl(c-1,-6,4),z1=z0+1,ic=o.blue||t==='long'?B.BLUE_ICE:B.PACKED_ICE,x=cur.x1+1;
+      const lane=(xa,xb,yy)=>fill(xa,xb,yy,yy,z0,z1,ic);let n;
+      if(t==='straight'){const L=o.short?4:6;lane(x,x+L-1,y);lane(x+L+1,x+2*L,y);walls(x,x+2*L,y+1,y+1,z0,z1);lv.jumps.push({gx:1,gz:0,dyS:0,from:'ice',to:'ice',d,run:L});n=exitAt(x+2*L+1,y,z0);}
+      else if(t==='stop'){lane(x,x+5,y);const sx=x+6;fill(sx,sx,y,y,z0,z1,athSlab(T.slab));wp(sx,sx,y,z0,z1,'slab');walls(x,sx,y+1,y+1,z0,z1);n=exitAt(sx+3,y,z0);lv.jumps.push({gx:2,gz:0,dyS:0.5,from:'slab',to:'block',d,run:1});}
+      else if(t==='steps'){for(let i=0;i<4;i++){lane(x+3*i,x+3*i+2,y+i);wp(x+3*i,x+3*i+2,y+i,z0,z1,'ice');}n=exitAt(x+12,y+3,z0);}
+      else if(t==='down'){for(let i=0;i<4;i++){lane(x+3*i,x+3*i+2,y-i);wp(x+3*i,x+3*i+2,y-i,z0,z1,'ice');}n=exitAt(x+12,y-4,z0);lv.minY=Math.min(lv.minY,y-4);}
+      else if(t==='tunnel'){for(let i=0;i<13;i++)if(i!==4&&i!==8)lane(x+i,x+i,y);fill(x+1,x+13,y+4,y+4,z0-1,z1+1,wa);walls(x,x+12,y+1,y+3,z0,z1);
+        wp(x,x+3,y,z0,z1,'ice');wp(x+5,x+7,y,z0,z1,'ice');wp(x+9,x+12,y,z0,z1,'ice');n=exitAt(x+13,y,z0);}
+      else if(t==='long'){for(let i=0;i<3;i++){lane(x+10*i,x+10*i+7,y);wp(x+10*i,x+10*i+7,y,z0,z1,'ice');}walls(x,x+27,y+1,y+1,z0,z1);n=exitAt(x+30,y,z0);}
+      else if(t==='toslime'){lane(x,x+4,y);wp(x,x+4,y,z0,z1,'ice');fill(x+6,x+8,y-6,y-6,z0-1,z1,B.SLIME_BLOCK);lv.minY=Math.min(lv.minY,y-6);lv.jumps.push({slime:true});n=exitAt(x+11,y-3,z0);}
+      return n;},
+    // slime, each time with another job
+    slimex:(cur,v,demo,o)=>{const t=o.t,x=cur.x1+2,y=cur.y,z0=cl(cz(cur)-1,-6,3),z1=z0+2;const pad=(xa,yy,za,w)=>{fill(xa,xa+2,yy,yy,za,za+(w||3)-1,B.SLIME_BLOCK);lv.minY=Math.min(lv.minY,yy);};
+      lv.jumps.push({slime:true});let n;
+      if(t==='wall'){pad(x,y-6,z0);fill(x+3,x+4,y-6,y-3,z0-1,z1+1,wa);n={x0:x+3,x1:x+4,y:y-3,z0,z1,k:'block'};wp(n.x0,n.x1,n.y,n.z0,n.z1);n=exitAt(x+6,y-3,z0);}
+      else if(t==='chain'){const k=o.n||3;let xx=x;for(let i=0;i<k;i++){pad(xx,y-6-2*i,z0);wp(xx,xx+2,y-6-2*i,z0,z1,'slime');xx+=6;}n=exitAt(xx,y-6-2*(k-1)+2,z0);}
+      else if(t==='ceil'){pad(x,y-6,z0);fill(x+3,x+4,y,y,z0-1,z1+1,wa);n=exitAt(x+5,y-3,z0);}
+      else if(t==='side'){pad(x,y-6,z0);const s=z0<0?1:-1,ez=s>0?z1+3:z0-4;n=exitAt(x+1,y-3,cl(ez,-6,4));}
+      else if(t==='hidden'){pad(x,y-6,z0);fill(x+3,x+4,y-6,y+3,z0-1,z1+1,wa);fill(x+3,x+4,y-2,y-1,z0,z1,0);   // a hole high in the wall: only a bounce gets you in
+        wp(x+3,x+4,y-3,z0,z1);n=exitAt(x+5,y-3,z0);}
+      else if(t==='fence'){pad(x,y-6,z0);const m={x0:x+5,x1:x+5,y:y-3,z0:z0+1,z1:z0+1,k:'fence'};plat(m.x0,m.x1,m.y,m.z0,m.z1,'fence');n=step(m,{w:2,gx:1});J(m,n);}
+      return n;},
+    // platforms pushed out and pulled back from the side
+    piston:(cur,v,demo,o)=>{let n=cur;for(let i=0;i<(o.n||3);i++){const x=n.x1+2,c=cl(cz(n),-5,3),out=c<0?1:-1,cells=[[0,0,0],[1,0,0],[0,0,1],[1,0,1]];
+        dyn.push({t:'mv',cells,id:pl[1],o:[x,n.y,c],axis:2,dir:out,len:3,st:0.1,pause:1.1,ph:i*0.07});for(const q of cells)P(x+q[0],n.y,c+q[2],pl[1]);
+        const m={x0:x,x1:x+1,y:n.y,z0:c,z1:c+1,k:'block'};wp(m.x0,m.x1,m.y,m.z0,m.z1);J(n,m);n=m;}
+      const e=exitAt(n.x1+2,n.y,n.z0);if(demo)safety(cur.x1+1,e.x0-1,cur.y,-6,5,e);return e;},
+    // a platform that carries you across the course
+    sticky:(cur,v,demo,o)=>{const x=cur.x1+2,y=cur.y,za=-6,zb=3;fill(cur.x1+1,cur.x1+1,y,y,Math.min(cz(cur),za),Math.max(cz(cur),za+1),pl[0]);
+      const cells=[[0,0,0],[1,0,0],[0,0,1],[1,0,1]];dyn.push({t:'mv',cells,id:pl[1],o:[x,y,za],axis:2,dir:1,len:zb-za-1,st:0.45,pause:1.4,ph:0});for(const q of cells)P(x+q[0],y,za+q[2],pl[1]);
+      return exitAt(x+3,y,zb);},
+    // steps that go up and down: climb them while they move
+    pstairs:(cur,v,demo,o)=>{let n=cur;const N=o.n||3;for(let i=0;i<N;i++){const x=n.x1+2,c=cl(cz(n),-5,4),cells=[[0,0,0],[1,0,0],[0,0,1],[1,0,1]],y0=cur.y+i;
+        dyn.push({t:'mv',cells,id:pl[1],o:[x,y0,c],axis:1,dir:1,len:2,st:0.32,pause:0.9,ph:i*0.33});for(const q of cells)P(x+q[0],y0,c+q[2],pl[1]);
+        if(o.wall)fill(x,x+1,cur.y-1,y0+3,c+2,c+2,wa);n={x0:x,x1:x+1,y:y0+2,z0:c,z1:c+1,k:'block'};wp(n.x0,n.x1,y0,n.z0,n.z1);}
+      return exitAt(n.x1+2,n.y,n.z0);},
+    // arrows shot across the path from the wall
+    arrows:(cur,v,demo,o)=>{const N=o.n||3,c=cl(cz(cur),-3,3),x=cur.x1+2,y=cur.y,L=4+N*4,zs=c-1;fill(x,x+L-1,y,y,c,c+1,pl[0]);fill(x,x+L-1,y+1,y+3,zs,zs,wa);fill(x,x+L-1,y+1,y+3,c+3,c+3,wa);
+      for(let i=0;i<N;i++){const ax=x+3+i*4;P(ax,y+1,zs,B.ATH_SHOOT);dyn.push({t:'arrow',x:ax,y:y+1.35,z0:zs+1,z1:c+3,P:o.P||1.7,ph:i*0.31,spd:11});if(i<N-1){P(ax+2,y,c,0);P(ax+2,y,c+1,0);}}
+      wp(x,x+L-1,y,c,c+1);return exitAt(x+L+1,y,c);},
+    // a ceiling that comes down
+    crush:(cur,v,demo,o)=>{const N=o.n||3,c=cl(cz(cur),-5,4),x=cur.x1+1,y=cur.y,L=3+N*4;fill(x,x+L-1,y,y,c,c+1,pl[0]);fill(x,x+L-1,y+4,y+4,c-1,c+2,wa);walls(x,x+L-1,y+1,y+3,c,c+1);
+      for(let i=0;i<N;i++){const cx=x+2+i*4,cells=[];for(let xx=cx;xx<cx+2;xx++)for(let z=c;z<=c+1;z++)cells.push([xx,z]);dyn.push({t:'crush',cells,y,P:o.P||2.6,ph:i*0.3});for(const q of cells)P(q[0],y+3,q[1],athB(T.arch));}
+      wp(x,x+L-1,y,c,c+1);return exitAt(x+L,y,c);},
+    // a floor where some blocks are only for show (they have cracks)
+    fakefloor:(cur,v,demo,o)=>{const L=12,c=cl(cz(cur),-5,4),z0=c-1,x0=cur.x1+1,y=cur.y,path=new Set();let pz=c;
+      for(let i=0;i<L;i++){path.add(i+','+pz);if(R()<0.5){const nz2=cl(pz+(R()<0.5?-1:1),z0,z0+2);path.add(i+','+nz2);pz=nz2;}}
+      for(let i=0;i<L;i++)for(let z=z0;z<=z0+2;z++)P(x0+i,y,z,path.has(i+','+z)?pl[0]:B.ATH_FAKEFLOOR);
+      for(let i=0;i<L;i++)for(let z=z0;z<=z0+2;z++)if(path.has(i+','+z))wp(x0+i,x0+i,y,z,z);walls(x0,x0+L-1,y+1,y+2,z0,z0+2);
+      lv.minY=Math.min(lv.minY,y);return exitAt(x0+L,y,cl(pz-1,-6,4));},
+    // swim under a roof: only a few holes let you breathe
+    breath:(cur,v,demo,o)=>{const W=2,c=cl(cz(cur),-5,4),z0=c,z1=c+1,x0=cur.x1+1,L=o.short?12:18,y=cur.y;
+      fill(x0,x0+L-1,y-3,y,z0,z1,B.WATER);fill(x0,x0+L-1,y-4,y-4,z0-1,z1+1,wa);walls(x0,x0+L-1,y-3,y+3,z0,z1);fill(x0+1,x0+L-2,y+1,y+1,z0,z1,wa);
+      for(let k=5;k<L-1;k+=6){fill(x0+k,x0+k,y+1,y+1,z0,z1,0);fill(x0+k,x0+k,y+2,y+2,z0,z1,glass);}
+      reg.push({t:'breath',x0:x0+1,x1:x0+L-1,air:o.air||5.5});lv.minY=Math.min(lv.minY,y-4);return exitAt(x0+L,y,z0);},
+    // pools to climb out of, one after another
+    wjump:(cur,v,demo,o)=>{const c=cl(cz(cur),-5,4),z0=c,z1=c+1,y=cur.y;let x=cur.x1+1;
+      for(let i=0;i<(o.n||4);i++){fill(x,x+2,y-2,y-1,z0,z1,B.WATER);fill(x,x+2,y-3,y-3,z0,z1,wa);walls(x,x+3,y-2,y+2,z0,z1);P(x+3,y,z0,pl[0]);P(x+3,y,z1,pl[0]);fill(x+3,x+3,y-2,y-1,z0,z1,wa);wp(x+3,x+3,y,z0,z1);x+=4;}
+      lv.minY=Math.min(lv.minY,y-3);return exitAt(x,y,z0);},
+    // a door across a flooded channel
+    wdoor:(cur,v,demo,o)=>{const c=cl(cz(cur),-5,4),z0=c,z1=c+1,x0=cur.x1+1,L=10,y=cur.y;fill(x0,x0+L-1,y-2,y,z0,z1,B.WATER);fill(x0,x0+L-1,y-3,y-3,z0,z1,wa);walls(x0,x0+L-1,y-3,y+3,z0,z1);
+      const dx=x0+5,cells=[];for(let yy=y-2;yy<=y+2;yy++)for(let z=z0;z<=z1;z++)cells.push([dx,yy,z]);fill(dx,dx,y+3,y+3,z0,z1,athB(T.arch));
+      dyn.push({t:'door2',cells,id:athB(T.wb),oid:cells.map(q=>q[1]<=y?B.WATER:0),P:3.4,open:0.5,ph:0});lv.minY=Math.min(lv.minY,y-3);return exitAt(x0+L,y,z0);},
+    // a flooded staircase going down
+    flowdown:(cur,v,demo,o)=>{const c=cl(cz(cur),-5,4),z0=c,z1=c+1,y=cur.y,N=o.n||4;let x=cur.x1+1;
+      for(let i=0;i<N;i++){const yy=y-i;fill(x,x+2,yy-1,yy,z0,z1,B.WATER);fill(x,x+2,yy-2,yy-2,z0,z1,wa);walls(x,x+2,yy-2,yy+2,z0,z1);x+=3;}
+      lv.minY=Math.min(lv.minY,y-N-1);return exitAt(x,y-N+1,z0);},
+    // rising bubbles carry you up
+    bubble:(cur,v,demo,o)=>{const c=cl(cz(cur),-5,4),x=cur.x1+1;const n=SP.elevator(cur,1);P(x,cur.y,c,B.SOUL_SAND);dyn.push({t:'bub',x:x+0.5,z:c+0.5,y0:cur.y+1,y1:n.y+1});return n;},
+    // remember the lit tiles: the rest look the same and drop you
+    memory:(cur,v,demo,o)=>{const N=o.n||3,c=cl(cz(cur),-5,4),y=cur.y,ice=o.k==='ice',real=ice?B.PACKED_ICE:B.CONCRETE_WHITE,fake=ice?B.ATH_FAKE_ICE:B.ATH_FAKE_W;let x=cur.x1+2,last=c;const cells=[];
+      for(let i=0;i<N;i++){const rz=c-1+((R()*3)|0);for(let z=c-1;z<=c+1;z++)P(x,y,z,z===rz?real:fake);cells.push([x,y,rz]);wp(x,x,y,rz,rz);x+=2;last=rz;}
+      dyn.push({t:'mem',cells,id:real,P:o.P||5,show:0.9,gap:0.55});lv.minY=Math.min(lv.minY,y);return exitAt(x,y,cl(last,-6,4));},
+    // checkpoints that are not: the plain block beside them is the way
+    fakecp:(cur,v,demo,o)=>{let n=cur;for(let i=0;i<(o.n||2);i++){const c=cz(n),fx=n.x1+2,fz=cl(c-1,-6,4);fill(fx,fx+1,n.y,n.y,fz,fz+1,B.ATH_FAKECP);
+        const s=fz<0?1:-1,rz=s>0?fz+2:fz-1,m={x0:fx,x1:fx,y:n.y,z0:cl(rz,-6,5),z1:cl(rz,-6,5),k:'block'};plat(m.x0,m.x1,m.y,m.z0,m.z1,'block');J(n,m);n=m;}
+      lv.minY=Math.min(lv.minY,cur.y);return exitAt(n.x1+2,n.y,cl(n.z0,-6,4));},
+    // two lanes, one goes through; a sign (green tells the truth, red lies) or a lantern shows which
+    fork:(cur,v,demo,o)=>{const x=cur.x1+2,y=cur.y;fill(x,x+2,y,y,-6,5,pl[0]);const good=R()<0.5?-1:1,tw=athTrapIds();
+      const laneOf=s=>{const zmin=s<0?-6:2,zmax=s<0?-3:5;let a={x0:x,x1:x+2,y,z0:zmin,z1:zmax,k:'block'},pts=[];
+        for(let i=0;i<4;i++){const m={x0:a.x1+3,x1:a.x1+(o.lane==='ice'?5:4),y,z0:zmin+1,z1:zmin+2,k:o.lane==='ice'?'ice':'block'};pts.push(m);a=m;}return pts;};
+      const lanes={};for(const s of[-1,1])lanes[s]=laneOf(s);
+      for(const s of[-1,1]){const pts=lanes[s],ok=s===good;pts.forEach((m,i)=>{const fakeEnd=!ok&&i>=2;let id=o.lane==='ice'?B.PACKED_ICE:B.CONCRETE_WHITE;if(fakeEnd)id=o.lane==='ice'?B.ATH_FAKE_ICE:B.ATH_FAKE_W;
+        if(o.lane==='move'&&i===1){dyn.push({t:'mv',cells:[[0,0,0],[1,0,0],[0,0,1],[1,0,1]],id:B.CONCRETE_WHITE,o:[m.x0,y,m.z0],axis:0,dir:1,len:2,st:0.4,pause:1,ph:s>0?0.5:0});P(m.x0,y,m.z0,id);P(m.x0+1,y,m.z0,id);P(m.x0,y,m.z1,id);P(m.x0+1,y,m.z1,id);return;}
+        if(o.lane==='blink'&&i%2===1){const cells=[];for(let xx=m.x0;xx<=m.x1;xx++)for(let z=m.z0;z<=m.z1;z++)cells.push([xx,y,z]);dyn.push({t:'blink',cells,id,P:2.8,on:0.7,ph:i*0.25});}
+        for(let xx=m.x0;xx<=m.x1;xx++)for(let z=m.z0;z<=m.z1;z++)P(xx,y,z,id);if(o.lane==='rail')for(let xx=m.x0;xx<=m.x1;xx++)P(xx,y+1,m.z0,B.RAIL);});}
+      const xe=lanes[good][3].x1+3;fill(xe,xe+2,y,y,-6,5,pl[1]);for(const m of lanes[good]){wp(m.x0,m.x1,y,m.z0,m.z1,m.k);}
+      lv.jumps.push({gx:2,gz:0,dyS:0,from:'block',to:'block',d:0.4,run:2});
+      if(o.sign==='true')sign(x+1,y+1,good*3-(good>0?1:0),good,'CONCRETE_LIME');else if(o.sign==='lie')sign(x+1,y+1,-good*3-(good<0?1:0),-good,'CONCRETE_RED');
+      else{P(x+2,y+1,good>0?4:-5,B.LANTERN);P(lanes[good][0].x0,y+1,lanes[good][0].z0,B.LANTERN);}
+      lv.minY=Math.min(lv.minY,y);return{x0:xe,x1:xe+2,y,z0:-2,z1:1,k:'block'};},
+    // trapdoors that keep flipping open
+    trap:(cur,v,demo,o)=>{let n=cur;const tw=athTrapIds();for(let i=0;i<(o.n||5);i++){const m=step(n,{k:'trap',w:2,gx:1,side:1});J(n,m);const cells=[];for(let xx=m.x0;xx<=m.x1;xx++)for(let z=m.z0;z<=m.z1;z++)cells.push([xx,m.y,z]);
+        dyn.push({t:'blink',cells,id:tw.on,warn:tw.warn,off:tw.off,P:o.fast?2.2:3.2,on:o.fast?0.62:0.72,ph:(i%3)/3});n=m;}
+      const e=step(n,{w:2,gx:1,dy:-1});J(n,e);return e;},
+    // fence gates in walls that open and close
+    gates:(cur,v,demo,o)=>{const N=o.n||3,c=cl(cz(cur),-5,4),x0=cur.x1+1,y=cur.y,L=3+N*4,g=athGateIds();fill(x0,x0+L-1,y,y,c,c+1,pl[0]);
+      for(let k=0;k<N;k++){const gx=x0+2+k*4,cells=[];fill(gx,gx,y-1,y+4,c-2,c-1,athB(T.arch));fill(gx,gx,y-1,y+4,c+2,c+3,athB(T.arch));fill(gx,gx,y+3,y+4,c,c+1,athB(T.arch));
+        for(let yy=y+1;yy<=y+2;yy++)for(let z=c;z<=c+1;z++)cells.push([gx,yy,z]);for(const q of cells)P(q[0],q[1],q[2],g.shut);dyn.push({t:'door2',cells,id:g.shut,oid:cells.map(()=>0),P:3.0,open:0.5,ph:k*0.3,fx:'gate'});}
+      wp(x0,x0+L-1,y,c,c+1);return exitAt(x0+L,y,c);},
+    // hang on the vines and move along the wall
+    vine:(cur,v,demo,o)=>{const L=o.short?4:6,x0=cur.x1+1,y=cur.y,z=-6;fill(cur.x1+1,cur.x1+1,y,y,z,Math.max(z+1,cz(cur)),pl[0]);
+      fill(x0,x0+L+1,y-2,y+5,z-1,z-1,wa);for(let x=x0+1;x<=x0+L;x++)for(let yy=y+1;yy<=y+3;yy++)P(x,yy,z,B.ATH_VINE);
+      wp(x0,x0,y,z,z);lv.minY=Math.min(lv.minY,y-2);return exitAt(x0+L+1,y,z);},
+    // climb scaffolding towers
+    scaffold:(cur,v,demo,o)=>{let n=cur;for(let i=0;i<(o.n||4);i++){const x=n.x1+2,c=cl(cz(n)+(i%2?1:-1),-6,5);for(let yy=ATH_FY+1;yy<=n.y+1;yy++)P(x,yy,c,B.SCAFFOLD);const m={x0:x,x1:x,y:n.y+1,z0:c,z1:c,k:'block'};wp(x,x,n.y+1,c,c);J(n,m);n=m;}
+      return exitAt(n.x1+2,n.y,cl(n.z0,-6,4));},
+    // a drop you cannot climb back up
+    oneway:(cur,v,demo,o)=>{const c=cl(cz(cur),-4,3),x=cur.x1+1,y=cur.y;fill(x,x+1,y,y,c-1,c+1,pl[0]);const ly=y-4;fill(x+2,x+5,ly,ly,c-2,c+2,pl[1]);
+      for(let yy=ly+1;yy<=y+2;yy++){for(let xx=x+2;xx<=x+5;xx++){P(xx,yy,c-3,glass);P(xx,yy,c+3,glass);}}
+      wp(x+2,x+5,ly,c-2,c+2);lv.minY=Math.min(lv.minY,ly);sign(x+5,ly+1,c+3,1,'CONCRETE_YELLOW');return exitAt(x+7,ly,c);},
+    // forward, then back the way you came on another lane, then forward again
+    turn:(cur,v,demo,o)=>{const X=cur.x1+2,y=cur.y,nb=o.back||3,sd=cz(cur)>=0?1:-1,zA=sd>0?4:-6,zB=sd>0?0:-2,zC=sd>0?-4:2;const pad=(x,yy,z)=>{const m={x0:x,x1:x+1,y:yy,z0:z,z1:z+1,k:'block'};plat(m.x0,m.x1,m.y,m.z0,m.z1,'block');return m;};
+      let n=cur,a;fill(X-1,X-1,y,y,Math.min(cur.z0,zA),Math.max(cur.z1,zA+1),athB(T.edge));   // a ledge across to the first lane
+      for(let i=0;i<nb;i++){a=pad(X+3*i,y,zA);if(i)J(n,a);n=a;}
+      for(let i=0;i<nb;i++){a=pad(X+3*(nb-1)-3*i,y+1,zB);lv.jumps.push({gx:1,gz:0,dyS:i===0?1:0,from:'block',to:'block',d,run:2});n=a;}
+      const xs=n.x0;let k=0;for(let x=xs;x<=X+3*nb;x+=3){a=pad(x,y+2,zC);lv.jumps.push({gx:1,gz:0,dyS:k===0?1:0,from:'block',to:'block',d,run:2});k++;n=a;}
+      return n;},
+    // the second half is the first half seen in a mirror
+    mirror:(cur,v,demo,o)=>{const steps=[];const sd=cz(cur)>=0?1:-1;let z=sd>0?1:-2,x=cur.x1+2;const y=cur.y;for(let i=0;i<4;i++){const dz=(R()*3|0)-1;z=sd>0?cl(z+dz,0,2):cl(z+dz,-3,-1);steps.push([x,z,i%2]);x+=3;}
+      let n=cur;for(const[xx,zz,u]of steps){const m={x0:xx,x1:xx,y:y+u,z0:zz,z1:zz,k:'block'};plat(xx,xx,y+u,zz,zz,'block');J(n,m);n=m;}
+      for(const[xx,zz,u]of steps){const m={x0:xx+12,x1:xx+12,y:y+u,z0:-1-zz,z1:-1-zz,k:'block'};plat(m.x0,m.x1,m.y,m.z0,m.z1,'block');J(n,m);n=m;}
+      return exitAt(n.x1+2,n.y,cl(n.z0,-6,4));},
+    // a hidden switch round the corner makes a bridge appear
+    button:(cur,v,demo,o)=>{const c=cl(cz(cur),-4,2),x=cur.x1+1,y=cur.y;fill(x,x+3,y,y,c,c+1,pl[0]);fill(x+3,x+3,y+1,y+3,c+2,c+3,wa);   // a pillar hides the ledge
+      fill(x+1,x+2,y,y,c+3,c+3,pl[0]);P(x+2,y,c+3,B.ATH_PLATE);wp(x+1,x+2,y,c+3,c+3);wp(x+2,x+3,y,c,c+1);
+      const bx=x+4,cells=[];for(let xx=bx;xx<bx+5;xx++)for(let z=c;z<=c+1;z++)cells.push([xx,y,z]);
+      dyn.push({t:'btn',plate:[x+2,y,c+3],cells,id:B.ATH_GLOW,dur:o.dur||4});wp(bx,bx+4,y,c,c+1);return exitAt(bx+5,y,c);},
+    // lava chasing from behind
+    chase:(cur,v,demo,o)=>{const c=cl(cz(cur),-5,4),x0=cur.x1+1,y=cur.y;let n=cur;fill(x0,x0+1,y,y,c,c+1,pl[0]);n={x0,x1:x0+1,y,z0:c,z1:c+1,k:'block'};wp(x0,x0+1,y,c,c+1);
+      for(let i=0;i<6;i++){const m=step(n,{w:2,gx:i%2?2:1,gz:0});J(n,m);n=m;}
+      if(o.fork)n=X.fork(n,0,false,{sign:'true'});
+      dyn.push({t:'chase',x0:x0-1,x1:n.x0,y,z0:-6,z1:5,spd:o.spd||2.6});return n;},
+    // moving platforms with options: a low ceiling, ice, a fence post to stand on
+    movex:(cur,v,demo,o)=>{let n=cur;for(let m=0;m<(o.n||1);m++){const S=o.k==='fence'?1:(o.w||2),c=cl(cz(n)-((S-1)>>1),-6,6-S),Dst=o.len||6,st=o.st||0.4,a=n.x1+2,
+        id=o.k==='ice'?B.PACKED_ICE:o.k==='fence'?athB(T.fence):pl[1],cells=[];for(let x=0;x<S;x++)for(let z=0;z<(o.k==='fence'?1:S);z++)cells.push([x,0,z]);
+        dyn.push({t:'mv',cells,id,o:[a,n.y,c],axis:0,dir:1,len:Dst,st,pause:1.2,ph:R()});for(const q of cells)P(a+q[0],n.y,c+q[2],id);wp(a,a+S-1,n.y,c,c+(o.k==='fence'?0:S-1),o.k==='fence'?'fence':'block');
+        const e={x0:a+Dst+S+1,x1:a+Dst+S+2,y:n.y,z0:c,z1:c+1,k:'block'};if(o.ceil)fill(n.x0,e.x1,n.y+3,n.y+3,c-1,c+S,wa);plat(e.x0,e.x1,e.y,e.z0,e.z1,'block');n=e;}
+      if(demo)safety(cur.x1+1,n.x0-1,cur.y,-6,5,n);return n;},
+    // the maze, with lying signs on its walls
+    mazes:(cur,v,demo,o)=>{const n=SP.maze(cur,v,demo);const x0=cur.x1+2;for(let i=0;i<4;i++){const sx=x0+2+((R()*9)|0),sz=-5+((R()*10)|0);sign(sx,cur.y+4,sz,R()<0.5?1:-1,'CONCRETE_RED');}return n;},
+  };
+  return X;}
+// ---- wrappers: a time limit (a pad starts the clock)
+function athWX(H){const{plat,lv,dyn,wp}=H;
+  return{timer:(inner,cur,v,demo,o)=>{const x=cur.x1+2,c=Math.max(-6,Math.min(4,Math.round((cur.z0+cur.z1)/2))),y=cur.y;plat(x,x+1,y,c,c+1,'block',B.ATH_PLATE);
+    const n=inner({x0:x,x1:x+1,y,z0:c,z1:c+1,k:'block'});const dur=o.time||Math.max(5,Math.round((n.x0-x)/3.6+1.5));
+    dyn.push({t:'timer',plate:[[x,y,c],[x+1,y,c],[x,y,c+1],[x+1,y,c+1]],endX:n.x0,dur});lv.timer=dur;return n;}};}
+
+// ---- the table: subject, how it works (shown when the level starts), and what it is built from
+// steps: [piece, strength, options, wrappers]
+const ATH_TABLE=[
+ ['初跳び','足場から足場へまっすぐ跳ぼう',[['run',0,{n:5,w:3,g:1}],['run',0,{n:3,w:3,g:2}]]],
+ ['段差リズム','1段上がって1段下りる。リズムよく',[['run',0,{n:8,w:2,g:1,dy:[1,-1]}]]],
+ ['斜め渡り','斜め前の足場へ跳ぶ',[['run',0,{n:7,w:2,g:0,gz:1,zig:true}]]],
+ ['低天井','天井が低い。小さく跳ぼう',[['run',0,{n:6,w:2,g:1,ceil:2}]]],
+ ['半ブロック渡り','ハーフブロックだけの足場',[['run',0,{n:7,w:2,g:1,k:'slab'}]]],
+ ['上り階段','1段ずつ上へ',[['run',0,{n:7,w:2,g:1,dy:1}]]],
+ ['下り階段','下へ跳び下りていく',[['run',0,{n:7,w:2,g:1,dy:-1,high:64}]]],
+ ['二択ヒント','緑の矢印が正しい道',[['run',0,{n:2,w:2,g:1}],['fork',0,{sign:'true'}]]],
+ ['助走ジャンプ','走って勢いをつけてから跳ぶ（Shiftでダッシュ）',[['run',0,{n:2,w:2,g:1}],['sprint4',0]]],
+ ['基本卒業','助走・段差・斜めのまとめ',[['sprint4',0],['run',0,{n:3,w:2,g:1,dy:1}],['run',0,{n:3,w:2,g:0,gz:1,zig:true}]]],
+ ['氷直線','氷の上をすべってまっすぐ',[['icex',0,{t:'straight'}]]],
+ ['氷カーブ','氷の上で曲がる',[['ice',1]]],
+ ['氷停止','端のハーフブロックでぴたっと止まる',[['icex',0,{t:'stop'}]]],
+ ['氷段差','すべりながら段差を越える',[['icex',0,{t:'steps'}]]],
+ ['氷下り','氷の下り坂',[['icex',0,{t:'down',high:64}]]],
+ ['氷トンネル','天井の低い氷の通路。小さく跳ぶ',[['icex',0,{t:'tunnel'}]]],
+ ['氷ジグザグ','氷の足場を左右へ',[['run',0,{n:6,w:1,len:3,k:'ice',g:0,gz:1,zig:true}]]],
+ ['氷飛び石','氷の島から島へ',[['ice',2]]],
+ ['氷着地','氷から普通のブロックへ着地',[['run',0,{n:6,w:2,k:['ice','block'],len:[4,1],g:[1,2]}]]],
+ ['氷卒業','停止・カーブ・直線のまとめ',[['icex',0,{t:'stop'}],['ice',1],['icex',0,{t:'straight',short:true}]]],
+ ['スライム1段','スライムで1回跳ねる',[['slime',0,{high:64}]]],
+ ['スライム壁登り','壁ぎわのスライムで壁の上へ',[['slimex',0,{t:'wall',high:64}]]],
+ ['スライム連続','スライムからスライムへ',[['slimex',0,{t:'chain',n:3,high:68}]]],
+ ['スライム天井','天井で跳ね方が変わる',[['slimex',0,{t:'ceil',high:64}]]],
+ ['スライム着地幅','着地する足場が細い',[['slime',2,{high:64}]]],
+ ['スライム横跳び','横の足場へ跳ねる',[['slimex',0,{t:'side',high:64}]]],
+ ['スライム下り','跳ねながら下りていく',[['slime',1,{high:68}],['slime',0]]],
+ ['スライムドア','感圧板でドアを開けて進む',[['slime',0,{high:64}],['gate',0]]],
+ ['スライム隠しルート','壁の高い穴へ跳ね込む',[['slimex',0,{t:'hidden',high:64}]]],
+ ['スライム卒業','壁登り・連続・細い着地のまとめ',[['slimex',0,{t:'wall',high:66}],['slimex',0,{t:'chain',n:2,high:66}],['slime',2,{high:64}]]],
+ ['ピストン足場','出入りする足場を渡る',[['piston',0,{n:3}]]],
+ ['開閉ドア','開いた瞬間に抜ける',[['door',1]]],
+ ['粘着横移動','動く足場で横へ運ばれる',[['sticky',0,{}]]],
+ ['ピストン階段','上下する階段を登る',[['pstairs',0,{n:3}]]],
+ ['矢の通路','壁から飛ぶ矢をよけて進む',[['arrows',0,{n:3}]]],
+ ['溶岩上下床','溶岩が上がってくる前に渡る',[['lava',1]]],
+ ['ピストン天井','下りてくる天井の下を抜ける',[['crush',0,{n:3}]]],
+ ['偽床','ひびの入った床は見た目だけ',[['fakefloor',0,{}]]],
+ ['タイミング橋','出たり消えたりする橋',[['blink',1]]],
+ ['タイミング卒業','足場・ドア・矢のまとめ',[['piston',0,{n:2}],['door',0],['arrows',0,{n:2}]]],
+ ['水直線','水の中をまっすぐ泳ぐ',[['swim',0]]],
+ ['水流エレベーター','水の柱で上へ',[['elevator',0]]],
+ ['水中ゲート','水中の壁のすき間をくぐる',[['swim',1]]],
+ ['息継ぎ島','屋根の穴で息継ぎしながら進む',[['breath',0,{}]]],
+ ['水流ジャンプ','水から跳び上がって次の池へ',[['wjump',0,{n:4}]]],
+ ['水中迷路','水中の分かれ道',[['swim',2]]],
+ ['水ドア','水中のドアが開いたら通る',[['wdoor',0,{}]]],
+ ['水流下り','水の階段を下る',[['flowdown',0,{n:4,high:64}]]],
+ ['泡柱上昇','泡の柱で上る',[['bubble',0,{}]]],
+ ['水卒業','水流・息継ぎ・ゲートのまとめ',[['elevator',1],['breath',0,{short:true}],['swim',1]]],
+ ['暗所直線','明かりのない直線',[['run',0,{n:6,w:2,g:2},'dark']]],
+ ['暗所感圧板','暗い中で感圧板を探す',[['gate',0,{},'dark']]],
+ ['記憶2','光った2枚だけが本物',[['memory',0,{n:2}]]],
+ ['記憶3','光った順に3枚',[['memory',0,{n:3}]]],
+ ['偽CP','光るチェックポイントは偽物。横の足場へ',[['fakecp',0,{n:2}]]],
+ ['色板正解','正しい色だけ踏む',[['color',1]]],
+ ['暗所分岐','ランタンのある道が正解',[['fork',0,{sign:'lamp'},'dark']]],
+ ['記憶タイミング','光った板を覚えて、動く足場へ',[['memory',0,{n:2}],['movex',0,{n:1,len:5}]]],
+ ['暗所水音','暗い水路を泳ぎ抜ける',[['swim',1,{},'dark']]],
+ ['暗所卒業','暗所・記憶・分岐のまとめ',[['memory',0,{n:3},'dark'],['fork',0,{sign:'lamp'}]]],
+ ['ハチミツ減速','ハチミツは遅く、低くしか跳べない',[['run',0,{n:5,w:2,g:1,k:'honey'}]]],
+ ['クモの巣','クモの巣の中はゆっくり',[['run',0,{n:4,w:2,len:3,g:1,web:true}]]],
+ ['ソウルサンド','足を取られる砂の上を跳ぶ',[['run',0,{n:5,w:2,g:1,k:'soul'}]]],
+ ['マグマ跳ね','マグマの上に長くいると熱い。跳び続けよう',[['run',0,{n:6,w:1,len:2,g:1,k:'magma'}]]],
+ ['落下足場','乗ると落ちる足場',[['crumble',1]]],
+ ['トラップドア','開いたり閉じたりするトラップドア',[['trap',0,{n:5}]]],
+ ['フェンスゲート','ゲートが開いたらくぐる',[['gates',0,{n:3}]]],
+ ['途切れはしご','はしごからはしごへ跳び移る',[['ladder',2]]],
+ ['ツタ横移動','ツタにつかまって横へ（スニークで止まれる）',[['vine',0,{}]]],
+ ['垂直卒業','はしご・ツタ・フェンスのまとめ',[['ladder',1],['vine',0,{short:true}],['fence',0]]],
+ ['ボート氷','青い氷の長いそり道（ボートの代わり）',[['icex',0,{t:'long'}]]],
+ ['トロッコ分岐','レールの道を選ぶ。ランタンが正解',[['fork',0,{sign:'lamp',lane:'rail'}]]],
+ ['スキャフォールド','足場ブロックの塔を登る',[['scaffold',0,{n:5}]]],
+ ['看板偽情報','赤い矢印はうそ',[['fork',0,{sign:'lie'}]]],
+ ['一方通行','戻れない穴へ下りて進む',[['oneway',0,{high:64}]]],
+ ['戻りアスレ','一度進んで、戻って、また進む',[['turn',0,{}]]],
+ ['逆走','後ろへ向かって長く進む',[['turn',0,{back:5}]]],
+ ['鏡ルート','前半と左右反対のルート',[['mirror',0,{}]]],
+ ['隠しボタン','角の向こうの感圧板で橋が出る',[['button',0,{}]]],
+ ['判断卒業','偽看板と隠しボタンのまとめ',[['fork',0,{sign:'lie'}],['button',0,{dur:3.5}]]],
+ ['動く足場1','動く足場に乗る',[['movex',0,{n:1}]]],
+ ['動く足場2連','2台を乗り継ぐ',[['movex',0,{n:2,len:5}]]],
+ ['動く足場天井','天井が低い。跳ばずに乗る',[['movex',0,{n:1,ceil:true}]]],
+ ['動く足場氷','動く氷の足場',[['movex',0,{n:1,k:'ice'}]]],
+ ['動く足場水','落ちたら水。スタートへ戻る',[['movex',0,{n:2,len:5},'wreset']]],
+ ['動く足場暗所','暗い中の動く足場',[['movex',0,{n:1,len:7},'dark']]],
+ ['動く足場分岐','動く足場の分かれ道。ランタンが正解',[['fork',0,{sign:'lamp',lane:'move'}]]],
+ ['動く足場記憶','覚えた板から動く足場へ',[['memory',0,{n:3}],['movex',0,{n:1,w:1}]]],
+ ['動く足場時間','時間内に乗り継ぐ',[['movex',0,{n:2,len:4,st:0.3},'timer']]],
+ ['動く足場卒業','2連・天井・時間のまとめ',[['movex',0,{n:2,len:4,ceil:true,st:0.3},'timer']]],
+ ['二択迷路','迷路を抜ける',[['maze',0]]],
+ ['偽看板迷路','赤い看板はうそ',[['mazes',0,{}]]],
+ ['色ルート迷路','正しい色だけ進む',[['color',2]]],
+ ['一方通行戻り','下りてから戻り道へ',[['oneway',0,{high:64}],['turn',0,{}]]],
+ ['分岐タイミング','消える足場の分かれ道',[['fork',0,{sign:'true',lane:'blink'}]]],
+ ['記憶4','光った4枚',[['memory',0,{n:4}]]],
+ ['暗所迷路','暗い迷路',[['maze',2]]],
+ ['偽CP多め','偽チェックポイントだらけ',[['fakecp',0,{n:4}]]],
+ ['分岐氷','氷の分かれ道',[['fork',0,{sign:'true',lane:'ice'}]]],
+ ['判断卒業','迷路・偽CP・記憶のまとめ',[['maze',0],['fakecp',0,{n:2}],['memory',0,{n:3}]]],
+ ['閉まるドア','開いている間に通り抜ける',[['gate',1]]],
+ ['5秒制限','5秒で渡りきる',[['run',0,{n:4,w:2,g:1,time:5},'timer']]],
+ ['追いかけ溶岩','後ろから溶岩が迫る',[['chase',0,{}]]],
+ ['速度ジャンプ','走り続けて遠くへ',[['sprint4',2],['run',0,{n:3,w:2,g:3}]]],
+ ['時間ピストン','時間内にピストン足場を渡る',[['piston',0,{n:3},'timer']]],
+ ['追いかけ分岐','追われながら道を選ぶ',[['chase',0,{fork:true}]]],
+ ['時間暗所','暗い中を時間内に',[['run',0,{n:5,w:2,g:2},['timer','dark']]]],
+ ['短時間コンボ','短い技を次々と',[['run',0,{n:2,w:1,g:0,gz:1,zig:true}],['icex',0,{t:'straight',short:true}],['run',0,{n:2,w:2,k:'slab',g:2}],['sprint4',0]]],
+ ['時間水','水の中を時間内に',[['swim',1,{},'timer']]],
+ ['時間卒業','ドア・追いかけ・分岐のまとめ',[['gate',1],['chase',0,{fork:true}]]],
+ ['氷スライム','氷からスライムへ',[['icex',0,{t:'toslime',high:66}]]],
+ ['水ピストン','水の上のピストン足場',[['piston',0,{n:3},'wreset']]],
+ ['スライム低天井','スライムのあと低い天井',[['slimex',0,{t:'ceil',high:66}],['run',0,{n:3,w:2,g:1,ceil:2}]]],
+ ['氷記憶','光った氷だけが本物',[['memory',0,{n:3,k:'ice'}]]],
+ ['動く足場分岐','動く足場のあと分かれ道',[['movex',0,{n:1}],['fork',0,{sign:'true'}]]],
+ ['垂直水','水で上へ',[['elevator',2],['wjump',0,{n:2}]]],
+ ['暗所時間','暗い中の消える足場を時間内に',[['blink',1,{},['timer','dark']]]],
+ ['3ギミック','氷・スライム・ピストン',[['icex',0,{t:'straight',short:true}],['slime',0,{high:64}],['piston',0,{n:2}]]],
+ ['長コンボ','5つの技を続けて',[['run',0,{n:2,w:1,g:0,gz:1,zig:true}],['icex',0,{t:'stop'}],['slime',2,{high:64}],['piston',0,{n:1}],['door',1]]],
+ ['高難度コンボ','落ちたら水。区間のはじめへ',[['blink',2,{},'wreset'],['crumble',1,{},'wreset']]],
+ ['半ブロック斜め','ハーフブロックへ斜めに',[['run',0,{n:6,w:1,k:'slab',g:0,gz:1,zig:true}]]],
+ ['天井斜め','低い天井の下で斜めに',[['run',0,{n:6,w:1,g:0,gz:1,zig:true,ceil:3}]]],
+ ['フェンス端','フェンスの上を渡る',[['run',0,{n:6,k:'fence',g:1,len:3}]]],
+ ['トラップドア連打','速いトラップドアを続けて',[['trap',0,{n:8,fast:true}]]],
+ ['粘着壁登り','壁ぞいの上下する足場で登る',[['pstairs',0,{n:4,wall:true}]]],
+ ['水流半ブロック','水の階段からハーフブロックへ',[['flowdown',0,{n:3,high:64}],['run',0,{n:4,w:1,k:'slab',g:1}]]],
+ ['スライムフェンス','スライムからフェンスの上へ',[['slimex',0,{t:'fence',high:64}]]],
+ ['氷トラップドア','氷からトラップドアへ',[['icex',0,{t:'straight',short:true}],['trap',0,{n:4}]]],
+ ['暗所半ブロック','暗い中のハーフブロック',[['run',0,{n:6,w:1,k:'slab',g:2},'dark']]],
+ ['時間フェンス','時間内にフェンスを渡る',[['run',0,{n:5,k:'fence',g:1},'timer']]],
+ ['斜め連続','斜めジャンプだけが続く',[['run',0,{n:9,w:1,g:1,gz:1,zig:true}]]],
+ ['天井フェンス','低い天井の下のフェンス',[['run',0,{n:6,k:'fence',g:1,ceil:3}]]],
+ ['氷フェンス','氷からフェンスへ着地',[['run',0,{n:6,k:['ice','fence'],w:[2,1],len:[4,1],g:[1,1]}]]],
+ ['スライムトラップ','スライムのあとトラップドア',[['slime',0,{high:64}],['trap',0,{n:4}]]],
+ ['動くフェンス','動くフェンスの上に乗る',[['movex',0,{n:2,k:'fence',len:5}]]],
+ ['暗所トラップ','暗い中のトラップドア',[['trap',0,{n:5},'dark']]],
+ ['時間半ブロック','時間内にハーフブロック',[['run',0,{n:6,w:1,k:'slab',g:1,gz:[0,1],time:9},'timer']]],
+ ['水フェンス','水から上がってフェンスへ',[['wjump',0,{n:2}],['run',0,{n:4,k:'fence',g:1}]]],
+ ['ノーCP区間','長い精密区間（途中のCPなし）',[['run',0,{n:5,w:1,g:2}],['run',0,{n:4,k:'fence',g:1}],['run',0,{n:4,w:1,k:'slab',g:0,gz:1,zig:true}],['trap',0,{n:3}],['run',0,{n:4,w:1,g:3,dy:[0,-1]}]]],
+ ['精密卒業','ハーフブロック・フェンス・トラップドア',[['run',0,{n:4,w:1,k:'slab',g:2}],['run',0,{n:4,k:'fence',g:1}],['trap',0,{n:5,fast:true}]]],
+ ['上昇総合','とにかく上へ',[['ladder',1],['slimex',0,{t:'wall',high:64}],['elevator',1],['scaffold',0,{n:4}],['run',0,{n:4,w:1,g:1,dy:1}]]],
+ ['下降総合','とにかく下へ',[['run',0,{n:3,w:1,g:2,dy:-2,high:76}],['slime',1],['flowdown',0,{n:3,high:62}],['icex',0,{t:'down',high:62}]]],
+ ['暗所総合','暗い中のすべて',[['maze',2],['memory',0,{n:3},'dark'],['movex',0,{n:1},'dark']]],
+ ['時間総合','時間に追われるすべて',[['run',0,{n:5,w:1,g:2},'timer'],['gate',2],['chase',0,{}]]],
+ ['分岐総合','選ぶことのすべて',[['fork',0,{sign:'lie'}],['fakecp',0,{n:3}],['fork',0,{sign:'lamp',lane:'move'}]]],
+ ['氷総合','氷のすべて',[['icex',0,{t:'stop'}],['ice',1],['run',0,{n:5,w:1,len:3,k:'ice',g:0,gz:1,zig:true}],['fork',0,{sign:'true',lane:'ice'}]]],
+ ['水総合','水のすべて',[['swim',2],['breath',0,{}],['wjump',0,{n:3}],['bubble',0,{}]]],
+ ['長距離総合','遠くへ跳び続ける',[['sprint4',2],['run',0,{n:4,w:1,g:3}],['icex',0,{t:'long'}],['sprint4',2]]],
+ ['最終予選','途中のCPなしの長い予選',[['run',0,{n:4,w:1,g:0,gz:1,zig:true}],['icex',0,{t:'tunnel'}],['slimex',0,{t:'side',high:64}],['piston',0,{n:2}],['arrows',0,{n:2}],['memory',0,{n:3}],['trap',0,{n:4}],['vine',0,{}]]],
+ ['最終ボス','すべての仕掛けを新しい並びで',[['ladder',2],['crush',0,{n:2}],['fork',0,{sign:'lie',lane:'ice'}],['movex',0,{n:2,k:'fence',len:4}],['blink',2],['slimex',0,{t:'fence',high:64}],['run',0,{n:4,k:'slab',w:1,g:2},'dark'],['chase',0,{}],['gate',2]]],
+];
+function athPlans(){const out=[],seen=new Set();
+  for(let n=1;n<=ATH_N;n++){const[title,how,steps]=ATH_TABLE[n-1];const plan=[];
+    for(const[g,v,o,wr]of steps){const demo=!seen.has(g)&&['blink','crumble','move','movex','piston','door','gate'].includes(g)&&n<=60;seen.add(g);plan.push([g,v|0,demo,wr,Object.assign({},o||{})]);}
+    plan.title=title;plan.how=how;if(n===ATH_N)plan.finale=true;out.push(plan);}
+  return out;}
+function athGimName(lv){const p=lv.plan||[];return(p.finale?'フィナーレ：':'')+(p.title||'')+(lv.color?'（'+lv.color+'だけ）':'');}
+// the level's how-to appears under the telop
+{const _a=athAnnounce;athAnnounce=function(n,area){const lv=athLayout()[n-1],p=lv.plan||[];athTelop(n,[area,athGimName(lv)].filter(Boolean).join('　'));
+  if(p.how)setTimeout(()=>{if(ATH.on&&ATH.lv===n)message(p.how+(lv.timer?'（制限 '+lv.timer+' 秒）':''),4200);},2100);};}
+function athRespawn(kind){ATH.falls++;ATH.lvFalls++;const lv=athLayout()[ATH.lv-1];if(typeof athDynReset==='function')athDynReset(lv);athPut(ATH.lv);ATHD.air=null;ATHD.mag=0;
+  const M={lava:'溶岩に触れた！',water:'水に落ちた！',arrow:'矢に当たった！',crush:'天井につぶされた！',time:'時間切れ！',drown:'息が続かなかった！',burn:'マグマが熱い！'};
+  athFlash((M[kind]||'落下！')+' レベル'+ATH.lv+'のスタートへ');}
+
+// ---- the new moving parts
+{const _r=athDynReset;athDynReset=function(lv){_r(lv);for(const o of lv.dyn||[]){
+    if(o.t==='timer')o.left=0;if(o.t==='btn'){o.left=0;for(const c of o.cells)athSet(c[0],c[1],c[2],0);athSet(o.plate[0],o.plate[1],o.plate[2],B.ATH_PLATE);}
+    if(o.t==='chase'){o.on=false;if(o.lit){for(const c of o.lit)athSet(c[0],c[1],c[2],0);}o.lit=[];o.front=o.x0;}}};}
+{const _t=athDynTick;athDynTick=function(dt){const r=_t(dt);if(r)return r;return athDynTick2(dt);};}
+function athDynTick2(dt){const t=ATHD.clock,L=athLayout(),sc=athStandCell(),p=player;let hit=null;
+  for(let n=Math.max(1,ATH.lv-1);n<=Math.min(ATH_N,ATH.lv+1);n++){const lv=L[n-1],here=n===ATH.lv;
+    for(const o of lv.dyn||[]){
+      if(o.t==='mv'){const cyc=2*(o.len*o.st+o.pause),f=((t/cyc+o.ph)%1+1)%1*cyc;let pos;
+        if(f<o.pause)pos=0;else if(f<o.pause+o.len*o.st)pos=Math.floor((f-o.pause)/o.st);else if(f<2*o.pause+o.len*o.st)pos=o.len;else pos=o.len-Math.floor((f-2*o.pause-o.len*o.st)/o.st);
+        pos=Math.max(0,Math.min(o.len,pos));if(pos===o.pos)continue;const old=o.pos===undefined?0:o.pos,dd=(pos-old)*o.dir,ax=o.axis;
+        const at=(c,q)=>[o.o[0]+c[0]+(ax===0?q*o.dir:0),o.o[1]+c[1]+(ax===1?q*o.dir:0),o.o[2]+c[2]+(ax===2?q*o.dir:0)];
+        const riding=o.cells.some(c=>{const a=at(c,old);return athOnCell(a[0],a[1],a[2]);});
+        for(const c of o.cells){const a=at(c,old);athSet(a[0],a[1],a[2],0);}for(const c of o.cells){const a=at(c,pos);athSet(a[0],a[1],a[2],o.id);}o.pos=pos;
+        if(riding){p.pos[ax]+=dd;if(ax===1&&dd>0)p.vel[1]=Math.max(p.vel[1],0);}}
+      else if(o.t==='arrow'){const f=((t/o.P+o.ph)%1+1)%1*o.P,fl=(o.z1-o.z0+1)/o.spd;
+        if(f>o.P-0.35&&f<o.P-0.3&&typeof wq==='function')for(let i=0;i<4;i++)wq({x:o.x+0.5,y:o.y,z:o.z0+0.05,vx:(Math.random()-0.5)*0.6,vy:Math.random()*0.5,vz:0.6,g:0,tile:T.CONCRETE_LIGHT_GRAY||0,s:0.04,life:0.3});
+        if(f<fl){const z=o.z0+f*o.spd;if(typeof wq==='function')wq({x:o.x+0.5,y:o.y,z,vx:0,vy:0,vz:0,g:0,tile:T.OAK_PLANKS||0,s:0.06,life:0.05});
+          if(here&&Math.abs(p.pos[0]-(o.x+0.5))<0.42&&o.y>p.pos[1]-0.1&&o.y<p.pos[1]+1.9&&Math.abs(p.pos[2]-z)<0.45)hit='arrow';}}
+      else if(o.t==='crush'){const f=((t/o.P+o.ph)%1+1)%1,s=f<0.55?0:f<0.7?1:f<0.85?2:0;if(s===2&&here&&o.cells.some(c=>Math.abs(p.pos[0]-(c[0]+0.5))<0.8&&Math.abs(p.pos[2]-(c[1]+0.5))<0.8)&&p.pos[1]<o.y+3.2)hit='crush';
+        if(s===o.s)continue;o.s=s;for(const c of o.cells){athSet(c[0],o.y+3,c[1],s===1?B.ATH_WARN:athB('STONEBRICK'));athSet(c[0],o.y+2,c[1],s===2?athB('STONEBRICK'):0);athSet(c[0],o.y+1,c[1],s===2?athB('STONEBRICK'):0);}}
+      else if(o.t==='mem'){const f=(t%o.P);o.cells.forEach((c,i)=>{const on=f>=i*o.gap&&f<i*o.gap+o.show;const k=c.join();o.st=o.st||{};if(o.st[k]===on)return;o.st[k]=on;athSet(c[0],c[1],c[2],on?B.ATH_GLOW:o.id);});}
+      else if(o.t==='door2'){const f=((t/o.P+o.ph)%1+1)%1,open=f<o.open;if(open===o.s)continue;if(!open&&athInCells(o.cells))continue;o.s=open;o.cells.forEach((c,i)=>athSet(c[0],c[1],c[2],open?o.oid[i]:o.id));}
+      else if(o.t==='blink'&&o.off!==undefined){/* trapdoors: handled below */}
+      else if(o.t==='bub'){if(Math.random()<dt*20&&typeof wq==='function')wq({x:o.x+(Math.random()-0.5)*0.7,y:o.y0+Math.random(),z:o.z+(Math.random()-0.5)*0.7,vx:0,vy:2.5+Math.random(),vz:0,g:0,tile:T.CONCRETE_WHITE||0,s:0.03,life:(o.y1-o.y0)/3});}
+      else if(o.t==='btn'&&here){o.left=Math.max(0,(o.left||0)-dt);const on=sc&&sc[0]===o.plate[0]&&sc[1]===o.plate[1]&&sc[2]===o.plate[2];
+        if(on&&o.left<o.dur-0.2){if(!o.left)athFlash('橋が出た！');o.left=o.dur;}const vis=o.left>0;if(vis!==o.s){o.s=vis;for(const c of o.cells)athSet(c[0],c[1],c[2],vis?o.id:0);athSet(o.plate[0],o.plate[1],o.plate[2],vis?B.ATH_PLATE_ON:B.ATH_PLATE);}}
+      else if(o.t==='timer'&&here){const on=sc&&o.plate.some(c=>c[0]===sc[0]&&c[1]===sc[1]&&c[2]===sc[2]);if(on&&!(o.left>0)){o.left=o.dur;athFlash('スタート！ '+o.dur+' 秒');}
+        if(o.left>0){if(p.pos[0]>=o.endX){o.left=0;athFlash('セーフ！');}else{o.left-=dt;if(Math.ceil(o.left)!==o.tick){o.tick=Math.ceil(o.left);if(o.left>0)athFlash('のこり '+o.tick+' 秒');}if(o.left<=0)hit='time';}}}
+      else if(o.t==='chase'&&here){if(!o.on&&p.pos[0]>o.x0+2&&p.pos[0]<o.x1){o.on=true;o.front=o.x0-1;o.lit=[];athFlash('溶岩が来る！ 走れ！');}
+        if(o.on){const nf=o.front+o.spd*dt;if(Math.floor(nf)!==Math.floor(o.front)){const X=Math.floor(nf);for(const c of o.lit)athSet(c[0],c[1],c[2],0);o.lit=[];
+            if(X<o.x1)for(let yy=o.y+1;yy<=o.y+2;yy++)for(let z=o.z0;z<=o.z1;z++){if(!world.getBlock(X,yy,z)){athSet(X,yy,z,B.LAVA);o.lit.push([X,yy,z]);}}}
+          o.front=nf;if(Math.random()<dt*30&&typeof wq==='function')wq({x:o.front,y:o.y+1+Math.random()*2,z:-6+Math.random()*12,vx:1,vy:1.5,vz:0,g:4,tile:T.LAVA,s:0.06,life:0.6,glow:true});
+          if(p.pos[0]<o.front+0.4&&p.pos[0]>o.x0)hit='lava';if(o.front>=o.x1){o.on=false;for(const c of o.lit)athSet(c[0],c[1],c[2],0);o.lit=[];}}}
+    }}
+  if(hit)return hit;
+  // trapdoor blinking uses its own ids (on / warn / open)
+  // magma: do not stand still on it
+  const lv=L[ATH.lv-1];if(sc&&world.getBlock(sc[0],sc[1],sc[2])===B.MAGMA){ATHD.mag=(ATHD.mag||0)+dt;if(ATHD.mag>0.9){ATHD.mag=0;return'burn';}}else ATHD.mag=0;
+  // holding your breath in the roofed channel
+  let inB=null;for(const r of lv.regions||[])if(r.t==='breath'&&p.pos[0]>=r.x0&&p.pos[0]<r.x1+1)inB=r;
+  if(inB){const head=world.getBlock(Math.floor(p.pos[0]),Math.floor(p.pos[1]+1.6),Math.floor(p.pos[2]))===B.WATER;if(ATHD.air==null||!head)ATHD.air=inB.air;else{ATHD.air-=dt;const s=Math.ceil(ATHD.air);if(s!==ATHD.airS){ATHD.airS=s;if(s<=3&&s>0)athFlash('息 のこり '+s+' 秒');}if(ATHD.air<=0){ATHD.air=null;return'drown';}}}else ATHD.air=null;
+  return null;}
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
