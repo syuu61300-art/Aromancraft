@@ -649,6 +649,23 @@ const ICO_PATHS={
   fly:'<path d="M1.4 7.6L14.6 2l-3.4 12.2-3.6-4-6.2-2.6z" stroke-linejoin="round"/><path d="M7.6 10.2L14.6 2" stroke-width="1.1"/>',
   back:'<path d="M14.4 8H3.8M7.6 3.6L3.2 8l4.4 4.4" stroke-width="2.4"/>',
   pause:'<path d="M5.4 3v10M10.6 3v10" stroke-width="2.6"/>',
+  flag:'<path d="M3.5 14.5V1.8"/><path d="M3.5 2.4h8.4l-2.2 2.8 2.2 2.8H3.5" fill="currentColor" fill-opacity=".35"/>',
+  tower:'<path d="M5 14.5V5.5h6v9M4 5.5h8M5 5.5V3.4h1.4v2M7.3 5.5V3.4h1.4v2M9.6 5.5V3.4H11v2M3 14.5h10"/><path d="M7 14.5v-3h2v3M6.6 8.2h2.8" stroke-width="1.2"/>',
+  inf:'<path d="M8 8C6.4 5.8 5.2 4.8 3.8 4.8a3.2 3.2 0 0 0 0 6.4C5.2 11.2 6.4 10.2 8 8s2.8-3.2 4.2-3.2a3.2 3.2 0 0 1 0 6.4C10.8 11.2 9.6 10.2 8 8z"/>',
+  maze:'<rect x="1.8" y="1.8" width="12.4" height="12.4" rx="1"/><path d="M1.8 5.4h8.4M5.6 5.4v4.8h4.6M13.6 8H9.2" stroke-width="1.3"/>',
+  race:'<path d="M3 14.5V2"/><path d="M3 2.4h10v7H3z"/><path d="M3 2.4h2.5v2.3H3zM8 2.4h2.5v2.3H8zM5.5 4.7H8V7H5.5zM10.5 4.7H13V7h-2.5zM3 7h2.5v2.4H3zM8 7h2.5v2.4H8z" fill="currentColor" stroke="none"/>',
+  ghost:'<path d="M3.4 14.2V7a4.6 4.6 0 0 1 9.2 0v7.2L11 12.8l-1.5 1.4L8 12.8l-1.5 1.4L5 12.8z"/><circle cx="6.3" cy="7" r=".9" fill="currentColor"/><circle cx="9.7" cy="7" r=".9" fill="currentColor"/>',
+  star:'<path d="M8 1.6l1.9 4 4.4.5-3.3 3 .9 4.3L8 11.2l-3.9 2.2.9-4.3-3.3-3 4.4-.5z"/>',
+  starF:'<path d="M8 1.6l1.9 4 4.4.5-3.3 3 .9 4.3L8 11.2l-3.9 2.2.9-4.3-3.3-3 4.4-.5z" fill="currentColor"/>',
+  scroll:'<path d="M4 2.5h8.2a1.6 1.6 0 0 1 0 3.2H12v7.2a1.6 1.6 0 0 1-1.6 1.6H3.8a1.6 1.6 0 0 1 0-3.2H4z"/><path d="M6.2 6h4M6.2 8.4h4" stroke-width="1.1"/>',
+  crown:'<path d="M2 12.5h12L13 5l-3 3-2-4-2 4-3-3z"/>',
+  light:'<path d="M6 14.5l.8-9h2.4l.8 9M5.6 5.5h4.8M6.4 5.5V3.6L8 2.4l1.6 1.2v1.9M4 14.5h8"/><path d="M10.8 3.4l3-1M10.8 4.6l3 .8" stroke-width="1.1"/>',
+  key:'<circle cx="5" cy="8" r="2.8"/><path d="M7.8 8h6.4M12.2 8v2.4M10.4 8v1.8"/>',
+  lever:'<path d="M3 13.5h10M5 13.5v-2h6v2M8 11.5L11.5 4"/><circle cx="11.8" cy="3.6" r="1.4" fill="currentColor"/>',
+  medal:'<circle cx="8" cy="10" r="4"/><path d="M5.6 6.8L4 1.6h3l1 3M10.4 6.8L12 1.6H9L8 4.6"/><circle cx="8" cy="10" r="1.6" fill="currentColor"/>',
+  play:'<path d="M5 3l8 5-8 5z" fill="currentColor"/>',
+  lock:'<rect x="3.2" y="7" width="9.6" height="7.4" rx="1.2"/><path d="M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2"/>',
+  heart:'<path d="M8 13.8S2 10 2 5.8A3 3 0 0 1 8 4.4a3 3 0 0 1 6 1.4C14 10 8 13.8 8 13.8z"/>',
   potion:'<path d="M6 1.4h4M6.8 1.4v4.2L2.8 12.8c-.5 1 .2 2 1.2 2h8c1 0 1.7-1 1.2-2L9.2 5.6V1.4"/><path d="M4.3 10.2h7.4" stroke-width="1.1"/><path d="M4 12.6l.9-1.8h6.2l.9 1.8c.2.5-.1 1-.6 1H4.6c-.5 0-.8-.5-.6-1z" fill="currentColor" fill-opacity=".5" stroke="none"/>',
 };
 // the compass needle points in eight directions: dir0 … dir7, every 45° clockwise from straight ahead
@@ -8802,7 +8819,7 @@ function tickHpBars(dt){
   if(!HPC.cv){if(!on)return;const c=document.createElement('canvas');c.id='hpfx';c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:3';document.body.appendChild(c);HPC.cv=c;HPC.g=c.getContext('2d');}
   const c=HPC.cv,g=HPC.g;if(c.width!==innerWidth||c.height!==innerHeight){c.width=innerWidth;c.height=innerHeight;}g.clearRect(0,0,c.width,c.height);if(!on){POPS.length=0;return;}
   const e=eyePos([0,0,0]);
-  for(const m of mobs){if(m.deathT>0||m.def.boat||m.type==='crystal'||(m.def.horror&&!(m.hpShowT>0)))continue;m.hpShowT=Math.max(0,(m.hpShowT||0)-dt);
+  for(const m of mobs){if(m.deathT>0||m.def.boat||m.type==='crystal'||m.stNpc||(m.def.horror&&!(m.hpShowT>0)))continue;m.hpShowT=Math.max(0,(m.hpShowT||0)-dt);
     const d=Math.hypot(m.pos[0]-e[0],m.pos[1]-e[1],m.pos[2]-e[2]);if(d>(m.hpShowT>0?28:12))continue;
     const p=projectP(m.pos[0],m.pos[1]+m.hh+0.35,m.pos[2]);if(!p)continue;const max=m.maxHp||m.def.hp,f=clamp(m.hp/max,0,1);
     const w=Math.max(26,Math.min(70,520/p[2])),h=Math.max(4,w*0.11),x=p[0]-w/2,y=p[1]-h;
@@ -12274,7 +12291,7 @@ function buildArenaInterior(){
 // level 1 is easy, level 50 normal, and from level 100 it gets properly hard. Every 15 levels the scenery changes.
 const ATH_N=150,ATH_SEED=771120,ATH_FY=44,ATH_WTOP=92,ATH_ROOM=[-208,100,-8];   // floor height, wall top, clear room corner
 const ATH={on:false,lv:1,t:0,falls:0,done:false,L:null,cache:new Map(),hud:null,saveT:0,shownStart:false,rules:null,lvT:0,lvFalls:0};
-XMOD_LIST.push(['athletic','アスレMOD','オンにすると専用マップに移動して、だんだん難しくなる全150レベルのアスレに挑戦します（レベル1はかんたん、50でふつう、100から本格的に難しくなります）']);
+// (アスレMOD is now the first mode of the parkour pack: see 89za_pkcore.js)
 if(settings.mod&&settings.mod.x)settings.mod.x.athletic=false;   // never starts by itself when the page opens
 
 // ---- the ten sceneries, 15 levels each
@@ -12389,7 +12406,7 @@ function athStart(){
   try{if(world&&curWorldId&&state!=='title'&&!(world.arena||world.parkour))saveGame();}catch(e){}
   try{if(typeof MP!=='undefined'&&MP.active&&typeof mpLeave==='function')mpLeave(true);}catch(e){}
   ATH.on=true;ATH.rules=Object.assign({},gameRules);Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:false,keepInventory:true,mobGriefing:false});
-  curWorldId=null;newWorld(ATH_SEED);world.parkour=true;mode='creative';if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;weather.thunder=0;}
+  curWorldId=null;newWorld(ATH_SEED);world.parkour=true;mode='creative';Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:false,keepInventory:true,mobGriefing:false});if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;weather.thunder=0;}
   const P=athLoadP();ATH.lv=P.lv;ATH.t=P.t;ATH.falls=P.falls;ATH.done=false;ATH.shownStart=false;ATH.lvT=0;ATH.lvFalls=0;
   resetPlayer();for(let i=0;i<inv.length;i++)inv[i]=null;athPut(ATH.lv);
   document.body.classList.add('ath-on');athUI();
@@ -12464,9 +12481,6 @@ function athTelop(n,sub){const u=ATH.hud;if(!u)return;const e=u.telop;e.classLis
   e.innerHTML=n?`レベル ${n}${sub?`<small>${sub}</small>`:''}`:`ゴール！<small>全${ATH_N}レベル クリア</small>`;e.classList.add('go');}
 function athFlash(t){const u=ATH.hud;if(!u)return;u.flash.textContent=t;u.flash.style.opacity=1;clearTimeout(ATH.flT);ATH.flT=setTimeout(()=>{u.flash.style.opacity=0;},1300);}
 function athDifName(d){return d<0.2?['かんたん','#9cf08a']:d<0.45?['ふつう','#8fd2ff']:d<0.62?['むずかしい','#ffc46b']:['超むずかしい','#ff8a7a'];}
-// アスレMOD exists only while MOD is switched on
-function athModOn(){const M=settings.mod;return!!(M&&M.unlocked&&M.on);}
-XMOD_CHANGE.athletic=on=>{if(on){if(!athModOn()){settings.mod.x.athletic=false;saveSettings();if(typeof syncXmod==='function')syncXmod();toast('アスレMODはMODをオンにすると使えます');return;}athStart();}else athStop();};
 XMOD_TICK.push(dt=>{
   if(!ATH.on){if(ATH.hud&&!ATH.hidBtns){ATH.hidBtns=true;for(const id of['btn-ath-restart','btn-ath-quit']){const b=document.getElementById(id);if(b)b.style.display='none';}
       const m=document.getElementById('btn-open-mp');if(m)m.style.display='';}return;}
@@ -12498,21 +12512,8 @@ if(typeof toggleFly==='function'){const _tf=toggleFly;toggleFly=function(){if(wo
 if(typeof execCommand==='function'){const _ec=execCommand;execCommand=function(){if(world&&world.parkour&&ATH.on){toast('アスレ中はコマンドを使えません');return;}return _ec.apply(this,arguments);};}
 if(typeof saveGame==='function'){const _sg=saveGame;saveGame=function(){if(world&&world.parkour){athSaveP();return;}return _sg.apply(this,arguments);};}
 if(typeof quitToTitle==='function'){const _qt=quitToTitle;quitToTitle=function(){const was=ATH.on;const r=_qt.apply(this,arguments);if(was)athCleanup();return r;};}
-// ---- no button on the title screen: アスレMOD shows only in the Mod screen, and only while MOD is on
-(function athEntry(){
-  // the Mod list may have been drawn before this mod joined it: draw it again so that アスレMOD is in it
-  {const host=document.getElementById('xmod-rows');if(host&&!document.getElementById('x-athletic-on')&&typeof buildXmodRows==='function'){host.innerHTML='';buildXmodRows();}}
-  {const old=document.getElementById('btn-athletic');if(old)old.remove();}
-  const placeRow=()=>{const on=document.getElementById('x-athletic-on'),row=on&&on.closest('.setrow2');if(!row)return;
-    const head=document.querySelector('#modscreen .modhead');
-    if(head&&!row.dataset.top){row.dataset.top='1';row.style.cssText='border:2px solid #d6b24a;border-radius:8px;padding:6px 8px;background:rgba(214,178,74,.12);margin:4px 0 10px';head.parentNode.insertBefore(row,head.nextSibling);}
-    row.style.display=athModOn()?'':'none';
-    const x=settings.mod.x||{};on.classList.toggle('on',!!x.athletic);document.getElementById('x-athletic-off').classList.toggle('on',!x.athletic);};
-  if(typeof syncXmod==='function'){const _sx=syncXmod;syncXmod=function(){const r=_sx.apply(this,arguments);try{placeRow();}catch(e){}return r;};}
-  // MOD switched off (or locked) during a run: leave the parkour map
-  for(const id of['m-off','mod-lock']){const b=document.getElementById(id);if(b)b.addEventListener('click',()=>{if(ATH.on&&!athModOn()){settings.mod.x.athletic=false;saveSettings();athStop();}});}
-  try{placeRow();}catch(e){}
-})();
+// ---- no button on the title screen: the 150 levels are played from the card of アスレMOD in the Mod screen
+{const old=document.getElementById('btn-athletic');if(old)old.remove();}
 
 // ================================================================ アスレ: the course — gimmicks in three strengths, laid out in five phases
 // Phases of 30 levels: 1 導入 (wide platforms, one gimmick at a time, each shown first in a safe version) · 2 応用 (narrower,
@@ -14327,7 +14328,7 @@ function seaSnowSet(){const w=worlds&&worlds[0]||world;if(!w)return null;return 
 function seaUnsnow(){const S=seaSnowSet();if(!S||!S.size)return;for(const k of S){const[x,y,z]=k.split(',').map(Number),id=world.getBlock(x,y,z);if(id===B.SNOW_LAYER)world.setBlock(x,y,z,0,true,true);else if(id===B.ICE)world.setBlock(x,y,z,B.WATER,true,true);}S.clear();}
 {const _ser=serializeSave;serializeSave=function(){const s=_ser.apply(this,arguments);const W0=worlds[0]||world;if(W0&&W0.wpSnow&&W0.wpSnow.size)s.wpSnow=[...W0.wpSnow].slice(0,6000);return s;};}
 {const _load=loadSaveInto;loadSaveInto=function(s){const r=_load.apply(this,arguments);try{const W0=worlds[0]||world;if(W0&&Array.isArray(s.wpSnow))W0.wpSnow=new Set(s.wpSnow.filter(k=>typeof k==='string'));}catch(e){}return r;};}
-function seaTick(dt){if(curDim!==0||(world&&world.wtype==='under')){seaBadge(null);return;}
+function seaTick(dt){if(curDim!==0||(world&&(world.wtype==='under'||world.parkour||world.pk||world.story))){seaBadge(null);if(world&&(world.parkour||world.pk||world.story)&&SEA_S.cur>=0){seaApply(-1);SEA_S.cur=-1;}return;}
   const si=seaIndex(),look=wpOpt('season','look')==='on';
   if(si!==SEA_S.cur||look!==SEA_S.look){if(SEA_S.cur>=0&&si!==SEA_S.cur&&look)wpTelop(SEASONS[si].name+'になった',SEASONS[si].col);SEA_S.cur=si;SEA_S.look=look;seaApply(look?si:-1);
     // winter: every land is snowy (the rain falls as snow)
@@ -14432,6 +14433,1276 @@ function dexRender(){const D=dexData(),body=document.getElementById('dex-body');
   body.innerHTML=h;document.getElementById('dex-prog').textContent=`${n} / ${DEX.length} 種`;}
 // the button goes away when the book is switched off
 XMOD_TICK.push(dt=>{if(!wpMOn('dex')){const b=document.getElementById('t-dex');if(b)b.style.display='none';for(const[type]of DEX)if(MOB[type])delete MOB[type].tame;}});
+
+// ================================================================ アスレMOD（統合版） — six kinds of parkour in one pack
+// One section in the Mod screen, laid out like the Real Mod: a switch for the whole pack, then a card for each mode
+// with its own settings, its records and its play button. Every mode has a map of its own (made fresh each time,
+// never saved as a world), its own look and its own rules; all of them share the HUD, the pause buttons and the
+// rules of parkour (no building, no flying, no commands, no damage).
+const PK={list:[],by:{},on:false,id:null,M:null,hud:null,rules:null,st:{},t:0};
+const PKX={next:null};
+function pkDef(o){o.opts=o.opts||[];PK.list.push(o);PK.by[o.id]=o;return o;}
+function pkS(){let s=settings.pk;if(!s||typeof s!=='object')s=settings.pk={on:true,m:{}};if(!s.m||typeof s.m!=='object')s.m={};return s;}
+// the pack works only while the Mod screen is unlocked and the pack is switched on
+function pkOn(){const M=settings.mod;return!!(M&&M.unlocked&&pkS().on);}
+function pkOpt(id,k){const T=PK.by[id],m=pkS().m[id],o=T&&T.opts.find(o=>o.k===k);return m&&m[k]!==undefined?m[k]:o?o.def:undefined;}
+// records (best times, ghosts, wins, the floor you reached) live in their own place, apart from the settings
+function pkRec(){try{const o=JSON.parse(localStorage.getItem('aro_pk')||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+function pkRecPut(fn){const o=pkRec();try{fn(o);localStorage.setItem('aro_pk',JSON.stringify(o));}catch(e){console.warn(e);}}
+function pkFmt(t){if(t===null||t===undefined||!(t>=0))return'--:--.-';const m=Math.floor(t/60),s=t-m*60;return m+':'+s.toFixed(1).padStart(4,'0');}
+// the 150-level course of before now belongs to this pack
+function athModOn(){return pkOn();}
+
+// ---------------------------------------------------------------- two more looks for people: your own ghost and the rival
+const SKIN_GHOST=SKINS.push({name:'ゴースト',skin:[206,232,255],hair:[156,206,255],eye:[40,110,255],shirt:[140,196,255],shirt2:[230,244,255],pants:[110,160,232],shoe:[206,232,255],style:'tee'})-1;
+const SKIN_RIVAL=SKINS.push({name:'ライバル',skin:[232,190,150],hair:[44,34,34],eye:[255,200,40],shirt:[220,46,46],shirt2:[255,255,255],pants:[40,40,52],shoe:[250,250,250],style:'hoodie'})-1;
+
+// ---------------------------------------------------------------- the map of a mode
+World.prototype.pk=null;
+{const _nw=newWorld;newWorld=function(seed){const t=PKX.next;PKX.next=null;World.prototype.pk=t;
+  try{return _nw.apply(this,arguments);}finally{World.prototype.pk=null;if(world)world.pk=t;}};}
+{const _gen=World.prototype.generate;World.prototype.generate=function(c){const M=this.pk&&PK.by[this.pk];if(!M||!M.gen||this.dim!==0)return _gen.apply(this,arguments);
+  const BL=c.blocks;BL.fill(0);M.gen(this,c);c.spawns=[];
+  const ed=this.edits.get(ckey(c.cx,c.cz));if(ed)for(const[i,id]of ed)BL[i]=id;this.finalize(c);};}
+// blocks of a course sorted by chunk, so each chunk only looks at its own
+function pkIndex(blocks,idx){idx=idx||new Map();for(let i=0;i<blocks.length;i+=4){const k=ckey(blocks[i]>>4,blocks[i+2]>>4);let a=idx.get(k);if(!a)idx.set(k,a=[]);a.push(blocks[i],blocks[i+1],blocks[i+2],blocks[i+3]);}return idx;}
+function pkPutIdx(c,idx){const a=idx&&idx.get(ckey(c.cx,c.cz));if(!a)return;const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+  for(let i=0;i<a.length;i+=4){const y=a[i+1];if(y>=0&&y<H)BL[bidx(a[i]-bx,y,a[i+2]-bz)]=a[i+3];}}
+function pkSet(c,wx,y,wz,id){const x=wx-c.cx*16,z=wz-c.cz*16;if(x<0||x>15||z<0||z>15||y<0||y>=H)return;c.blocks[bidx(x,y,z)]=id;}
+
+// ---------------------------------------------------------------- going in and coming out
+function pkEnter(id,seed){const M=PK.by[id];if(!M)return false;
+  if(typeof ATH!=='undefined'&&ATH.on)athCleanup();
+  if(typeof ST!=='undefined'&&ST.on&&typeof stCleanup==='function')stCleanup(true);
+  if(PK.on)pkCleanup(true);
+  try{if(world&&curWorldId&&state!=='title'&&!(world.arena||world.parkour||world.pk||world.story))saveGame();}catch(e){}
+  try{if(typeof MP!=='undefined'&&MP.active&&typeof mpLeave==='function')mpLeave(true);}catch(e){}
+  PK.on=true;PK.id=id;PK.M=M;PK.st={};PK.t=0;PKG.figs.length=0;
+  PK.rules=Object.assign({},gameRules);Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:false,keepInventory:true,mobGriefing:false});
+  curWorldId=null;PKX.next=id;newWorld(seed|0);world.parkour=true;mode='creative';
+  Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:false,keepInventory:true,mobGriefing:false});   // (a new world resets the rules)
+  if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;weather.thunder=0;}
+  resetPlayer();for(let i=0;i<inv.length;i++)inv[i]=null;if(typeof invChanged==='function')invChanged();
+  document.body.classList.add('pk-on');pkUI();PK.hud.res.style.display='none';PK.hud.big.textContent='';
+  return true;}
+function pkCleanup(keep){if(!PK.on)return;const M=PK.M;try{if(M&&M.stop)M.stop();}catch(e){console.warn(e);}
+  PK.on=false;PK.id=null;PK.M=null;PKG.figs.length=0;pkPlates();
+  if(PK.rules){Object.assign(gameRules,PK.rules);PK.rules=null;}
+  document.body.classList.remove('pk-on');if(PK.hud){PK.hud.root.style.display='none';PK.hud.res.style.display='none';}
+  if(state==='overlay'&&OVL.id==='pk-res'){state='title';OVL.id=null;}
+  if(!keep&&world&&world.pk){try{const w=typeof worldsList==='function'&&worldsList().find(v=>!v.friend);newWorld(w?w.seed|0:seedFromString(''));titleCam.x=spawnPoint[0];titleCam.z=spawnPoint[2];titleCam.y=Math.max(spawnPoint[1]+18,SEA+30);}catch(e){console.warn(e);}}
+  resetPlayer();mode='survival';}
+function pkStop(){if(!PK.on)return;if(state==='title'||state==='loading'){pkCleanup();showScreen('title');return;}quitToTitle();}
+{const _qt=quitToTitle;quitToTitle=function(){const was=PK.on;const r=_qt.apply(this,arguments);if(was)pkCleanup();return r;};}
+{const _sg=saveGame;saveGame=function(){if(world&&world.pk)return;return _sg.apply(this,arguments);};}
+{const _ec=execCommand;execCommand=function(){if(PK.on){toast('アスレ中はコマンドを使えません');return;}return _ec.apply(this,arguments);};}
+// start a mode from its card (from the title, or from inside another world)
+function pkPlay(id,arg){const M=PK.by[id];if(!M)return;
+  if(!pkOn()){toast('アスレMODをオンにすると遊べます');return;}
+  const go=()=>{try{if(PK.on&&state!=='title')pkCleanup(true);M.play(arg);}catch(e){console.error(e);toast('はじめられませんでした');}};
+  if(state!=='title'&&typeof quitToTitle==='function'){quitToTitle();setTimeout(go,60);}else go();}
+// put the player somewhere, looking along +x unless told otherwise
+function pkPut(pos,yaw){const p=player;p.pos=pos.slice();p.vel=[0,0,0];p.yaw=yaw===undefined?Math.PI/2:yaw;p.pitch=-0.12;p.fall=0;p.flying=false;spawnPoint=p.pos.slice();}
+function pkFreeze(on){PK.frozen=!!on;PK.frozenAt=on?player.pos.slice():null;}
+function pkResHTML(title,big,rows,col){return`<div style="font-size:14px;letter-spacing:.2em;color:${col||'#bfe6ff'}">${icoHTML(title)}</div><h2>${icoHTML(big)}</h2><table>${rows.map(r=>`<tr><td>${icoHTML(r[0])}</td><td>${icoHTML(String(r[1]))}</td></tr>`).join('')}</table>`;}
+
+// ---------------------------------------------------------------- courses made of the parkour pieces of the 150 levels
+// a course is a row of "levels" along +x: each starts on its checkpoint platform, the last one is the goal
+const PK_STYLES=['float','rim','lamp','under'];
+function pkStep(row){return row.map(([g,v,o,wr])=>[g,v|0,false,wr,Object.assign({},o||{})]);}
+function pkSeg(lvn,th,steps,extra){const plan=pkStep(steps);if(extra&&extra.title)plan.title=extra.title;if(extra&&extra.how)plan.how=extra.how;
+  const d=extra&&extra.d!==undefined?extra.d:athDiff(lvn);return Object.assign({th,d,ph:Math.min(4,Math.floor((lvn-1)/30)),plan},extra||{},{plan});}
+// one level at the cursor {x,y,z}: its checkpoint, then its plan; the cursor moves on to where the next one starts
+function pkLvBuild(cur,sg,n,seed){const R=mulberry32((seed|0)+n*7919+11);
+  const zc=Math.max(-3,Math.min(2,cur.z|0)),cp={x0:cur.x,x1:cur.x+4,y:cur.y,z0:zc-3,z1:zc+3,k:'cp'};
+  const lv={n,d:sg.d,th:sg.th,ph:sg.ph,cp,minY:cur.y,jumps:[],style:sg.style||PK_STYLES[(R()*PK_STYLES.length)|0],plan:n>ATH_N?[]:(sg.plan||[]),title:sg.title};
+  const c=athBuild(lv,R,lv.plan);
+  let xmin=1e9,xmax=-1e9;for(let k=0;k<lv.blocks.length;k+=4){const bx=lv.blocks[k];if(bx<xmin)xmin=bx;if(bx>xmax)xmax=bx;}lv.xmin=xmin-1;lv.xmax=xmax+1;
+  if(c){const dy=c.y>70?-1:c.y<58?1:0,ny=c.y+dy,dyS=ny+1-(c.y+ATH_SURF[c.k]),g=Math.max(1,Math.min(2,Math.floor(athMaxGap(Math.min(sg.d,0.4),dyS,c.k,'block',c.x1-c.x0+1))));
+    lv.jumps.push({gx:g,gz:0,dyS,from:c.k,to:'cp',d:Math.min(sg.d,0.4),run:c.x1-c.x0+1});cur.x=c.x1+g+1;cur.y=ny;cur.z=Math.round((c.z0+c.z1)/2);}
+  return lv;}
+function pkCourse(o){const L=[],cur={x:o.x|0,y:o.y||62,z:0};
+  o.segs.forEach((sg,i)=>L.push(pkLvBuild(cur,sg,(o.n0||1)+i,o.seed)));
+  L.push(pkLvBuild(cur,o.segs[o.segs.length-1],ATH_N+1,o.seed));
+  return L;}
+function pkCpPos(lv){const cp=lv.cp;return[cp.x0+2.5,cp.y+1.02,(cp.z0+cp.z1+1)/2];}
+function pkOnCp(cp){const p=player;return p.onGround&&p.pos[0]>=cp.x0&&p.pos[0]<cp.x1+1&&p.pos[2]>=cp.z0&&p.pos[2]<cp.z1+1&&Math.abs(p.pos[1]-(cp.y+1))<0.3;}
+// the moving parts of the 150 levels work on any course: give them the level you are on and its two neighbours
+const PK_NODYN={dyn:[],regions:[],minY:0};
+function pkDyn(L,i,dt){const w=[L[i-1]||PK_NODYN,L[i]||PK_NODYN,L[i+1]||PK_NODYN],sL=ATH.L,sv=ATH.lv;ATH.L=w;ATH.lv=2;
+  try{return athDynTick(dt);}catch(e){console.warn(e);return null;}finally{ATH.L=sL;ATH.lv=sv;}}
+function pkDynReset(lv){if(lv&&lv.dyn){try{athDynReset(lv);}catch(e){}}ATHD.air=null;ATHD.mag=0;}
+// the course runner: the moving parts, the next checkpoint, falling and touching what sends you back
+function pkRunCourse(C,dt){const L=C.L,lv=L[C.i],p=player;if(!lv)return null;
+  const hit=pkDyn(L,C.i,dt);if(hit)return{ev:'hit',kind:hit};
+  const nx=L[C.i+1];if(nx&&pkOnCp(nx.cp))return{ev:nx.n>ATH_N?'goal':'cp'};
+  if(p.pos[1]<Math.min(lv.minY,nx?nx.minY:lv.minY)-4)return{ev:'hit',kind:'fall'};
+  if(typeof athAmbient==='function')athAmbient(dt,lv.th);
+  return null;}
+const PK_HIT={lava:'溶岩に触れた！',water:'水に落ちた！',arrow:'矢に当たった！',crush:'天井につぶされた！',time:'時間切れ！',drown:'息が続かなかった！',burn:'マグマが熱い！',fall:'落下！'};
+// the course's own scenery under it: the floor and the things that grow on it, in the look of each level
+function pkCourseGround(c,L,fy,zr){const bx=c.cx*16,bz=c.cz*16;
+  for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z;if(wz<-zr||wz>zr)continue;
+    let lv=null;for(const l of L)if(wx>=l.cp.x0-14&&wx<=l.xmax+14){lv=l;if(wx<=l.xmax)break;}if(!lv)continue;
+    const T=ATH_TH[lv.th],cs=(y,id)=>{if(y>=0&&y<H)c.blocks[bidx(x,y,z)]=id;};
+    const edge=Math.abs(wz)>zr-2||wx<L[0].cp.x0-12||wx>L[L.length-1].xmax+12;
+    if(T.base){for(let y=fy-4;y<fy;y++)cs(y,athB(T.base));cs(fy,edge&&(T.floor==='WATER'||T.floor==='LAVA')?athB(T.base):athB(T.floor));if(T.floor==='WATER'||T.floor==='LAVA')cs(fy-1,athB(T.base));}
+    else{if(hash3(wx>>2,0,wz>>2,733)<0.35)cs(fy-6,B.WOOL_W);}
+    if(!edge)athDeco(T,wx,wz,(y,id)=>cs(y-ATH_FY+fy,id));}}
+
+// ---------------------------------------------------------------- your ghost and the rival: people drawn by the mod
+const PKG={figs:[]};
+function pkFig(o){const f=Object.assign({pos:[0,-50,0],yaw:Math.PI/2,walk:0,amp:0,run:0,air:0,skin:SKIN_GHOST,vis:true,name:'',el:null,glow:0},o);PKG.figs.push(f);return f;}
+function pkFigTo(f,x,y,z,dt,yaw){const ox=f.pos[0],oy=f.pos[1],oz=f.pos[2];f.pos=[x,y,z];if(!(dt>0))return;
+  const hs=Math.min(12,Math.hypot(x-ox,z-oz)/dt),vy=(y-oy)/dt,k=1-Math.exp(-8*dt);
+  f.amp=lerp(f.amp,Math.min(1,hs/4.4),k);f.walk+=hs*dt*1.2;f.run=lerp(f.run,clamp((hs-4.7)/1.0,0,1),1-Math.exp(-6*dt));f.air=lerp(f.air,Math.abs(vy)>1.5?1:0,k);
+  const ty=yaw!==undefined?yaw:hs>0.4?Math.atan2(x-ox,-(z-oz)):f.yaw;let d=ty-f.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));f.yaw+=d*Math.min(1,dt*10);}
+{const _dm=drawMarkers;drawMarkers=function(buf){_dm.apply(this,arguments);if(!PKG.figs.length||state==='title')return;
+  for(const f of PKG.figs){if(!f.vis||f.pos[1]<-20)continue;const L=lightAt(f.pos[0],f.pos[1]+1,f.pos[2]);
+    drawHumanoid(buf,f.skin,f.pos[0],f.pos[1],f.pos[2],{lead:1,yaw:f.yaw,headYaw:0,pitch:0,walk:f.walk,amp:f.amp,run:f.run,air:f.air,t:gameTime},Math.max(L[0],f.glow),Math.max(L[1],f.glow));}};}
+// a name over their head
+function pkPlates(){const box=document.getElementById('nameplates');
+  for(const f of PKG.figs){if(!f.name)continue;if(!f.el&&box){f.el=document.createElement('div');f.el.className='np pk-np';box.appendChild(f.el);}if(!f.el)continue;
+    if(f.el.textContent!==f.name)f.el.textContent=f.name;const s=state==='play'&&f.vis?project(f.pos[0],f.pos[1]+2.1,f.pos[2]):null;
+    if(!s||Math.hypot(f.pos[0]-eye[0],f.pos[2]-eye[2])>70){f.el.style.display='none';continue;}f.el.style.display='';f.el.style.left=s[0]+'px';f.el.style.top=s[1]+'px';}
+  if(box)for(const el of[...box.querySelectorAll('.pk-np')])if(!PKG.figs.some(f=>f.el===el))el.remove();}
+// a run recorded ten times a second, and played back from it
+function pkRecStart(){return{t:0,a:[],acc:0};}
+function pkRecStep(R,dt){R.t+=dt;R.acc-=dt;if(R.acc>0)return;R.acc+=0.1;const p=player.pos;R.a.push(Math.round(p[0]*20),Math.round(p[1]*20),Math.round(p[2]*20));}
+function pkGhostAt(G,t){const a=G.a,n=a.length/3;if(n<2)return null;let f=t/0.1;if(f<0)f=0;if(f>=n-1)return[a[(n-1)*3]/20,a[(n-1)*3+1]/20,a[(n-1)*3+2]/20,true];
+  const i=Math.floor(f),u=f-i,j=i*3;return[(a[j]+(a[j+3]-a[j])*u)/20,(a[j+1]+(a[j+4]-a[j+1])*u)/20,(a[j+2]+(a[j+5]-a[j+2])*u)/20,false];}
+
+// ---------------------------------------------------------------- the screen while playing
+function pkUI(){if(PK.hud){PK.hud.root.style.display='block';return;}
+  const st=document.createElement('style');st.textContent=`
+#pk-root{position:fixed;inset:0;pointer-events:none;z-index:5;font-family:inherit}
+#pk-telop{position:absolute;left:50%;top:14%;transform:translateX(-50%);color:#fff;font-weight:900;font-size:clamp(32px,7vw,66px);letter-spacing:.08em;white-space:nowrap;
+  text-shadow:0 3px 0 rgba(0,0,0,.35),0 0 22px rgba(0,0,0,.5);opacity:0;text-align:center}
+#pk-telop small{display:block;font-size:.36em;letter-spacing:.24em;margin-top:2px;font-weight:700}
+#pk-telop.go{animation:pkTelop 2.2s cubic-bezier(.22,.9,.3,1) forwards}
+@keyframes pkTelop{0%{opacity:0;transform:translate(-50%,-120px) scale(1.25)}15%{opacity:1;transform:translate(-50%,8px) scale(1)}24%{transform:translate(-50%,0)}82%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-30px) scale(.96)}}
+#pk-hud{position:absolute;right:12px;top:34px;text-align:right;font-size:13px;line-height:1.5;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#pk-hud b{font-size:16px}#pk-hud .big{font-size:22px;font-weight:900}#pk-hud .g{color:#9cf08a}#pk-hud .r{color:#ff8a7a}#pk-hud .y{color:#ffd65a}
+body.pk-on #fpsbox{top:calc(var(--tb,64px) + 120px)!important}
+body.pk-on #hint{display:none}
+body.pk-on #msg{top:auto;bottom:22%;background:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+#pk-flash{position:absolute;left:50%;top:40%;transform:translateX(-50%);color:#ffe0e0;font-weight:bold;font-size:20px;text-shadow:0 2px 6px rgba(0,0,0,.7);opacity:0;transition:opacity .3s;white-space:nowrap}
+#pk-big{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);color:#fff;font-weight:900;font-size:120px;text-shadow:0 4px 0 rgba(0,0,0,.35),0 0 30px rgba(0,0,0,.5)}
+#pk-big.pop{animation:pkPop .9s ease-out forwards}
+@keyframes pkPop{0%{opacity:0;transform:translate(-50%,-50%) scale(1.8)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(.9)}}
+#pk-prog{position:absolute;left:50%;top:40px;transform:translateX(-50%);width:min(420px,60vw);height:8px;border-radius:4px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.35);display:none}
+#pk-prog i{position:absolute;top:-5px;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:2px solid #fff;box-sizing:border-box}
+#pk-prog i.me{background:#5be06a}#pk-prog i.op{background:#ff5a4a}#pk-prog i.gh{background:#9cc8ff}
+#pk-prog .fl{position:absolute;right:-12px;top:-7px;color:#fff;font-size:14px}
+#pk-res{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:30;display:none;pointer-events:auto;text-align:center;color:#fff;background:rgba(12,18,30,.86);border:2px solid #7fd0ff;
+  border-radius:12px;padding:18px 26px;min-width:300px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#pk-res h2{margin:6px 0 4px;font-size:28px}#pk-res table{margin:8px auto 12px;font-size:16px;border-spacing:14px 4px}#pk-res td:last-child{text-align:right;font-weight:bold}
+#pk-res button{margin:3px}
+.pk-np{background:rgba(120,20,20,.55)!important}`;
+  document.head.appendChild(st);
+  const root=document.createElement('div');root.id='pk-root';
+  root.innerHTML='<div id="pk-hud"></div><div id="pk-prog"></div><div id="pk-telop"></div><div id="pk-flash"></div><div id="pk-big"></div><div id="pk-res"></div>';
+  document.body.appendChild(root);
+  PK.hud={root,hud:root.querySelector('#pk-hud'),telop:root.querySelector('#pk-telop'),flash:root.querySelector('#pk-flash'),big:root.querySelector('#pk-big'),res:root.querySelector('#pk-res'),prog:root.querySelector('#pk-prog')};
+  const pan=document.querySelector('#pause .panel');if(pan){const a=document.createElement('button');a.id='btn-pk-restart';a.textContent='このモードをやり直す';a.onclick=()=>pkRestart();
+    const b=document.createElement('button');b.id='btn-pk-quit';b.textContent='アスレをやめる';b.onclick=()=>pkStop();const q=document.getElementById('btn-quit');pan.insertBefore(a,q);pan.insertBefore(b,q);}}
+function pkTelop(main,sub){const u=PK.hud;if(!u)return;const e=u.telop;e.classList.remove('go');void e.offsetWidth;e.innerHTML=icoHTML(main)+(sub?'<small>'+icoHTML(sub)+'</small>':'');e.classList.add('go');}
+function pkFlash(t,col){const u=PK.hud;if(!u)return;u.flash.innerHTML=icoHTML(t);u.flash.style.color=col||'#ffe0e0';u.flash.style.opacity=1;clearTimeout(PK.flT);PK.flT=setTimeout(()=>{u.flash.style.opacity=0;},1400);}
+function pkBig(t,col){const u=PK.hud;if(!u)return;const e=u.big;e.classList.remove('pop');void e.offsetWidth;e.textContent=t;e.style.color=col||'#fff';e.classList.add('pop');}
+// the bar along the top: where you are (and the rival or your ghost) between start and goal
+function pkProg(show,me,op,gh){const e=PK.hud&&PK.hud.prog;if(!e)return;e.style.display=show?'block':'none';if(!show)return;
+  if(!e.dataset.b){e.dataset.b='1';e.innerHTML='<i class="gh"></i><i class="op"></i><i class="me"></i><span class="fl">'+ico('flag')+'</span>';}
+  const[g,o,m]=e.querySelectorAll('i');const f=v=>(Math.max(0,Math.min(1,v))*100).toFixed(1)+'%';
+  m.style.left=f(me);o.style.display=op===undefined||op===null?'none':'';if(op!=null)o.style.left=f(op);g.style.display=gh===undefined||gh===null?'none':'';if(gh!=null)g.style.left=f(gh);}
+// the results panel; after a moment it takes the mouse so the buttons can be pressed
+function pkResults(html,btns){const u=PK.hud;if(!u)return;u.res.innerHTML=html+'<div style="margin-top:6px">'+btns.map((b,i)=>`<button data-i="${i}">${icoHTML(b[0])}</button>`).join(' ')+'</div>';
+  u.res.style.display='block';u.res.querySelectorAll('button').forEach(el=>el.onclick=()=>{u.res.style.display='none';const b=btns[+el.dataset.i];if(state==='overlay'&&OVL.id==='pk-res'){state='play';OVL.id=null;showScreen('hud');requestLock();}b[1]();});
+  setTimeout(()=>{if(PK.on&&u.res.style.display==='block'&&state==='play'){if(typeof stopActions==='function')stopActions();state='overlay';OVL.id='pk-res';OVL.onClose=null;if(isLocked())document.exitPointerLock();}},1600);}
+function pkRestart(){if(!PK.on)return;const M=PK.M;if(PK.hud)PK.hud.res.style.display='none';
+  if(state==='overlay'||state==='paused'){state='play';OVL.id=null;showScreen('hud');requestLock();}if(M&&M.restart)M.restart();}
+function pkFireworks(x,y,z,n){if(typeof wq!=='function')return;const cols=[T.CONCRETE_RED,T.CONCRETE_YELLOW,T.CONCRETE_LIME,T.CONCRETE_LIGHT_BLUE,T.CONCRETE_MAGENTA,T.CONCRETE_ORANGE].filter(v=>v!==undefined);
+  for(let k=0;k<(n||1);k++){const tl=cols[(Math.random()*cols.length)|0],cx=x+(Math.random()-0.5)*8,cy=y+Math.random()*3,cz=z+(Math.random()-0.5)*8;
+    for(let i=0;i<22;i++){const a=Math.random()*Math.PI*2,e=Math.random()*1.4-0.2,sp=3+Math.random()*1.5;wq({x:cx,y:cy,z:cz,vx:Math.cos(a)*Math.cos(e)*sp,vy:Math.sin(e)*sp,vz:Math.sin(a)*Math.cos(e)*sp,g:4,dr:1.6,tile:tl,s:0.05,life:1.4,glow:true});}}
+  try{sfx.pop&&sfx.pop([x,y,z]);}catch(e){}}
+// the gimmicks of the 150 levels speak through whichever HUD is up
+{const _af=athFlash;athFlash=function(t){if(PK.on)return pkFlash(t);return _af.apply(this,arguments);};}
+
+// ---------------------------------------------------------------- every frame
+XMOD_TICK.push(dt=>{
+  const u=PK.hud;
+  if(!PK.on){if(u&&!PK.hid){PK.hid=true;for(const id of['btn-pk-restart','btn-pk-quit']){const b=document.getElementById(id);if(b)b.style.display='none';}}return;}
+  PK.hid=false;
+  if(u){const show=state!=='title'&&state!=='loading';u.root.style.display=show?'block':'none';
+    for(const id of['btn-pk-restart','btn-pk-quit']){const b=document.getElementById(id);if(b)b.style.display='';}
+    const bm=document.getElementById('btn-open-mp');if(bm)bm.style.display='none';
+    for(const id of['btn-ath-restart','btn-ath-quit']){const b=document.getElementById(id);if(b)b.style.display='none';}}
+  pkPlates();
+  if(state!=='play'||!world||!world.pk)return;
+  const p=player;if(p.flying)p.flying=false;
+  if(PK.frozen&&PK.frozenAt){p.pos[0]=PK.frozenAt[0];p.pos[2]=PK.frozenAt[2];p.vel[0]=0;p.vel[2]=0;if(PK.frozenY){p.pos[1]=PK.frozenAt[1];p.vel[1]=0;}}
+  if(p.pos[1]<-30){p.pos=spawnPoint.slice();p.vel=[0,0,0];}
+  PK.t+=dt;if(PK.M&&PK.M.tick)PK.M.tick(dt);
+});
+// the pack switched off (or the Mod screen locked) while playing: leave
+function pkGuard(){if(PK.on&&!pkOn())pkStop();if(typeof ATH!=='undefined'&&ATH.on&&!pkOn())athStop();}
+
+// ---------------------------------------------------------------- the Mod screen section
+const PK_COL='#ffb648';
+function pkBuildUI(){
+  const ms=document.querySelector('#modscreen .modpanel');if(!ms||document.getElementById('pk-sec'))return;
+  const anchor=document.getElementById('wp-sec')||[...ms.querySelectorAll('h3')].find(h=>/追加Mod/.test(h.textContent));
+  const sec=document.createElement('div');sec.id='pk-sec';
+  const seg=(id,txt)=>`<button id="${id}" class="small">${txt}</button>`;
+  let html=`<h3 style="margin:14px 0 4px;font-weight:normal;font-size:17px;border-top:1px solid rgba(255,255,255,0.18);padding-top:10px"><span class="modtag">MOD</span> アスレMOD</h3>
+    <p class="note" style="text-align:left;margin-top:2px">アスレをひとつにまとめた統合版です。6つのモードがあり、それぞれに専用のマップ・見た目・設定があります。どのモードもMODがオンのときだけ遊べます。</p>
+    <div class="setrow2"><span>アスレMOD</span><div class="seg">${seg('pk-on','オン')}${seg('pk-off','オフ')}</div></div><div id="pk-list">`;
+  for(const M of PK.list){html+=`<div class="pk-card" data-id="${M.id}" style="border:1px solid rgba(255,255,255,.16);border-left:4px solid ${M.col||PK_COL};border-radius:8px;padding:8px 10px;margin:6px 0;background:rgba(0,0,0,.22)">
+      <div style="display:flex;align-items:center;gap:8px;font-size:16px">${ico(M.icon||'jump',M.col||PK_COL)}<b style="font-weight:normal">${M.name}</b><small class="pk-rec" data-id="${M.id}" style="margin-left:auto;color:#ffe3a6;font-size:11.5px;text-align:right"></small></div>
+      <small style="display:block;color:#9ab;font-size:11.5px;line-height:1.45;margin:4px 0 2px">${icoHTML(M.desc)}</small>`;
+    for(const q of M.opts){html+=`<div class="setrow2" style="margin:5px 0"><span style="font-size:13px">${q.label}</span><div class="seg" style="flex-wrap:wrap">`;
+      for(const[v,lab]of q.vals)html+=`<button class="small pk-opt" data-id="${M.id}" data-k="${q.k}" data-v="${v}">${lab}</button>`;html+='</div></div>';}
+    if(M.card)html+=`<div class="pk-extra" data-id="${M.id}"></div>`;
+    else html+=`<div style="display:flex;gap:8px;margin-top:6px">${(M.buttons||[['あそぶ',null]]).map((b,i)=>`<button class="small pk-go" data-id="${M.id}" data-a="${i}" style="flex:1">${ico(i?'back':'play')} ${b[0]}</button>`).join('')}</div>`;
+    html+='</div>';}
+  html+='</div>';sec.innerHTML=html;
+  if(anchor&&anchor.id==='wp-sec')anchor.parentNode.insertBefore(sec,anchor.nextSibling);else ms.insertBefore(sec,anchor||document.getElementById('xmod-rows'));
+  const S=pkS(),save=()=>{saveSettings();pkSyncUI();pkGuard();};
+  $('pk-on').onclick=()=>{S.on=true;save();};$('pk-off').onclick=()=>{S.on=false;save();};
+  for(const b of sec.querySelectorAll('.pk-opt'))b.onclick=()=>{const M=PK.by[b.dataset.id],q=M.opts.find(o=>o.k===b.dataset.k);let v=b.dataset.v;if(typeof q.def==='number')v=+v;(S.m[M.id]=S.m[M.id]||{})[q.k]=v;save();};
+  for(const b of sec.querySelectorAll('.pk-go'))b.onclick=()=>{const M=PK.by[b.dataset.id],bt=(M.buttons||[['あそぶ',null]])[+b.dataset.a];pkPlay(M.id,bt[1]);};
+  pkSyncUI();}
+function pkSyncUI(){if(!document.getElementById('pk-sec'))return;const S=pkS(),on=pkOn();
+  $('pk-on').classList.toggle('on',S.on);$('pk-off').classList.toggle('on',!S.on);$('pk-list').style.opacity=S.on?'1':'0.45';
+  for(const b of document.querySelectorAll('#pk-sec .pk-opt'))b.classList.toggle('on',String(pkOpt(b.dataset.id,b.dataset.k))===b.dataset.v);
+  for(const b of document.querySelectorAll('#pk-sec .pk-go')){b.disabled=!on;b.style.opacity=on?'1':'0.5';}
+  for(const e of document.querySelectorAll('#pk-sec .pk-rec')){const M=PK.by[e.dataset.id];try{e.innerHTML=M.rec?icoHTML(M.rec()):'';}catch(err){e.textContent='';}}
+  for(const e of document.querySelectorAll('#pk-sec .pk-extra')){const M=PK.by[e.dataset.id];try{e.innerHTML=M.card();if(M.bind)M.bind(e,on);}catch(err){console.error(err);}}}
+{const _om=openModScreen;openModScreen=function(){const r=_om.apply(this,arguments);try{pkBuildUI();pkSyncUI();}catch(e){console.error(e);}return r;};}
+setTimeout(()=>{try{pkBuildUI();}catch(e){console.error(e);}
+  for(const id of['m-off','mod-lock']){const b=document.getElementById(id);if(b)b.addEventListener('click',()=>setTimeout(pkGuard,0));}},0);
+
+// ================================================================ アスレMOD: 150レベル, タイムアタック, 対戦レース, 無限ラン
+// (天空の塔 and ギミック迷宮 are in 89zc_pktower.js)
+
+// ---------------------------------------------------------------- 1. 150レベル — the course of before, moved here
+pkDef({id:'l150',name:'150レベル',icon:'list',col:'#ffd23a',
+  desc:'今までの全150レベル。レベル1はかんたん、50でふつう、100から本格的に難しくなります。15レベルごとに景色が変わり、途中から続けられます。',
+  buttons:[['続きから',0],['レベル1から',1]],
+  rec(){const P=athLoadP();return(P.best?'ベスト '+P.best.score.toLocaleString()+'点（'+athFmt(P.best.t)+'）<br>':'')+'続き：レベル'+P.lv;},
+  play(a){if(PK.on)pkCleanup(true);if(typeof ST!=='undefined'&&ST.on&&typeof stCleanup==='function')stCleanup(true);
+    if(a===1){try{const o=JSON.parse(localStorage.getItem('aro_ath')||'{}');o.lv=1;o.t=0;o.falls=0;localStorage.setItem('aro_ath',JSON.stringify(o));}catch(e){}}
+    athStart();}});
+
+// ---------------------------------------------------------------- shared by the courses with a start and a goal
+// 3, 2, 1, GO! with the player held on the start platform
+function pkCountdown(S,dt,onGo){S.cd-=dt;const n=Math.ceil(S.cd);
+  if(n!==S.cdn){S.cdn=n;if(n>0){pkBig(String(n));try{sfx.click&&sfx.click();}catch(e){}}}
+  if(S.cd<=0){S.ph='run';pkFreeze(false);pkBig('GO!','#9cf08a');try{sfx.pop&&sfx.pop(player.pos.slice());}catch(e){}onGo&&onGo();}}
+function pkCourseStep(S,dt){const r=pkRunCourse(S.C,dt);if(!r)return null;
+  if(r.ev==='hit'){S.falls=(S.falls|0)+1;pkDynReset(S.L[S.C.i]);pkPut(pkCpPos(S.L[S.C.i]));pkFlash((PK_HIT[r.kind]||'落下！')+' チェックポイントへ');}
+  else if(r.ev==='cp'){S.C.i++;spawnPoint=pkCpPos(S.L[S.C.i]);pkFlash('チェックポイント '+S.C.i+'　'+pkFmt(S.t),'#c8ffd0');try{sfx.pop&&sfx.pop(player.pos.slice());}catch(e){}}
+  return r.ev;}
+function pkCourseReset(S){for(const lv of S.L)pkDynReset(lv);S.C.i=0;S.t=0;S.falls=0;S.ph='count';S.cd=3.2;S.cdn=0;pkPut(S.start);pkFreeze(true);}
+function pkCourseMap(S,L){S.L=L;S.idx=pkIndex([].concat(...L.map(l=>l.blocks)));S.C={L,i:0};S.x0=L[0].cp.x0;S.xg=L[L.length-1].cp.x0;S.start=pkCpPos(L[0]);}
+const PK_MEDAL=[['金','#ffd23a'],['銀','#dfe4ec'],['銅','#d58a48']];
+function taMedal(len,t){if(!(t>0)||!len)return-1;const v=len/t;return v>=3.3?0:v>=2.5?1:v>=1.8?2:-1;}
+
+// ---------------------------------------------------------------- 2. タイムアタック — ten short courses, your best time and your own ghost
+// each course mixes moves of the 150 levels into a new order, in the scenery of one of the ten areas
+const TA_C=[
+  {name:'草原スプリント',th:0,segs:[[[1,0],[3,0]],[[6,0],[9,1]],[[2,0],[10,0]]]},
+  {name:'ジャングルの枝渡り',th:1,segs:[[[69,0],[5,0]],[[68,0],[23,0]],[[70,2],[4,0]]]},
+  {name:'砂漠の遺跡ダッシュ',th:2,segs:[[[31,0],[7,0]],[[35,0],[38,0]],[[36,0],[39,0]]]},
+  {name:'雪山すべり',th:3,segs:[[[11,0],[14,0]],[[13,0],[18,0]],[[16,0],[15,0]]]},
+  {name:'海の飛び石',th:4,segs:[[[41,0],[45,0]],[[42,0],[49,0]],[[44,0],[48,0]]]},
+  {name:'荒野の岩場',th:5,segs:[[[21,0],[26,0]],[[22,0],[65,0]],[[64,0],[104,0]]]},
+  {name:'キノコの森',th:6,segs:[[[61,0],[63,0]],[[62,0],[73,0]],[[66,0],[67,0]]]},
+  {name:'洞窟の闇',th:7,segs:[[[51,0],[53,0]],[[55,0],[57,0]],[[52,0],[54,0]]]},
+  {name:'ネザーの溶岩橋',th:8,segs:[[[103,0]],[[81,0],[36,0]],[[101,0],[37,0]]]},
+  {name:'天空の回廊',th:9,segs:[[[121,0],[123,0]],[[127,0],[120,0]],[[135,0],[131,0]]]},
+];
+function pkSegsOf(C,cap){return C.segs.map((sg,j)=>{const r=Math.max(...sg.map(s=>s[0]));const steps=sg.map(([row,st])=>ATH_TABLE[row-1][2][st]);
+  return pkSeg(r,C.th,steps,{d:Math.min(cap||0.82,athDiff(r)),title:C.name});});}
+function taLayout(k){const C=TA_C[k];return pkCourse({x:400+k*1200,y:62,seed:77001+k*131,segs:pkSegsOf(C)});}
+function taStart(k){k=((k|0)%TA_C.length+TA_C.length)%TA_C.length;const C=TA_C[k];
+  if(!pkEnter('ta',5100+k))return;const S=PK.st;S.k=k;pkCourseMap(S,taLayout(k));S.len=S.xg-S.x0;
+  const R=(pkRec().ta||{})[k];S.best=R&&R.t>0?R.t:null;S.ghost=pkOpt('ta','ghost')!=='off'&&R&&R.g&&R.g.a&&R.g.a.length>6?R.g:null;
+  if(S.ghost)S.gh=pkFig({skin:SKIN_GHOST,name:'ゴースト（ベスト '+pkFmt(S.best)+'）',glow:12});
+  dayTime=ATH_TH[C.th].time;pkCourseReset(S);S.ph='wait';
+  beginLoading('タイムアタック：'+C.name);}
+function taFinish(){const S=PK.st,k=S.k,t=S.t;S.ph='done';let nb=false,prev=null,cnt=0;
+  pkRecPut(o=>{o.ta=o.ta||{};const r=o.ta[k]||{};prev=r.t>0?r.t:null;nb=!prev||t<prev;if(nb){r.t=t;r.g={a:S.rec.a};r.falls=S.falls;r.len=S.len;}r.n=(r.n|0)+1;cnt=r.n;o.ta[k]=r;});
+  const m=taMedal(S.len,t),gl=S.L[S.L.length-1].cp;pkFireworks(gl.x0+2,gl.y+5,(gl.z0+gl.z1)/2,3);
+  pkTelop('ゴール！',pkFmt(t)+(nb?'　自己ベスト！':''));
+  const rows=[['タイム',pkFmt(t)],['落下',S.falls+' 回'],[nb?'自己ベスト更新！':'自己ベスト',pkFmt(nb?t:prev)+(prev&&nb?'（'+(prev-t).toFixed(1)+' 秒ちぢめた）':'')]];
+  if(m>=0)rows.push(['メダル',`[[medal|${PK_MEDAL[m][1]}]] ${PK_MEDAL[m][0]}`]);else rows.push(['銅メダルまで',pkFmt(S.len/1.8)+' 以内']);
+  setTimeout(()=>{if(!PK.on||PK.id!=='ta')return;pkResults(pkResHTML('タイムアタック '+(k+1)+'. '+TA_C[k].name,nb?'自己ベスト！':'ゴール！',rows,'#ffe3a6'),
+    [['もう一度',()=>{taRetry();}],['次のコース',()=>taStart(k+1)],['アスレをやめる',()=>pkStop()]]);},1400);}
+function taRetry(){const S=PK.st;if(PK.id!=='ta')return;const R=(pkRec().ta||{})[S.k];S.best=R&&R.t>0?R.t:null;
+  if(pkOpt('ta','ghost')!=='off'&&R&&R.g&&R.g.a&&R.g.a.length>6){S.ghost=R.g;if(!S.gh)S.gh=pkFig({skin:SKIN_GHOST,glow:12});S.gh.name='ゴースト（ベスト '+pkFmt(S.best)+'）';}
+  pkCourseReset(S);}
+pkDef({id:'ta',name:'タイムアタック',icon:'clock',col:'#7fd0ff',
+  desc:'10個の短いコースを速さで競います。ベストタイムとメダル（金・銀・銅）が残り、次からは自分のいちばん速い走りが[[ghost]]ゴーストになって一緒に走ります。',
+  opts:[{k:'ghost',label:'ゴースト',vals:[['on','表示する'],['off','表示しない']],def:'on'}],
+  rec(){const R=pkRec().ta||{};let n=0,g=0;for(let k=0;k<TA_C.length;k++){const r=R[k];if(r&&r.t>0){n++;if(taMedal(r.len,r.t)===0)g++;}}return'クリア '+n+'/'+TA_C.length+(g?'<br>[[medal|#ffd23a]]金 '+g:'');},
+  card(){const R=pkRec().ta||{};let h='<div style="display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:center;margin-top:6px;font-size:13px">';
+    TA_C.forEach((C,k)=>{const r=R[k],m=r&&r.t>0?taMedal(r.len,r.t):-1;
+      h+=`<span>${k+1}. ${C.name}<small style="color:#9ab;margin-left:6px">${ATH_TH[C.th].name}</small></span><span style="font-variant-numeric:tabular-nums;color:#ffe3a6">${m>=0?ico('medal',PK_MEDAL[m][1])+' ':''}${r&&r.t>0?pkFmt(r.t):'--:--.-'}</span><button class="small pk-ta" data-k="${k}" title="あそぶ">${ico('play')}</button>`;});
+    return h+'</div>';},
+  bind(el,on){el.querySelectorAll('.pk-ta').forEach(b=>{b.disabled=!on;b.style.opacity=on?'1':'0.5';b.onclick=()=>pkPlay('ta',+b.dataset.k);});},
+  play(k){taStart(k|0);},restart(){taRetry();},
+  gen(w,c){const S=PK.st;if(!S.L)return;pkCourseGround(c,S.L,40,26);pkPutIdx(c,S.idx);},
+  tick(dt){const S=PK.st;if(!S.L)return;const p=player;
+    if(S.ph==='wait'){S.ph='count';pkPut(S.start);pkFreeze(true);pkTelop((S.k+1)+'. '+TA_C[S.k].name,S.best?'ベスト '+pkFmt(S.best):'はじめての挑戦');}
+    else if(S.ph==='count')pkCountdown(S,dt,()=>{S.rec=pkRecStart();S.t=0;});
+    else if(S.ph==='run'){S.t+=dt;pkRecStep(S.rec,dt);if(pkCourseStep(S,dt)==='goal')taFinish();}
+    if(S.gh&&S.ghost){const g=pkGhostAt(S.ghost,S.ph==='run'?S.t:S.ph==='done'?1e9:0);if(g)pkFigTo(S.gh,g[0],g[1],g[2],dt);}
+    const prog=v=>(v-S.x0)/Math.max(1,S.xg-S.x0);pkProg(true,prog(p.pos[0]),null,S.gh?prog(S.gh.pos[0]):null);
+    const u=PK.hud;if(u){let diff='';if(S.gh&&S.ph==='run'){const d=(p.pos[0]-S.gh.pos[0]);diff=`<div class="${d>=0?'g':'r'}">ゴーストより ${d>=0?'先 ':'後ろ '}${Math.abs(d).toFixed(0)} m</div>`;}
+      u.hud.innerHTML=`<div>${ico('clock')} ${S.k+1}. ${TA_C[S.k].name}</div><div class="big">${pkFmt(S.t)}</div><div>ベスト ${pkFmt(S.best)}　落下 ${S.falls|0}</div>${diff}<div>チェックポイント ${S.C.i}/${S.L.length-1}</div>`;}},
+  stop(){pkProg(false);}});
+
+// ---------------------------------------------------------------- 3. 対戦レース — race a rival to the goal
+const RACE_C=[
+  {name:'草原の大レース',th:0,cap:0.45,segs:[[[1,0],[3,0],[9,1]],[[2,0],[21,0]],[[6,0],[70,2]],[[17,0],[10,0]]]},
+  {name:'砂漠キャニオン',th:2,cap:0.62,segs:[[[3,0],[7,0]],[[26,0],[9,1]],[[5,0],[27,0]],[[121,0],[104,0]]]},
+  {name:'天空グランプリ',th:9,cap:0.8,segs:[[[131,0],[123,0]],[[22,0],[127,0]],[[133,0],[121,0]],[[148,0],[11,0]]]},
+];
+const RV_SPD=[3.4,4.4,5.3],RV_SLIP=[0.07,0.035,0.012],RV_NAME=['よわい','ふつう','つよい'];
+function rvGap(a,b){const gx=Math.max(0,b.x0-a.x1-1,a.x0-b.x1-1),gz=Math.max(0,b.z0-a.z1-1,a.z0-b.z1-1);return Math.hypot(gx,gz);}
+// the rival's run, worked out before the start: from platform to platform, with now and then a slip back to the last checkpoint
+function rvPlan(L,lvl,seed){const P=[];const R=mulberry32(seed|0);
+  const add=(r,k,cp)=>P.push({x:(r.x0+r.x1+1)/2,y:r.y+(ATH_SURF[k]!==undefined?ATH_SURF[k]:1),z:(r.z0+r.z1+1)/2,r,cp});
+  for(const lv of L){add(lv.cp,'cp',true);for(const w of lv.path||[])add(w,w.k);}
+  P[0].z+=1.4;const v=RV_SPD[lvl],slip=RV_SLIP[lvl],legs=[];let t=0,lastCp=0;
+  const leg=(a,b)=>{const D=Math.hypot(b.x-a.x,b.z-a.z),dy=b.y-a.y,jump=rvGap(a.r,b.r)>0.2||Math.abs(dy)>0.3;
+    const dur=Math.max(0.22,D/v)+(jump?0.1:0)+(dy>1.6?dy*0.28:0);return{a,b,dur,h:jump?(dy>1.6?0.6+dy*0.35:0.9+Math.max(0,dy)*0.4):0,jump};};
+  for(let i=0;i<P.length-1;i++){if(P[i].cp)lastCp=i;const g=leg(P[i],P[i+1]);
+    if(g.jump&&i>lastCp+1&&R()<slip){legs.push({k:'fall',a:P[i],b:P[i+1],t0:t,t1:t+1.0});t+=1.5;
+      for(let j=lastCp;j<i;j++){const h=leg(P[j],P[j+1]);legs.push(Object.assign({k:'mv',t0:t,t1:t+h.dur},h));t+=h.dur;}}
+    legs.push(Object.assign({k:'mv',t0:t,t1:t+g.dur},g));t+=g.dur;}
+  return{legs,T:t,end:P[P.length-1]};}
+function rvAt(S,t){const L=S.legs;if(!L.length)return null;if(t<=0){const a=L[0].a;return[a.x,a.y,a.z];}if(t>=S.T){const e=S.end;return[e.x,e.y,e.z];}
+  let lo=0,hi=L.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(L[m].t0<=t)lo=m;else hi=m-1;}const g=L[lo],u=Math.max(0,Math.min(1,(t-g.t0)/Math.max(1e-3,g.t1-g.t0)));
+  if(g.k==='fall'){if(t>g.t1)return[g.a.x,-60,g.a.z];return[g.a.x+(g.b.x-g.a.x)*0.45*u,g.a.y+Math.sin(Math.min(1,u*2)*Math.PI/2)*0.6-9*u*u,g.a.z+(g.b.z-g.a.z)*0.45*u];}
+  return[g.a.x+(g.b.x-g.a.x)*u,g.a.y+(g.b.y-g.a.y)*u+g.h*4*u*(1-u),g.a.z+(g.b.z-g.a.z)*u];}
+function raceLayout(c){const C=RACE_C[c];return pkCourse({x:300+c*1500,y:62,seed:88001+c*977,segs:pkSegsOf(C,C.cap)});}
+function raceStart(){const c=pkOpt('race','course')|0,lvl=pkOpt('race','cpu')|0,C=RACE_C[c];
+  if(!pkEnter('race',6100+c))return;const S=PK.st;S.c=c;S.lvl=lvl;pkCourseMap(S,raceLayout(c));
+  S.start[2]-=1.4;S.rv=pkFig({skin:SKIN_RIVAL,name:'ライバル（'+RV_NAME[lvl]+'）'});dayTime=ATH_TH[C.th].time;
+  raceReset(S);S.ph='wait';beginLoading('対戦レース：'+C.name);}
+function raceReset(S){S.sch=rvPlan(S.L,S.lvl,(Date.now()&0xffff)+S.c*31);S.rvDone=null;pkCourseReset(S);const a=rvAt(S.sch,0);if(a)S.rv.pos=a;S.rv.yaw=Math.PI/2;}
+function raceFinish(){const S=PK.st,t=S.t,win=!(S.rvDone&&S.rvDone<t);S.ph='done';
+  let best=null,w=0,n=0;pkRecPut(o=>{o.race=o.race||{};const k=S.c+'_'+S.lvl,r=o.race[k]||{};r.n=(r.n|0)+1;if(win)r.w=(r.w|0)+1;if(!(r.t>0)||t<r.t)r.t=t;best=r.t;w=r.w|0;n=r.n;o.race[k]=r;});
+  const gl=S.L[S.L.length-1].cp;if(win)pkFireworks(gl.x0+2,gl.y+5,(gl.z0+gl.z1)/2,4);
+  pkTelop(win?'1位！':'2位',win?'ライバルに勝った！':'おしい！');try{if(!win)sfx.deny&&sfx.deny();}catch(e){}
+  const rows=[['あなた',pkFmt(t)],['ライバル（'+RV_NAME[S.lvl]+'）',S.rvDone?pkFmt(S.rvDone):'まだ走っている'],['落下',S.falls+' 回'],['このコースのベスト',pkFmt(best)],['勝ち',w+' / '+n+' 戦']];
+  setTimeout(()=>{if(!PK.on||PK.id!=='race')return;pkResults(pkResHTML('対戦レース '+RACE_C[S.c].name,win?'[[crown|#ffd23a]] 1位！':'2位',rows,win?'#ffe3a6':'#bfe6ff'),
+    [['もう一度',()=>raceReset(PK.st)],['アスレをやめる',()=>pkStop()]]);},1500);}
+pkDef({id:'race',name:'対戦レース',icon:'race',col:'#ff7a6a',
+  desc:'AIのライバルとゴールを競います。ライバルは決まった速さで走り、ときどき足をすべらせます。観客席に囲まれたレース場が3つ。',
+  opts:[{k:'course',label:'コース',vals:[[0,'草原'],[1,'砂漠'],[2,'天空']],def:0},{k:'cpu',label:'ライバルの強さ',vals:[[0,'よわい'],[1,'ふつう'],[2,'つよい']],def:1}],
+  buttons:[['レース開始',null]],
+  rec(){const R=pkRec().race||{};let w=0,n=0;for(const k in R){w+=R[k].w|0;n+=R[k].n|0;}return n?'勝ち '+w+' / '+n+' 戦':'';},
+  play(){raceStart();},restart(){raceReset(PK.st);},
+  gen(w,c){const S=PK.st;if(!S.L)return;pkCourseGround(c,S.L,46,18);pkPutIdx(c,S.idx);raceStands(c,S);},
+  tick(dt){const S=PK.st;if(!S.L)return;const p=player;
+    if(S.ph==='wait'){S.ph='count';pkPut(S.start);pkFreeze(true);pkTelop(RACE_C[S.c].name,'ライバル：'+RV_NAME[S.lvl]);}
+    else if(S.ph==='count')pkCountdown(S,dt,()=>{S.t=0;});
+    else if(S.ph==='run'){S.t+=dt;if(pkCourseStep(S,dt)==='goal')raceFinish();}
+    const rt=S.ph==='run'||S.ph==='done'?S.t:0,a=rvAt(S.sch,rt);
+    if(a){S.rv.vis=a[1]>-20;if(S.rv.vis)pkFigTo(S.rv,a[0],a[1],a[2],dt);else S.rv.pos=a;}
+    if(!S.rvDone&&S.ph==='run'&&S.t>=S.sch.T){S.rvDone=S.sch.T;pkFlash('ライバルがゴールした！','#ffb0a0');}
+    const prog=v=>(v-S.x0)/Math.max(1,S.xg-S.x0),me=prog(p.pos[0]),op=S.rvDone?1:prog(S.rv.pos[0]);pkProg(true,me,op,null);
+    const u=PK.hud;if(u){const first=S.ph==='done'?!(S.rvDone&&S.rvDone<S.t):me>=op;const gap=Math.abs(p.pos[0]-(S.rvDone?S.xg:S.rv.pos[0]));
+      u.hud.innerHTML=`<div>${ico('race')} ${RACE_C[S.c].name}</div><div class="big ${first?'y':'r'}">${first?'1位':'2位'}</div><div class="big" style="font-size:18px">${pkFmt(S.t)}</div><div>ライバル（${RV_NAME[S.lvl]}）${first?'より '+gap.toFixed(0)+' m 前':'まで '+gap.toFixed(0)+' m'}</div><div>落下 ${S.falls|0}</div>`;}},
+  stop(){pkProg(false);}});
+// the stands on both sides: steps of stone with a crowd of every colour, flags along the top
+function raceStands(c,S){const bx=c.cx*16,bz=c.cz*16,x0=S.L[0].cp.x0-10,x1=S.L[S.L.length-1].xmax+10,fy=46,T=ATH_TH[RACE_C[S.c].th];
+  const crowd=[B.WOOL_R,B.WOOL_O,B.WOOL_Y,B.WOOL_G,B.WOOL_LB,B.WOOL_B,B.WOOL_P,B.WOOL_W].filter(v=>v!==undefined),st=athB(T.wa),st2=athB(T.band);
+  for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,az=Math.abs(wz);if(wx<x0||wx>x1||az<19||az>27)continue;
+    const row=az-19,top=fy+row*2+1;for(let y=fy-3;y<=top;y++)pkSet(c,wx,y,wz,(y===top&&row%2===0)?st2:st);
+    if(az<27&&hash3(wx,row,wz>0?1:2,9101)<0.62)pkSet(c,wx,top+1,wz,crowd[(hash3(wx,row,wz,9102)*crowd.length)|0]);
+    if(az===27){for(let y=top+1;y<=top+3;y++)pkSet(c,wx,y,wz,st);if(wx%12===0){for(let y=top+4;y<=top+7;y++)pkSet(c,wx,y,wz,B.OAK_FENCE||st);pkSet(c,wx,top+7,wz+(wz>0?-1:1),crowd[(wx/12|0)%crowd.length]);pkSet(c,wx,top+6,wz+(wz>0?-1:1),crowd[(wx/12|0)%crowd.length]);}}}}
+
+// ---------------------------------------------------------------- 4. 無限ラン — the course goes on as long as you keep running
+// stretches of the 150 levels' moves are laid out ahead of you as you go, harder and harder; behind you the road crumbles away
+const RN_POOL=(()=>{const out=[],bad=new Set(['turn','mirror','fakecp','oneway','maze','mazes','fork','wdoor','breath','elevator','bubble','swim','button','memory']);
+  ATH_TABLE.forEach((row,i)=>{row[2].forEach((st,j)=>{if(bad.has(st[0]))return;if(st[3]&&st[3]!=='dark'&&st[3]!=='timer')return;out.push({r:i+1,j,g:st[0],d:athDiff(i+1)});});});return out;})();
+const RN_WALL=[0,1.8,2.6,3.4];
+function rnSeg(S,i){const R=mulberry32((S.seed|0)+i*2654435),d=Math.min(0.9,0.03+i*0.03),th=Math.floor(i/4)%10,n=i<2?1:i<9?2:3;
+  let cand=RN_POOL.filter(e=>e.d<=d+0.06&&e.d>=d-0.32);if(cand.length<4)cand=RN_POOL.filter(e=>e.d<=d+0.1);
+  const pick=[],used=new Set();for(let k=0;k<30&&pick.length<n;k++){const e=cand[(R()*cand.length)|0];if(used.has(e.g))continue;used.add(e.g);pick.push(ATH_TABLE[e.r-1][2][e.j]);}
+  return pkSeg(Math.max(1,Math.round(d*150)),th,pick,{d});}
+function rnEnsure(S,X){while(S.cur.x<X&&S.L.length<400){const i=S.L.length,lv=pkLvBuild(S.cur,rnSeg(S,i),(i%ATH_N)+1,S.seed);lv.i=i;S.L.push(lv);pkIndex(lv.blocks,S.idx);
+  const ord=[];for(let k=0;k<lv.blocks.length;k+=4)ord.push(k);ord.sort((a,b)=>lv.blocks[a]-lv.blocks[b]);lv._ord=ord;lv._ri=0;}}
+function rnStart(){const fixed=pkOpt('run','seed')==='f';
+  if(!pkEnter('run',7300))return;const S=PK.st;S.seed=fixed?20261125:((Date.now()*2654435761)>>>0)%1e9;S.fixed=fixed;
+  S.L=[];S.idx=new Map();S.cur={x:0,y:62,z:0};rnEnsure(S,160);S.C={L:S.L,i:0};S.x0=S.L[0].cp.x0;S.start=pkCpPos(S.L[0]);
+  S.wv=RN_WALL[pkOpt('run','wall')|0];dayTime=0.46;rnReset(S);beginLoading('無限ラン：道を作っています…');}
+function rnReset(S){S.dist=0;S.t=0;S.ph='wait';S.wall=S.x0-14;S.rmLv=0;S.over=false;S.falls=0;pkPut(S.start);}
+function rnOver(why){const S=PK.st;if(S.over)return;S.over=true;S.ph='done';const d=Math.floor(S.dist),seg=S.C.i+1;let best=0,nb=false;
+  pkRecPut(o=>{const r=o.run=o.run||{};const k=S.fixed?'f':'r';nb=d>(r[k]|0);if(nb)r[k]=d;best=r[k]|0;r.n=(r.n|0)+1;if(seg>(r.seg|0))r.seg=seg;});
+  pkTelop(why,d+' m');try{sfx.deny&&sfx.deny();}catch(e){}
+  const rows=[['走った距離',d+' m'],['たどり着いた区間',seg],['時間',pkFmt(S.t)],[nb?'自己ベスト更新！':'自己ベスト',best+' m']];
+  setTimeout(()=>{if(!PK.on||PK.id!=='run')return;pkResults(pkResHTML('無限ラン',nb?'自己ベスト！':d+' m',rows,'#ffe3a6'),[['もう一度',()=>rnStart()],['アスレをやめる',()=>pkStop()]]);},1200);}
+pkDef({id:'run',name:'無限ラン',icon:'inf',col:'#c08cff',
+  desc:'走れば走るほど先に道が作られていく、終わりのないコースです。落ちたらそこで終わり、走った距離がスコアになります。うしろから道が崩れてくるので立ち止まれません。夕焼けの雲海の上。',
+  opts:[{k:'wall',label:'崩れる道',vals:[[0,'なし'],[1,'ゆっくり'],[2,'ふつう'],[3,'はやい']],def:2},{k:'seed',label:'コース',vals:[['r','毎回ちがう'],['f','いつも同じ']],def:'r'}],
+  buttons:[['スタート',null]],
+  rec(){const r=pkRec().run||{};return(r.r||r.f)?'ベスト '+Math.max(r.r|0,r.f|0)+' m':'';},
+  play(){rnStart();},restart(){rnStart();},
+  gen(w,c){const S=PK.st;if(!S.L)return;rnEnsure(S,(c.cx+5)*16);pkPutIdx(c,S.idx);
+    const bx=c.cx*16,bz=c.cz*16,N=WPG.N(w,71);for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,v=WPG.fbm(N,wx,wz,3,0.018);
+      if(v>0.08){const t=v>0.22?2:1;for(let y=30;y<30+t;y++)pkSet(c,wx,y,wz,v>0.3&&hash2(wx,wz,77)<0.5?(B.WOOL_PK):B.WOOL_W);}}},
+  tick(dt){const S=PK.st;if(!S.L||S.over)return;const p=player;
+    if(S.ph==='wait'){S.ph='run';pkTelop('無限ラン','落ちたら終わり。どこまで行ける？');}
+    S.t+=dt;rnEnsure(S,p.pos[0]+200);
+    while(S.C.i+1<S.L.length&&p.pos[0]>=S.L[S.C.i+1].cp.x0){S.C.i++;if(S.C.i%4===0)pkFlash('区間 '+(S.C.i+1)+'　'+ATH_TH[S.L[S.C.i].th].name,'#e8d0ff');}
+    S.dist=Math.max(S.dist,p.pos[0]-S.x0);
+    const r=pkRunCourse(S.C,dt);if(r&&r.ev==='hit'){rnOver(r.kind==='fall'?'落ちた！':PK_HIT[r.kind]||'アウト！');return;}
+    // the crumbling road
+    if(S.wv>0&&S.t>3){const v=S.wv*(1+Math.min(0.6,S.C.i*0.015));S.wall+=v*dt;
+      for(let i=S.rmLv;i<S.L.length;i++){const lv=S.L[i];if(lv.xmin>S.wall)break;
+        while(lv._ri<lv._ord.length){const k=lv._ord[lv._ri],x=lv.blocks[k];if(x>=S.wall)break;const y=lv.blocks[k+1],z=lv.blocks[k+2];if(world.getBlock(x,y,z))world.setBlock(x,y,z,0,false,true);lv._ri++;}
+        if(lv._ri>=lv._ord.length&&i===S.rmLv)S.rmLv++;}
+      if(typeof wq==='function'&&Math.random()<dt*40){const tl=T.CONCRETE_PURPLE!==undefined?T.CONCRETE_PURPLE:T.OBSIDIAN;wq({x:S.wall+Math.random()*0.6,y:p.pos[1]-4+Math.random()*10,z:-7+Math.random()*14,vx:0.4,vy:-1.5-Math.random(),vz:0,g:3,tile:tl,s:0.08,life:1.2});}
+      if(p.pos[0]<S.wall+0.2){rnOver('崩れに飲みこまれた！');return;}}
+    const u=PK.hud;if(u){const wd=S.wv>0?Math.max(0,p.pos[0]-S.wall):null;
+      u.hud.innerHTML=`<div>${ico('inf')} 無限ラン</div><div class="big">${Math.floor(S.dist)} m</div><div>区間 ${S.C.i+1}・${ATH_TH[S.L[S.C.i].th].name}</div>${wd!==null?`<div class="${wd<8?'r':''}">崩れまで ${wd.toFixed(0)} m</div>`:''}<div>${pkFmt(S.t)}</div>`;}},
+  stop(){}});
+
+// ================================================================ アスレMOD: 天空の塔 (50 floors up five towers) and ギミック迷宮 (a chain of puzzle rooms)
+
+// ---------------------------------------------------------------- 5. 天空の塔
+// Five towers, ten floors each. A floor is a room 13×13 inside and 10 blocks high: from its floor you climb the
+// platforms that run round the walls, from the last one you take the ladder through the ceiling and come out on
+// the next floor. Falling just drops you back to the floor of the room you are in (in the lava tower: back to the
+// start of the floor). On the roof of each tower a gate of light takes you to the next, higher in the sky.
+const TW={S:5,F:10,FH:10,Y0:12};
+function twX(s){return 2000+s*64;}
+function twY(f){return TW.Y0+f*TW.FH;}
+// the ring of cells one block in from the walls, 40 of them, clockwise; local (u,v) in 0..12
+function twRing(i){i=((i%40)+40)%40;if(i<10)return[1+i,1];if(i<20)return[11,1+(i-10)];if(i<30)return[11-(i-20),11];return[1,11-(i-30)];}
+const TW_DIR=[[1,0],[0,1],[-1,0],[0,-1]];   // the way the ring runs on each side (u,v)
+const TW_ST=[
+  {name:'石の塔',time:0.22,wall:'STONEBRICK',wall2:'MOSSY_STONEBRICK',band:'CHISELED_STONEBRICK',floor:'COBBLE',plat:['STONEBRICK','COBBLE'],light:'LANTERN',win:'GLASS',fence:'OAK_FENCE',base:'grass'},
+  {name:'木と蔦の塔',time:0.3,wall:'SPRUCE_PLANKS',wall2:'SPRUCE_LOG',band:'LOG',floor:'PLANKS',plat:['PLANKS','LOG'],light:'LANTERN',win:'GLASS',fence:'SPRUCE_FENCE',base:'cloud'},
+  {name:'氷の塔',time:0.4,wall:'PACKED_ICE',wall2:'SNOW',band:'BLUE_ICE',floor:'SNOW',plat:['PACKED_ICE','SNOW'],light:'SEA_LANTERN',win:'SGLASS_LIGHT_BLUE',fence:'SPRUCE_FENCE',base:'cloud'},
+  {name:'溶岩の塔',time:0.5,wall:'NETHER_BRICKS',wall2:'RED_NETHER_BRICKS',band:'GILDED_BS',floor:'BLACKSTONE',plat:['BLACKSTONE','P_BLACKSTONE'],light:'SHROOMLIGHT',win:'GLASS',fence:'CRIMSON_FENCE',base:'cloud',lava:true},
+  {name:'星の塔',time:0.62,wall:'QUARTZ_BRICKS',wall2:'SMOOTH_QUARTZ',band:'GOLD_BLOCK',floor:'GLASS',plat:['PURPUR','END_BRICKS'],light:'END_ROD',win:'GLASS',fence:'BIRCH_FENCE',base:'cloud'},
+];
+// the platforms of one floor. i0 = where you come up (a ring index); returns the floor and the ring index you leave by
+function twFloor(s,f,i0,seed){
+  const g=s*10+f,d=Math.min(0.9,0.05+0.85*g/49),R=mulberry32((seed|0)+g*7349+17),y0=twY(f),X=twX(s),ST=TW_ST[s];
+  const W=(u,v)=>[X+1+u,-6+v],cellAt=i=>W(...twRing(i)),bl=[],dyn=[],path=[];let mat=0;
+  const P=(x,y,z,id)=>bl.push(x,y,z,id);
+  const surf={block:1,slab:0.5,fence:1,ice:1,magma:1,blink:1,crumble:1,mover:1,soul:0.875};
+  const kinds=s===0?(f<3?['block']:['block','block','slab']):s===1?['block','slab','fence','block']:s===2?['ice','ice','block','blink']:s===3?['block','magma','crumble','blink']:['block','mover','blink','crumble','fence'];
+  const pid=k=>k==='slab'?athSlab(ST.plat[0]):k==='fence'?athB(ST.fence):k==='ice'?(d>0.5?B.BLUE_ICE:B.PACKED_ICE):k==='magma'?B.MAGMA:k==='soul'?B.SOUL_SAND:athB(ST.plat[(mat++)&1]);
+  const dist=(A,Bc)=>{let best=1e9;for(const p of A)for(const q of Bc){const gx=Math.max(0,Math.abs(p[0]-q[0])-1),gz=Math.max(0,Math.abs(p[1]-q[1])-1);best=Math.min(best,Math.hypot(gx,gz));}return best;};
+  const side=i=>Math.floor((((i%40)+40)%40)/10);
+  let i=i0+2,h=0,prev=null,usedLad=false,usedMover=0;const END=i0+33;
+  while(h<6){const need=6-h,left=END-i,tight=left<=need*2+7;
+    // a ladder up the face of a pillar (wooden tower): three rises at once
+    if(!tight&&s===1&&!usedLad&&prev&&need>=3&&R()<0.6&&side(i)===side(i+1)&&(i%10)!==9){usedLad=true;
+      const L=cellAt(i),Pc=cellAt(i+1),dir=TW_DIR[side(i)],f0=dir[0]>0?0:dir[0]<0?1:dir[1]>0?2:3,lad=BLOCKS[B.LADDER].vars?BLOCKS[B.LADDER].vars[f0]:B.LADDER;
+      for(let y=y0+h+1;y<=y0+h+3;y++)P(L[0],y,L[1],lad);for(let y=y0+1;y<=y0+h+3;y++)P(Pc[0],y,Pc[1],athB(ST.wall2));
+      h+=3;prev={cells:[Pc],h,k:'block',len:1};path.push({cells:[Pc],h,k:'block',lad:L});i+=2;continue;}
+    // a moving platform along a straight side (star tower)
+    if(!tight&&s===4&&usedMover<2&&prev&&prev.k!=='blink'&&prev.k!=='crumble'&&prev.k!=='magma'&&R()<0.45){const T=2+(R()<0.5?1:0),sd=side(i+1);if(side(i+T+4)===sd&&(i+1)%10<=10-(T+5)&&(i+1)%10>=0&&left>T+8){usedMover++;
+      const a=cellAt(i+1),b=cellAt(i+2),dir=TW_DIR[sd],ax=dir[0]!==0?0:2,dr=dir[0]!==0?dir[0]:dir[1],id=athB(ST.plat[1]);
+      P(a[0],y0+h,a[1],id);P(b[0],y0+h,b[1],id);dyn.push({t:'mv',o:[a[0],y0+h,a[1]],cells:[[0,0,0],[b[0]-a[0],0,b[1]-a[1]]],axis:ax,dir:dr,len:T,st:0.5,pause:0.9,ph:R(),id});
+      path.push({cells:[a,b],h,k:'mover'});prev={cells:[cellAt(i+1+T),cellAt(i+2+T)],h,k:'block',len:2,mover:true};i=i+3+T;continue;}}
+    let r=!prev?1:tight?1:(R()<0.42+need*2/Math.max(1,left)?1:0);
+    let k=!prev?'block':kinds[(R()*kinds.length)|0];if(tight&&(k==='fence'||k==='magma'))k='block';if(k==='fence'&&!tight)r=0;   // onto a fence post only on the level
+    if(prev&&(k==='blink'||k==='crumble')&&(prev.k==='blink'||prev.k==='crumble'||prev.mover))k='block';   // never two vanishing platforms in a row
+    if(prev&&prev.k==='magma'&&k!=='block'&&k!=='fence')k='block';   // no waiting on hot magma
+    let len=k==='fence'?1:k==='ice'?2+(R()<0.4?1:0):(k==='blink'||k==='crumble')?2:(d<0.25?2:(R()<0.5?1:2));if(tight&&k!=='blink'&&k!=='crumble')len=1;if(k==='mover')k='block';
+    const fromK=prev?(prev.k==='slab'?'slab':prev.k==='fence'?'fence':prev.k==='ice'?'ice':'block'):'block',toK=k==='slab'?'slab':k==='fence'?'fence':k==='ice'?'ice':'block';
+    let hs=h+r,dyS=(hs-1+(surf[k]||1))-(prev?prev.h-1+(surf[prev.k]||1):0);
+    if(dyS>1.0001){r=0;hs=h;dyS=(hs-1+(surf[k]||1))-(prev?prev.h-1+(surf[prev.k]||1):0);}   // from a half block, a whole block one higher is out of reach
+    let gap=1;
+    if(prev){let D=athMaxGap(d,dyS,fromK,toK,prev.len);D=Math.min(D,dyS>0.4?1.6:2.6);if(prev.len===1||k==='ice'||prev.k==='ice')D=Math.min(D,dyS>0.4?1.25:2.2);   // the room is small: no long run-ups
+      const gmax=Math.max(0,Math.floor(D+1e-6));gap=tight?Math.min(1,gmax):Math.max(Math.min(1,gmax),Math.min(gmax,1+Math.floor(R()*Math.min(3,gmax))));
+      while(gap>0&&dist(prev.cells,[cellAt(i+gap)])>D+1e-6)gap--;}
+    const cells=[];for(let q=0;q<len;q++)cells.push(cellAt(i+gap+q));
+    const id=pid(k),y=y0+hs-(k==='slab'?0:0);for(const c of cells)P(c[0],y0+hs,c[1],id);
+    if(k==='blink')dyn.push({t:'blink',P:3.2,ph:R(),on:0.7,cells:cells.map(c=>[c[0],y0+hs,c[1]]),id});
+    if(k==='crumble')dyn.push({t:'crumble',cells:cells.map(c=>[c[0],y0+hs,c[1]]),id,delay:0.8,back:2.4});
+    path.push({cells,h:hs,k});prev={cells,h:hs,k,len,id};h=hs;i=i+gap+len;}
+  // the last platform runs on until the ladder and its support stand in a straight line with it
+  while(((i%10)+10)%10===0||((i%10)+10)%10===9){const c=cellAt(i);P(c[0],y0+h,c[1],prev.id&&prev.k!=='blink'&&prev.k!=='crumble'&&prev.k!=='magma'?prev.id:athB(ST.plat[0]));prev.cells.push(c);i++;}
+  const Lc=cellAt(i),Sc=cellAt(i+1),dir=TW_DIR[side(i)],f0=dir[0]>0?0:dir[0]<0?1:dir[1]>0?2:3,lad=BLOCKS[B.LADDER].vars?BLOCKS[B.LADDER].vars[f0]:B.LADDER;
+  for(let y=y0+h+1;y<=y0+FHtop();y++)P(Lc[0],y,Lc[1],lad);for(let y=y0+h+1;y<y0+TW.FH;y++)P(Sc[0],y,Sc[1],athB(ST.wall2));
+  path.push({cells:[Sc],h:TW.FH,k:'exit',lad:Lc});
+  return{s,f,g,y0,E:i0,Ec:cellAt(i0),hole:Lc,exitI:i+1,blocks:bl,dyn,regions:[],minY:y0,path,d};}
+function FHtop(){return TW.FH;}
+function twBuild(seed){const out=[];for(let s=0;s<TW.S;s++){const fl=[];let i0=0;for(let f=0;f<TW.F;f++){const F=twFloor(s,f,i0,seed);fl.push(F);i0=F.exitI;}
+  const idx=pkIndex([].concat(...fl.map(F=>F.blocks)));const holes=new Map();fl.forEach(F=>holes.set(F.f+1,F.hole));out.push({s,floors:fl,idx,holes});}return out;}
+function twStartPos(S,s,f){const F=S.T[s].floors[f],c=F.Ec;return[c[0]+0.5,F.y0+1.02,c[1]+0.5];}
+function twGen(w,c){const S=PK.st;if(!S.T)return;const bx=c.cx*16,bz=c.cz*16;
+  for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,s=Math.round((wx-2000-7)/64);if(s<0||s>=TW.S)continue;
+    const X=twX(s),ST=TW_ST[s],TT=S.T[s],cs=(y,id)=>{if(y>=0&&y<H)c.blocks[bidx(x,y,z)]=id;};
+    const cx=X+7,dx=wx-cx,r2=dx*dx+wz*wz;
+    // what the tower stands on: a grassy island, or a bank of cloud
+    if(ST.base==='grass'){if(r2<=26*26+hash2(wx,wz,41)*60){const top=TW.Y0-1;cs(top,B.GRASS);for(let y=top-3;y<top;y++)cs(y,B.DIRT);for(let y=top-7;y<top-3;y++)cs(y,B.STONE);
+        if(r2>11*11&&hash2(wx,wz,42)<0.03&&(Math.abs(dx)>9||Math.abs(wz)>9)){cs(top+1,B.LEAVES);if(hash2(wx,wz,46)<0.5)cs(top+2,B.LEAVES);}else if(r2>9*9&&hash2(wx,wz,43)<0.18)cs(top+1,hash2(wx,wz,44)<0.2?B.FLOWER_Y:B.TALLGRASS);}}
+    else{const n=hash2(wx>>2,wz>>2,45);if(r2<=18*18||(r2<=30*30&&n<0.4))cs(TW.Y0-2,B.WOOL_W);if(r2<=12*12)cs(TW.Y0-3,B.WOOL_W);}
+    if(wx<X||wx>X+14||wz<-7||wz>7)continue;
+    const wall=wx===X||wx===X+14||wz===-7||wz===7,corner=(wx===X||wx===X+14)&&(wz===-7||wz===7);
+    if(wall){for(let y=TW.Y0;y<=twY(TW.F)+1;y++){const fy=(y-TW.Y0)%TW.FH;let id=athB(ST.wall);
+        if(corner)id=athB(ST.wall2);else if(fy===0)id=athB(ST.band);else if(fy>=3&&fy<=6&&((wx+wz)&3)===1)id=athB(ST.win);else if((fy===5||fy===8||fy===2)&&((wx+wz)&3)===3)id=athB(ST.light==='END_ROD'?'SEA_LANTERN':ST.light==='LANTERN'?'GLOWSTONE':ST.light);
+        else if(hash3(wx,y,wz,4401)<0.18)id=athB(ST.wall2);cs(y,id);}
+      if((wx+wz)&1)cs(twY(TW.F)+2,athB(ST.wall));continue;}
+    for(let f=0;f<=TW.F;f++){const y=twY(f),hole=TT.holes.get(f);if(hole&&hole[0]===wx&&hole[1]===wz)continue;
+      let id=f===TW.F?athB(ST.wall2):athB(ST.floor);if(f===TW.F&&wx>=X+6&&wx<=X+8&&wz>=-1&&wz<=1)id=B.ATH_GOAL;cs(y,id);
+      if(ST.lava&&f<TW.F){const F=TT.floors[f],e=F.Ec;if(Math.abs(wx-e[0])>2||Math.abs(wz-e[1])>2)cs(y+1,B.LAVA);}}
+    if(wx===X+6||wx===X+8)if(wz===-1||wz===1)cs(twY(TW.F)+1,B.END_ROD);}
+  for(const T of S.T)pkPutIdx(c,T.idx);}
+function twStart(fromStage){if(!pkEnter('tower',8800))return;const S=PK.st;S.seed=424242;S.T=twBuild(S.seed);
+  const s=Math.max(0,Math.min(TW.S-1,fromStage|0));S.s=s;S.f=0;S.top=s*10;S.t=0;S.falls=0;S.fromS=s;S.ph='wait';S.done=false;
+  pkPut(twStartPos(S,s,0));dayTime=TW_ST[s].time;beginLoading('天空の塔：'+TW_ST[s].name+'（'+(s*10+1)+'階）');}
+function twRecSave(){const S=PK.st;pkRecPut(o=>{const r=o.tower=o.tower||{};r.top=Math.max(r.top|0,S.top+1);});}
+function twNextStage(){const S=PK.st;if(S.s>=TW.S-1){twClear();return;}S.s++;S.f=0;S.top=Math.max(S.top,S.s*10);twRecSave();
+  const p=twStartPos(S,S.s,0);pkPut(p);dayTime=TW_ST[S.s].time;pkTelop(TW_ST[S.s].name,(S.s*10+1)+'階から');try{sfx.pop&&sfx.pop(p);}catch(e){}
+  if(typeof wq==='function')for(let i=0;i<40;i++)wq({x:p[0]+(Math.random()-0.5)*2,y:p[1]+Math.random()*2,z:p[2]+(Math.random()-0.5)*2,vx:(Math.random()-0.5)*2,vy:1+Math.random()*2,vz:(Math.random()-0.5)*2,g:-0.5,tile:T.ATH_GOAL_T,s:0.05,life:1.2,glow:true});}
+function twClear(){const S=PK.st;if(S.done)return;S.done=true;S.top=TW.S*TW.F-1;const full=S.fromS===0;let best=null,nb=false;
+  pkRecPut(o=>{const r=o.tower=o.tower||{};r.top=TW.S*TW.F;r.clears=(r.clears|0)+1;if(full){nb=!(r.t>0)||S.t<r.t;if(nb)r.t=S.t;}best=r.t;});
+  const p=player.pos;pkFireworks(p[0],p[1]+4,p[2],5);pkTelop('頂上！','全50階 クリア');
+  const rows=[['タイム',pkFmt(S.t)+(full?'':'（途中から）')],['落ちた回数',S.falls+' 回'],[full?(nb?'自己ベスト更新！':'自己ベスト'):'自己ベスト',pkFmt(best)]];
+  setTimeout(()=>{if(!PK.on||PK.id!=='tower')return;pkResults(pkResHTML('天空の塔','[[crown|#ffd23a]] 頂上にたどり着いた！',rows,'#ffe3a6'),[['1階からもう一度',()=>twStart(0)],['アスレをやめる',()=>pkStop()]]);},1800);}
+pkDef({id:'tower',name:'天空の塔',icon:'tower',col:'#8fe0a0',
+  desc:'5つの塔をつないだ全50階の縦のアスレです。部屋の壁ぞいの足場を登り、天井のはしごから上の階へ。石・木と蔦・氷・溶岩・星の塔と、上に行くほど空が暮れていきます。落ちてもその階の床に戻るだけ。',
+  buttons:[['1階から',0],['つづきから',1]],
+  rec(){const r=pkRec().tower||{};return(r.t>0?'ベスト '+pkFmt(r.t)+'<br>':'')+(r.top?'最高 '+Math.min(50,r.top)+'階':'');},
+  play(a){const r=pkRec().tower||{},top=Math.min(49,Math.max(0,(r.top|0)-1));twStart(a===1?Math.floor(top/10):0);},
+  restart(){const S=PK.st;S.f=0;pkPut(twStartPos(S,S.s,0));pkFlash('この塔の1階からやり直し');},
+  gen(w,c){twGen(w,c);},
+  tick(dt){const S=PK.st;if(!S.T||S.done)return;const p=player;
+    if(S.ph==='wait'){S.ph='run';pkTelop(TW_ST[S.s].name,(S.s*10+1)+'階　頂上をめざせ！');}
+    S.t+=dt;const TT=S.T[S.s],X=twX(S.s);
+    const inside=p.pos[0]>X&&p.pos[0]<X+14&&p.pos[2]>-7&&p.pos[2]<7;
+    if(inside){const fy=Math.floor((p.pos[1]-TW.Y0-0.5)/TW.FH),f=Math.max(0,Math.min(TW.F,fy));
+      if(f>S.f&&p.onGround){S.f=f;const g=S.s*10+f;if(g>S.top){S.top=g;twRecSave();}
+        if(f<TW.F){spawnPoint=twStartPos(S,S.s,f);pkFlash((g+1)+'階','#c8ffd0');try{sfx.pop&&sfx.pop(p.pos.slice());}catch(e){}if((g+1)%5===0)pkTelop((g+1)+'階',TW_ST[S.s].name);}
+        else pkFlash('屋上！ 光の門へ','#ffe9a0');}
+      else if(f<S.f&&p.onGround){S.f=f;}}
+    // the roof: the gate of light in the middle
+    if(S.f>=TW.F&&p.onGround){const bx=Math.floor(p.pos[0]),bz=Math.floor(p.pos[2]),by=Math.floor(p.pos[1]-0.1);if(world.getBlock(bx,by,bz)===B.ATH_GOAL){twNextStage();return;}}
+    if(S.f<TW.F){const hit=pkDyn(TT.floors,S.f,dt);if(hit){S.falls++;pkDynReset(TT.floors[S.f]);pkPut(twStartPos(S,S.s,S.f));pkFlash((PK_HIT[hit]||'アウト！')+' '+(S.s*10+S.f+1)+'階のはじめへ');}}
+    if(p.pos[1]<TW.Y0-6){pkPut(twStartPos(S,S.s,S.f));}
+    // a fall: landing on the floor of the room after having climbed three blocks or more
+    if(S.f<TW.F){const fl=twY(S.f)+1;S.hi=Math.max(S.hi||0,p.pos[1]-fl);if(p.onGround&&p.pos[1]-fl<0.2){if(S.hi>3)S.falls++;S.hi=0;}}
+    const g=Math.min(TW.S*TW.F,S.s*10+S.f+1);pkProg(true,(S.s*10+S.f)/(TW.S*TW.F),null,null);
+    const u=PK.hud;if(u)u.hud.innerHTML=`<div>${ico('tower')} 天空の塔・${TW_ST[S.s].name}</div><div class="big">${S.f>=TW.F?'屋上':g+'階'}<span style="font-size:14px"> / 50階</span></div><div>${pkFmt(S.t)}　落下 ${S.falls}</div><div>最高 ${S.top+1}階</div>`;},
+  stop(){pkProg(false);}});
+
+// ---------------------------------------------------------------- 6. ギミック迷宮
+// A row of sealed rooms, each with a lock on its far door: levers to set, a plate to race from, buttons to press in the
+// order you were shown, platforms that vanish, a dark maze, a key to fetch ... the last door opens on the treasure.
+const MZ={FY:60,N:11};
+function mzX(k){return 3000+k*14;}
+// a room's local cell (u 0..12 across, v 0..12 deep, y above the floor) in the world
+function mzW(k,u,y,v){return[mzX(k)+1+u,MZ.FY+y,-6+v];}
+const MZ_DOOR=[[0,1],[0,2],[0,3]].flatMap(([_,y])=>[[y,5],[y,6]]);   // (y, v) of the 6 cells of a door
+const MZ_ROOMS=[
+  {name:'はじまりの部屋',hint:'レバーを右クリックすると扉が開きます'},
+  {name:'3本のレバー',hint:'扉の上のランプと同じになるようにレバーを切りかえよう'},
+  {name:'感圧板ダッシュ',hint:'奥の感圧板を踏むと扉が少しだけ開きます。急げ！'},
+  {name:'消える足場',hint:'点滅する足場が消える前に渡ろう。溶岩に落ちると部屋の入口へ'},
+  {name:'ボタンの順番',hint:'まん中の感圧板を踏むと光る順番が見えます。同じ順にボタンを押そう'},
+  {name:'高いところのボタン',hint:'柱を登って、天井近くのボタンを押そう'},
+  {name:'暗闇の迷路',hint:'光るキノコをたよりに出口を探そう'},
+  {name:'動く橋',hint:'動く足場に乗って溶岩を渡ろう'},
+  {name:'2つのレバー',hint:'レバーは6秒で戻ります。両方を同時に入れよう'},
+  {name:'鍵の部屋',hint:'高い台の上の鍵を取って（右クリック）、扉を右クリックしよう'},
+  {name:'最後の試練',hint:'柱の上の3本のレバーを、扉の上のランプと同じにしよう'},
+];
+function mzBuild(seed){const R=mulberry32(seed|0),rooms=[],bl=[];const P=(a,id)=>bl.push(a[0],a[1],a[2],id);
+  const wall=B.DS_BRICKS!==undefined?B.DS_BRICKS:B.STONEBRICK,wall2=B.P_DEEPSLATE!==undefined?B.P_DEEPSLATE:B.STONE,gold=B.GOLD_BLOCK,lamp=B.REDSTONE_LAMP,lampOn=B.REDSTONE_LAMP_ON;
+  for(let k=0;k<=MZ.N;k++){const rm={k,dyn:[],regions:[],minY:MZ.FY-2,st:{}};rooms.push(rm);const W=(u,y,v)=>mzW(k,u,y,v);
+    // the shell: floor, ceiling, walls with a band and lights; doors in the east and west walls
+    for(let u=-1;u<=13;u++)for(let v=-1;v<=13;v++){P(W(u,0,v),u===-1||u===13||v===-1||v===13?wall2:((u+v)&1?wall:wall2));P(W(u,9,v),wall2);P(W(u,-1,v),wall2);}
+    for(let y=1;y<=8;y++)for(let t=-1;t<=13;t++){const id=y===4?(B.CHISELED_STONEBRICK||wall):((t*7+y*3)%11===0?(B.CRACKED_STONEBRICK||wall):wall);
+      P(W(t,y,-1),id);P(W(t,y,13),id);if(k===0)P(W(-1,y,t),id);P(W(13,y,t),id);}
+    if(k!==6){for(const[u,v]of[[2,-1],[10,-1],[2,13],[10,13],[6,-1],[6,13]])for(const y of[3,6])P(W(u,y,v),B.SHROOMLIGHT||B.GLOWSTONE);for(const u of[2,6,10])for(const v of[2,6,10])P(W(u,9,v),B.GLOWSTONE);}
+    rm.door=MZ_DOOR.map(([y,v])=>W(13,y,v));rm.entry=[mzX(k)+1.5,MZ.FY+1.02,0.0];
+    if(k<MZ.N)for(const c of rm.door)P(c,B.IRON_BARS);
+    // the room's own puzzle
+    if(k===0){rm.lev=[W(12,2,8)];P(rm.lev[0],B.LEVER);P(W(12,1,8),gold);}
+    if(k===1||k===10){const n=3;rm.lev=[];rm.lamp=[];rm.goal=[];do{rm.goal=[0,0,0].map(()=>R()<0.5);}while(!rm.goal.some(Boolean));
+      for(let j=0;j<n;j++){const lu=3+j*3,lv=k===1?12:[3,6,8][j];
+        if(k===10){const hgt=2+j;for(let y=1;y<=hgt;y++)P(W(lu,y,lv),wall);rm.lev.push(W(lu,hgt+1,lv));}else rm.lev.push(W(lu,2,lv));
+        P(rm.lev[j],B.LEVER);const lp=W(12,6,4+j*2);rm.lamp.push(lp);P(lp,rm.goal[j]?lampOn:lamp);P(W(12,5,4+j*2),gold);}
+      if(k===10){for(let u=1;u<=11;u++)for(let v=0;v<=12;v++){if(u>=2&&u<=10)P(W(u,0,v),B.LAVA);}rm.regions.push({t:'lava'});
+        // stepping stones to each pillar
+        for(const[u,v]of[[2,6],[5,4],[5,8],[8,6],[11,6]])P(W(u,0,v),wall2);}}
+    if(k===2){const pl=W(1,0,11);P(pl,B.ATH_PLATE);for(let v=0;v<=12;v++){P(W(6,0,v),B.LAVA);P(W(7,0,v),B.LAVA);}
+      for(let v=0;v<=12;v++)if(v%4!==1)P(W(9,1,v),wall);for(let v=3;v<=9;v++)P(W(3,1,v),wall);
+      rm.dyn.push({t:'gate',plate:[pl],cells:rm.door,id:B.IRON_BARS,dur:6.5});}
+    if(k===3||k===7){for(let u=2;u<=10;u++)for(let v=0;v<=12;v++){P(W(u,0,v),B.LAVA);P(W(u,-1,v),wall2);}
+      for(const u of[0,1,11,12])for(let v=0;v<=12;v++)P(W(u,1,v),wall);
+      if(k===3){let ph=0;for(let u=2;u<=10;u+=2){const cells=[W(u,1,5),W(u,1,6),W(u+1,1,5),W(u+1,1,6)].filter(c=>c[0]<=mzX(k)+11);for(const c of cells)P(c,B.ATH_GLOW);
+          rm.dyn.push({t:'blink',P:3.0,ph:ph,on:0.58,cells,id:B.ATH_GLOW});ph+=0.27;}}
+      else{const a=W(2,1,5),id=B.PURPUR!==undefined?B.PURPUR:wall;P(a,id);P(W(2,1,6),id);rm.dyn.push({t:'mv',o:a,cells:[[0,0,0],[0,0,1]],axis:0,dir:1,len:3,st:0.5,pause:1.0,ph:0,id});
+        for(let v=4;v<=7;v++){P(W(6,1,v),wall);}const b=W(7,1,5);P(b,id);P(W(7,1,6),id);rm.dyn.push({t:'mv',o:b,cells:[[0,0,0],[0,0,1]],axis:0,dir:1,len:3,st:0.45,pause:0.8,ph:0.5,id});}}
+    if(k===4){rm.btn=[];rm.wool=[];const cols=[B.WOOL_R,B.WOOL_Y,B.WOOL_G,B.WOOL_B];for(let j=0;j<4;j++){const b=W(2+j*3,2,12);rm.btn.push(b);P(b,B.BUTTON);const wl=W(2+j*3,3,12);rm.wool.push([wl,cols[j]]);P(wl,cols[j]);}
+      rm.plate=W(6,0,6);P(rm.plate,B.ATH_PLATE);rm.seq=[0,1,2,3].map(()=>(R()*4)|0);}
+    if(k===5){const route=[[2,6,1],[4,7,2],[6,6,3],[8,7,4],[10,6,5],[11,9,6]];for(const[u,v,hh]of route)for(let y=1;y<=hh;y++)P(W(u,y,v),y===hh?gold:wall);
+      rm.btn=[W(11,8,12)];P(rm.btn[0],B.BUTTON);P(W(11,7,12),gold);
+      for(let u=8;u<=12;u++)for(let v=8;v<=12;v++)if(!(u===11&&v===9))P(W(u,0,v),B.LAVA);}   // no standing under the button
+    if(k===6){// a maze 6×6 (corridors on odd cells), 3 high, lit by glowing mushrooms
+      const G=6,seen=new Set(),open=new Set(),stack=[[0,2]],key=(a,b)=>a+','+b;seen.add(key(0,2));
+      while(stack.length){const[a,b]=stack[stack.length-1],nb=[[1,0],[-1,0],[0,1],[0,-1]].map(([p,q])=>[a+p,b+q]).filter(([p,q])=>p>=0&&q>=0&&p<G&&q<G&&!seen.has(key(p,q)));
+        if(!nb.length){stack.pop();continue;}const n=nb[(R()*nb.length)|0];seen.add(key(n[0],n[1]));open.add(key(a*2+1+(n[0]-a),b*2+1+(n[1]-b)));stack.push(n);}
+      for(let u=0;u<=12;u++)for(let v=0;v<=12;v++){const cell=(u&1)&&(v&1),isOpen=cell||open.has(key(u,v));if(isOpen)continue;if((u===0||u===12)&&(v===5||v===6))continue;for(let y=1;y<=3;y++)P(W(u,y,v),wall);}
+      const glow=B.WP_GLOWSHROOM!==undefined?B.WP_GLOWSHROOM:B.LANTERN;for(let u=1;u<=11;u+=2)for(let v=1;v<=11;v+=2)if(R()<0.3)P(W(u,1,v),glow);
+      P(W(1,1,5),0);P(W(11,1,5),0);}
+    if(k===8){for(let u=5;u<=7;u++)for(let v=0;v<=12;v++){P(W(u,0,v),B.LAVA);P(W(u,-1,v),wall2);}
+      // stepping stones over the lava, and a lever at each end of the room
+      for(const v of[2,5,8,11])P(W(6,0,v),wall2);rm.lev=[W(1,2,12),W(11,2,0)];P(rm.lev[0],B.LEVER);P(rm.lev[1],B.LEVER);P(W(1,1,12),gold);P(W(11,1,0),gold);rm.regions.push({t:'lava'});}
+    if(k===9){const route=[[3,2,1],[5,3,2],[7,2,3],[9,3,4],[10,6,5],[8,8,6]];for(const[u,v,hh]of route)for(let y=1;y<=hh;y++)P(W(u,y,v),wall);
+      rm.ped=W(6,8,9);for(let y=1;y<=7;y++)P(W(6,y,9),wall);P(rm.ped,gold);for(const c of rm.door)P(c,B.IRON_BLOCK);
+      for(let u=4;u<=8;u++)for(let v=7;v<=11;v++)if(!(u===6&&v===9)&&!(u===8&&v===8))P(W(u,0,v),B.LAVA);}   // the key can only be reached from the top
+    if(k===MZ.N){for(let u=2;u<=10;u++)for(let v=2;v<=10;v++)P(W(u,0,v),(u+v)&1?gold:B.QUARTZ_BRICKS||gold);
+      for(const[u,v]of[[2,2],[10,2],[2,10],[10,10]]){P(W(u,1,v),B.DIAMOND_BLOCK);P(W(u,2,v),B.LANTERN);}for(const c of[W(5,1,11),W(7,1,11)])P(c,B.CHEST);
+      for(let u=5;u<=7;u++)for(let v=5;v<=7;v++)P(W(u,0,v),B.ATH_GOAL);}}
+  return{rooms,idx:pkIndex(bl)};}
+function mzRoomAt(x){return Math.max(0,Math.min(MZ.N,Math.floor((x-mzX(0)-1)/14)));}
+function mzOpen(rm,quiet){if(rm.opened)return;rm.opened=true;for(const c of rm.door)athSet(c[0],c[1],c[2],0);if(!quiet){pkFlash('扉が開いた！','#c8ffd0');try{sfx.lever&&sfx.lever(rm.door[0],1);sfx.pop&&sfx.pop(rm.door[0]);}catch(e){}}}
+function mzSame(a,b){return a[0]===b[0]&&a[1]===b[1]&&a[2]===b[2];}
+function mzStart(){if(!pkEnter('maze',9900))return;const S=PK.st;S.seed=((Date.now()/1000)|0)%100000;Object.assign(S,mzBuild(S.seed));S.k=0;S.t=0;S.falls=0;S.ph='wait';S.key=false;S.done=false;
+  pkPut(S.rooms[0].entry);dayTime=0.3;beginLoading('ギミック迷宮：からくりを組み立てています…');}
+function mzClear(){const S=PK.st;if(S.done)return;S.done=true;let best=null,nb=false;
+  pkRecPut(o=>{const r=o.maze=o.maze||{};r.clears=(r.clears|0)+1;nb=!(r.t>0)||S.t<r.t;if(nb)r.t=S.t;best=r.t;});
+  const p=player.pos;pkFireworks(p[0],p[1]+3,p[2],5);pkTelop('宝物の部屋！','迷宮を突破した');
+  setTimeout(()=>{if(!PK.on||PK.id!=='maze')return;pkResults(pkResHTML('ギミック迷宮',nb?'自己ベスト！':'突破！',[['タイム',pkFmt(S.t)],['部屋',MZ.N+' 部屋'],['落ちた回数',S.falls+' 回'],[nb?'自己ベスト更新！':'自己ベスト',pkFmt(best)]],'#ffe3a6'),
+    [['もう一度（からくりが変わります）',()=>mzStart()],['アスレをやめる',()=>pkStop()]]);},1600);}
+// levers and buttons of the maze
+function mzSwitch(x,y,z,id){const S=PK.st;if(!S.rooms)return;const rm=S.rooms[S.k],c=[x,y,z];if(!rm||rm.opened)return;const on=id===B.LEVER_ON||id===B.BUTTON_ON;
+  const li=(rm.lev||[]).findIndex(a=>mzSame(a,c)),bi=(rm.btn||[]).findIndex(a=>mzSame(a,c));
+  if(rm.k===0&&li===0&&on)mzOpen(rm);
+  if((rm.k===1||rm.k===10)&&li>=0){const st=rm.lev.map(a=>world.getBlock(a[0],a[1],a[2])===B.LEVER_ON);if(st.every((v,j)=>v===rm.goal[j]))mzOpen(rm);}
+  if(rm.k===4&&bi>=0&&on){if(!rm.shown){pkFlash('まず感圧板を踏んで順番を見よう');return;}const want=rm.seq[rm.got|0];
+    if(bi===want){rm.got=(rm.got|0)+1;try{sfx.click&&sfx.click();}catch(e){}if(rm.got>=rm.seq.length)mzOpen(rm);else pkFlash(rm.got+' / '+rm.seq.length,'#c8ffd0');}
+    else{rm.got=0;pkFlash('ちがう！ 最初から','#ffb0a0');try{sfx.deny&&sfx.deny();}catch(e){}}}
+  if(rm.k===5&&bi===0&&on)mzOpen(rm);
+  if(rm.k===8&&li>=0&&on){rm.st['t'+li]=6;const both=rm.lev.every(a=>world.getBlock(a[0],a[1],a[2])===B.LEVER_ON);if(both)mzOpen(rm);else pkFlash('のこり 6 秒！ もう1本へ','#ffe9a0');}}
+function mzUse(x,y,z,id){const S=PK.st;if(!S.rooms)return false;const rm=S.rooms[S.k];if(!rm)return false;const c=[x,y,z];
+  if(rm.k===9&&rm.ped&&mzSame(rm.ped,c)&&!S.key){S.key=true;athSet(x,y,z,B.STONEBRICK);pkFlash('[[key|#ffd23a]] 鍵を手に入れた！ 扉を右クリック','#ffe9a0');try{sfx.pop&&sfx.pop([x+0.5,y+0.5,z+0.5]);}catch(e){}return true;}
+  if(rm.k===9&&!rm.opened&&rm.door.some(d=>mzSame(d,c))){if(S.key)mzOpen(rm);else pkFlash('[[lock]] 鍵がかかっている。鍵はどこ？');return true;}
+  return false;}
+{const _us=useSwitch;useSwitch=function(x,y,z,id){const r=_us.apply(this,arguments);if(PK.on&&PK.id==='maze'){try{mzSwitch(x,y,z,world.getBlock(x,y,z));}catch(e){console.warn(e);}}return r;};}
+{const _u5=useBlock5;useBlock5=function(x,y,z,id){if(PK.on&&PK.id==='maze'){try{if(mzUse(x,y,z,id))return true;}catch(e){console.warn(e);}}return _u5.apply(this,arguments);};}
+pkDef({id:'maze',name:'ギミック迷宮',icon:'maze',col:'#ffd65a',
+  desc:'謎解きとアスレがまざった部屋が11つながった迷宮です。レバー・感圧板・ボタンの順番・消える足場・暗闇の迷路・鍵……扉を開けて奥の宝物の部屋をめざします。遊ぶたびに答えが変わります。',
+  buttons:[['入る',null]],
+  rec(){const r=pkRec().maze||{};return r.t>0?'ベスト '+pkFmt(r.t)+'<br>突破 '+(r.clears|0)+' 回':'';},
+  play(){mzStart();},restart(){const S=PK.st;pkPut(S.rooms[S.k].entry);pkFlash('この部屋の入口へ');},
+  gen(w,c){const S=PK.st;if(!S.rooms)return;pkPutIdx(c,S.idx);},
+  tick(dt){const S=PK.st;if(!S.rooms||S.done)return;const p=player;
+    if(S.ph==='wait'){S.ph='run';pkTelop('ギミック迷宮','扉を開けて奥へ進もう');setTimeout(()=>{if(PK.on&&PK.id==='maze'&&S.k===0)message(MZ_ROOMS[0].hint,4200);},2200);}
+    S.t+=dt;const k=mzRoomAt(p.pos[0]);
+    if(k!==S.k){if(k>S.k){S.k=k;spawnPoint=S.rooms[k].entry.slice();if(k<MZ.N){pkTelop('部屋 '+(k+1),MZ_ROOMS[k].name);setTimeout(()=>{if(PK.on&&PK.id==='maze'&&S.k===k)message(MZ_ROOMS[k].hint,4600);},1800);}}
+      else if(k<S.k){pkPut(S.rooms[S.k].entry);}}
+    const rm=S.rooms[S.k];
+    const hit=pkDyn(S.rooms,S.k,dt);if(hit){S.falls++;pkDynReset(rm);pkPut(rm.entry);pkFlash((PK_HIT[hit]||'アウト！')+' 部屋の入口へ');}
+    if(p.pos[1]<MZ.FY-1){S.falls++;pkPut(rm.entry);}
+    if(rm.dyn.some(o=>o.t==='gate')&&!rm.opened&&p.pos[0]>mzX(S.k)+14.2)rm.opened=true;
+    if((rm.k===3||rm.k===6||rm.k===7)&&!rm.opened&&p.pos[0]>mzX(rm.k)+11.6)mzOpen(rm);
+    // the order of the buttons is shown when you step on the plate
+    if(rm.k===4&&!rm.opened){const sc=athStandCell();if(sc&&mzSame(sc,rm.plate)&&!rm.showing){rm.showing=true;rm.got=0;rm.shown=false;let i=0;
+        const step=()=>{if(!PK.on||PK.id!=='maze')return;if(i>0){const[w0,c0]=rm.wool[rm.seq[i-1]];athSet(w0[0],w0[1],w0[2],c0);}
+          if(i>=rm.seq.length){rm.showing=false;rm.shown=true;pkFlash('さあ、同じ順に押そう！','#c8ffd0');return;}const[w1]=rm.wool[rm.seq[i]];athSet(w1[0],w1[1],w1[2],B.ATH_GLOW);try{sfx.click&&sfx.click();}catch(e){}i++;setTimeout(step,750);};
+        pkFlash('よく見て…','#ffe9a0');setTimeout(step,500);}}
+    // the two levers that spring back
+    if(rm.k===8&&!rm.opened)for(let j=0;j<2;j++){const t=rm.st['t'+j];if(t>0){rm.st['t'+j]=t-dt;if(t-dt<=0){const a=rm.lev[j];athSet(a[0],a[1],a[2],B.LEVER);pkFlash('レバーが戻った…');}}}
+    if(rm.k===MZ.N&&p.onGround){const sc=athStandCell();if(sc&&world.getBlock(sc[0],sc[1],sc[2])===B.ATH_GOAL){mzClear();return;}}
+    pkProg(true,S.k/MZ.N,null,null);
+    const u=PK.hud;if(u)u.hud.innerHTML=`<div>${ico('maze')} ギミック迷宮</div><div class="big">部屋 ${Math.min(S.k+1,MZ.N+1)}<span style="font-size:14px"> / ${MZ.N+1}</span></div><div>${S.k<MZ.N?MZ_ROOMS[S.k].name:'宝物の部屋'}</div><div>${pkFmt(S.t)}${S.key?'　'+ico('key','#ffd23a'):''}</div>`;},
+  stop(){pkProg(false);}});
+
+// ================================================================ ストーリーMOD — 『星をなくした島』, one long story in five chapters
+// One section in the Mod screen, like the other packs: a switch, the story's card (continue, start over, the diary) and
+// the five chapters, each of which can be chosen again once reached. Every chapter has a world of its own, made for it
+// (never saved as a world): its land, its people to talk to, what you must do next, its puzzles and its boss.
+// What is kept is the story itself: the chapter, how far into it you are, what you carry and the diary.
+const ST={on:false,ch:0,C:null,stage:0,S:null,rules:null,hud:null,talk:null,npcs:[],boss:null,chs:[]};
+const STX={next:null};
+function stS(){let s=settings.st;if(!s||typeof s!=='object')s=settings.st={on:true};return s;}
+function stOn(){const M=settings.mod;return!!(M&&M.unlocked&&stS().on);}
+function stDef(o){ST.chs[o.n-1]=o;return o;}
+function stLoad(){try{const o=JSON.parse(localStorage.getItem('aro_story')||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+function stPut(fn){const o=stLoad();try{fn(o);localStorage.setItem('aro_story',JSON.stringify(o));}catch(e){console.warn(e);}}
+function stReached(){const P=stLoad();return Math.max(1,Math.min(5,P.reach|0||1));}
+
+// ---------------------------------------------------------------- the people of the story
+const SKIN_ST={};
+[['jin','灯台守ジン',{skin:[226,190,160],hair:[236,236,240],eye:[60,60,70],shirt:[40,54,100],shirt2:[214,176,64],pants:[58,58,70],shoe:[66,44,30],style:'coat'}],
+ ['yura','森の長ユラ',{skin:[230,196,160],hair:[66,118,62],eye:[60,160,90],shirt:[70,130,70],shirt2:[190,226,160],pants:[96,74,52],shoe:[74,52,32],style:'sailor',long:true}],
+ ['garo','山小屋のガロ',{skin:[214,170,130],hair:[84,52,32],eye:[50,40,30],shirt:[160,58,44],shirt2:[234,214,184],pants:[62,72,94],shoe:[64,42,30],style:'worker',hat:[128,86,52]}],
+ ['mina','ミナ',{skin:[246,214,190],hair:[206,124,64],eye:[70,120,200],shirt:[236,236,246],shirt2:[224,84,104],pants:[84,64,94],shoe:[168,64,74],style:'coat',long:true}],
+ ['ren','旅人レン',{skin:[236,200,170],hair:[42,62,96],eye:[80,206,206],shirt:[40,124,134],shirt2:[232,222,192],pants:[52,52,64],shoe:[94,64,42],style:'hoodie'}],
+ ['watch','影の見張り',{skin:[40,40,54],hair:[20,20,28],eye:[255,84,84],shirt:[32,30,42],shirt2:[70,24,36],pants:[26,26,34],shoe:[20,20,26],style:'walker'}],
+ ['guard','遺跡の番人',{skin:[122,132,112],hair:[72,112,62],eye:[120,255,200],shirt:[112,122,102],shirt2:[84,164,124],pants:[100,110,90],shoe:[82,92,72],style:'robot'}],
+].forEach(([k,name,o])=>{SKIN_ST[k]=SKINS.push(Object.assign({name},o))-1;});
+// people stand where they are put (the story moves them); they cannot be hurt, and right-click talks to them
+MODHOOK.mobs.push(()=>{
+  for(const k of['jin','yura','garo','mina','ren'])mdef('st_'+k,SKINS[SKIN_ST[k]].name,{hp:999,hw:0.3,hh:1.85,model:'biped',skin:SKIN_ST[k],move:'none',kind:'passive',spd:0,egg:false,drops:[]});
+  mdef('st_watch','影の見張り',{hp:999,hw:0.3,hh:1.95,model:'biped',skin:SKIN_ST.watch,bp:{sc:1.08},move:'none',kind:'passive',spd:0,egg:false,drops:[]});
+  mdef('st_guard','遺跡の番人',{hp:56,hw:0.7,hh:2.6,model:'biped',skin:SKIN_ST.guard,bp:{sc:1.4,bw:12,bd:7,lw:5,legL:11,armL:16,golem:1},kind:'hostile',dmg:2.5,spd:0.8,sight:30,egg:false,drops:[],voice:'clank',knock:1.6});
+  mdef('st_night','夜喰い',{hp:110,hw:0.9,hh:4.2,spd:0.9,kind:'hostile',dmg:4,move:'walk',sight:60,model:'wp_eater',egg:false,drops:[],voice:'growl'});
+});
+function stNpc(type,x,y,z,yaw,o){const m=addMob(type,x,y,z,{persist:true});if(!m)return null;m.persist=true;m.invul=true;m.yaw=yaw||0;m.stNpc=Object.assign({type,home:[x,y,z]},o||{});ST.npcs.push(m);return m;}
+function stNpcBy(type){return ST.npcs.find(m=>m.type===type&&mobs.includes(m));}
+function stFace(m,tx,tz,dt){const d=Math.atan2(tx-m.pos[0],-(tz-m.pos[2]));let a=d-m.yaw;a=Math.atan2(Math.sin(a),Math.cos(a));m.yaw+=a*Math.min(1,(dt||0.016)*6);}
+// walking a person somewhere by hand: along the ground, a step at a time
+function stGround(x,y,z){const ix=Math.floor(x),iz=Math.floor(z);for(let yy=Math.floor(y)+2;yy>=Math.floor(y)-4;yy--)if(SOLID[world.getBlock(ix,yy-1,iz)]&&!SOLID[world.getBlock(ix,yy,iz)]&&!SOLID[world.getBlock(ix,yy+1,iz)])return yy;return null;}
+function stWalk(m,tx,tz,spd,dt,stop){const dx=tx-m.pos[0],dz=tz-m.pos[2],D=Math.hypot(dx,dz);let moving=false;
+  if(D>(stop||0.3)){const s=Math.min(D,spd*dt),nx=m.pos[0]+dx/D*s,nz=m.pos[2]+dz/D*s,gy=stGround(nx,m.pos[1],nz);
+    if(gy!==null&&Math.abs(gy-m.pos[1])<=1.2){m.pos[0]=nx;m.pos[2]=nz;m.pos[1]+=(gy-m.pos[1])*Math.min(1,dt*12);moving=true;}
+    else if(gy===null||gy-m.pos[1]>1.2){m.pos[0]+=dx/D*s;m.pos[2]+=dz/D*s;const g2=stGround(m.pos[0],m.pos[1]+3,m.pos[2]);if(g2!==null)m.pos[1]=g2;moving=true;}
+    stFace(m,tx,tz,dt);}
+  m.walkAmp=lerp(m.walkAmp||0,moving?1:0,Math.min(1,dt*8));m.walk=(m.walk||0)+(moving?spd*dt*1.6:0);return D;}
+{const _im=interactMob;interactMob=function(m){if(ST.on&&m&&m.stNpc){stTalkTo(m);return true;}return _im.apply(this,arguments);};}
+
+// ---------------------------------------------------------------- the world of a chapter
+World.prototype.story=null;
+{const _nw=newWorld;newWorld=function(seed){const t=STX.next;STX.next=null;World.prototype.story=t;
+  try{return _nw.apply(this,arguments);}finally{World.prototype.story=null;if(world)world.story=t;}};}
+{const _gen=World.prototype.generate;World.prototype.generate=function(c){const C=this.story&&ST.chs[this.story-1];if(!C||!C.gen||this.dim!==0)return _gen.apply(this,arguments);
+  const BL=c.blocks;BL.fill(0);C.gen(this,c);if(ST.idx)pkPutIdx(c,ST.idx);c.spawns=[];
+  const ed=this.edits.get(ckey(c.cx,c.cz));if(ed)for(const[i,id]of ed)BL[i]=id;this.finalize(c);};}
+// the biome of the whole chapter (grass colour, and whether the sky drops rain or snow)
+{const _bio=World.prototype.biomeAt;World.prototype.biomeAt=function(x,z){if(this.story&&this.dim===0){const C=ST.chs[this.story-1];if(C&&C.biome)return BI[C.biome];}return _bio.apply(this,arguments);};}
+// fog of the chapter (blizzard, the dark city, the night sea)
+{const _wf=wpFog;wpFog=function(s,e,col,special,under){if(world&&world.story&&!special&&!under){const C=ST.chs[world.story-1];if(C&&C.fog){const r=C.fog(s,e,col.slice());return[r[0],r[1],r[2],r[3]===undefined?1:r[3]];}}return _wf.apply(this,arguments);};}
+// helpers for chapter land: a column of ground, and the blocks of the buildings sorted by chunk
+function stCol(c,x,z,h,top,fill,sea){const BL=c.blocks;h=Math.max(1,Math.min(H-2,h|0));for(let y=1;y<=h;y++)BL[bidx(x,y,z)]=y===h?top:y>h-4?fill:B.STONE;BL[bidx(x,0,z)]=B.BEDROCK;
+  if(sea)for(let y=h+1;y<=sea;y++)BL[bidx(x,y,z)]=B.WATER;}
+function stBox(P,x0,y0,z0,x1,y1,z1,id){for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)P(x,y,z,id);}
+function stShell(P,x0,y0,z0,x1,y1,z1,wall,floor,roof){for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){P(x,y0,z,floor);if(roof)P(x,y1,z,roof);
+  for(let y=y0+1;y<(roof?y1:y1+1);y++)P(x,y,z,(x===x0||x===x1||z===z0||z===z1)?wall:0);}}
+
+// ---------------------------------------------------------------- what you carry
+function stInvSnap(){return inv.map(s=>s?[s.id,s.n,s.d||0]:null);}
+function stInvLoad(a){for(let i=0;i<inv.length;i++){const v=a&&a[i];inv[i]=v&&validItem(v[0])?{id:v[0],n:Math.max(1,v[1]|0),d:v[2]|0}:null;}if(typeof invChanged==='function')invChanged();}
+function stCount(ids){ids=[].concat(ids);let n=0;for(const s of inv)if(s&&ids.includes(s.id))n+=s.n;return n;}
+function stGive(id,n){const left=addItem(id,n|0||1,0);if(left>0)spawnItem(player.pos[0],player.pos[1]+1,player.pos[2],id,left);if(typeof invChanged==='function')invChanged();toast(itemName(id)+' を手に入れた');}
+function stTake(id,n){takeFromInv(id,n);if(typeof invChanged==='function')invChanged();}
+
+// ---------------------------------------------------------------- going in and coming out
+function stEnter(ch,cont){const C=ST.chs[ch-1];if(!C)return;
+  if(typeof ATH!=='undefined'&&ATH.on)athCleanup();if(typeof PK!=='undefined'&&PK.on)pkCleanup(true);if(ST.on)stCleanup(true);
+  try{if(world&&curWorldId&&state!=='title'&&!(world.arena||world.parkour||world.pk||world.story))saveGame();}catch(e){}
+  try{if(typeof MP!=='undefined'&&MP.active&&typeof mpLeave==='function')mpLeave(true);}catch(e){}
+  const P=stLoad();let stage=0,invA=null,flags={};if(cont&&P.ch===ch){stage=Math.max(0,Math.min(C.stages.length-1,P.stage|0));invA=P.inv;flags=P.flags||{};}
+  ST.on=true;ST.ch=ch;ST.C=C;ST.stage=stage;ST.S={flags,t:0};ST.npcs=[];ST.boss=null;ST.talk=null;ST.shown=false;
+  ST.rules=Object.assign({},gameRules);Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:true,keepInventory:true,mobGriefing:false});
+  ST.idx=C.build?pkIndex(C.build()):null;
+  curWorldId=null;STX.next=ch;newWorld(C.seed|0);mode='survival';
+  Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:true,keepInventory:true,mobGriefing:false});   // (a new world resets the rules)
+  if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;weather.thunder=0;}
+  resetPlayer();if(invA)stInvLoad(invA);else for(let i=0;i<inv.length;i++)inv[i]=null;if(stage===0&&C.kit)C.kit();if(typeof invChanged==='function')invChanged();
+  if(C.setup)C.setup(ST.S);const sg=C.stages[stage];if(sg.start)sg.start(ST.S);
+  const pos=(sg.cp||C.cp)(ST.S);player.pos=pos.slice();player.vel=[0,0,0];player.yaw=sg.yaw!==undefined?sg.yaw:(C.yaw||0);player.pitch=0;spawnPoint=pos.slice();dayTime=C.time;
+  stPut(o=>{o.ch=ch;o.stage=stage;o.inv=stInvSnap();o.flags=ST.S.flags;o.reach=Math.max(o.reach|0,ch);});
+  document.body.classList.add('st-on');stUI();beginLoading('第'+ch+'章　'+C.name);}
+function stCleanup(keep){if(!ST.on)return;const C=ST.C;try{if(C&&C.stop)C.stop(ST.S);}catch(e){console.warn(e);}
+  try{if(world&&world.story)stPut(o=>{if(o.ch===ST.ch&&o.stage===ST.stage)o.inv=stInvSnap();});}catch(e){}
+  ST.on=false;ST.C=null;ST.talk=null;ST.npcs=[];ST.boss=null;ST.idx=null;
+  if(ST.rules){Object.assign(gameRules,ST.rules);ST.rules=null;}
+  document.body.classList.remove('st-on');if(ST.hud){ST.hud.root.style.display='none';ST.hud.talk.style.display='none';}
+  if(state==='overlay'&&(OVL.id==='st-talk'||OVL.id==='st-diary'||OVL.id==='st-end')){state='title';OVL.id=null;}
+  if(!keep&&world&&world.story){try{const w=typeof worldsList==='function'&&worldsList().find(v=>!v.friend);newWorld(w?w.seed|0:seedFromString(''));titleCam.x=spawnPoint[0];titleCam.z=spawnPoint[2];titleCam.y=Math.max(spawnPoint[1]+18,SEA+30);}catch(e){console.warn(e);}}
+  resetPlayer();mode='survival';}
+function stStop(){if(!ST.on)return;if(state==='title'||state==='loading'){stCleanup();showScreen('title');return;}quitToTitle();}
+{const _qt=quitToTitle;quitToTitle=function(){const was=ST.on;const r=_qt.apply(this,arguments);if(was)stCleanup();return r;};}
+{const _sg=saveGame;saveGame=function(){if(world&&world.story){stPut(o=>{if(o.ch===ST.ch&&o.stage===ST.stage)o.inv=stInvSnap();});return;}return _sg.apply(this,arguments);};}
+{const _ec=execCommand;execCommand=function(){if(ST.on){toast('物語の中ではコマンドを使えません');return;}return _ec.apply(this,arguments);};}
+function stPlay(ch,cont){if(!stOn()){toast('ストーリーMODをオンにすると遊べます');return;}
+  const go=()=>{try{stEnter(ch,cont);}catch(e){console.error(e);toast('はじめられませんでした');}};
+  if(state!=='title'&&typeof quitToTitle==='function'){quitToTitle();setTimeout(go,60);}else go();}
+// blocks used in the story: pedestals and altars (right-click), levers and buttons
+{const _u5=useBlock5;useBlock5=function(x,y,z,id){if(ST.on&&ST.C&&ST.C.use){try{if(ST.C.use(ST.S,x,y,z,id))return true;}catch(e){console.warn(e);}}return _u5.apply(this,arguments);};}
+{const _us=useSwitch;useSwitch=function(x,y,z,id){const r=_us.apply(this,arguments);if(ST.on&&ST.C&&ST.C.sw){try{ST.C.sw(ST.S,x,y,z,world.getBlock(x,y,z));}catch(e){console.warn(e);}}return r;};}
+
+// ---------------------------------------------------------------- the steps of a chapter
+function stStage(){return ST.C&&ST.C.stages[ST.stage];}
+function stAdvance(){const C=ST.C,S=ST.S,sg=C.stages[ST.stage];if(!sg)return;
+  if(sg.diary)stDiary(sg.diary);if(sg.done)sg.done(S);
+  ST.stage++;if(ST.stage>=C.stages.length){stChapterClear();return;}
+  const nx=C.stages[ST.stage];if(nx.start)nx.start(S);if(nx.cp){const p=nx.cp(S);spawnPoint=p.slice();}
+  stPut(o=>{o.ch=ST.ch;o.stage=ST.stage;o.inv=stInvSnap();o.flags=S.flags;});
+  stObjFlash();try{sfx.pop&&sfx.pop(player.pos.slice());}catch(e){}}
+function stDiary(t){stPut(o=>{const d=o.diary=o.diary||{};const a=d[ST.ch]=d[ST.ch]||[];if(!a.includes(t))a.push(t);});}
+function stChapterClear(){const ch=ST.ch,C=ST.C;ST.stage=C.stages.length;
+  stPut(o=>{o.cleared=o.cleared||[];o.cleared[ch-1]=1;o.reach=Math.max(o.reach|0,Math.min(5,ch+1));if(ch<5){o.ch=ch+1;o.stage=0;o.inv=stInvSnap();o.flags={};}else{o.done=1;}});
+  stTelop('第'+ch+'章　完',C.name);try{sfx.pop&&sfx.pop(player.pos.slice());}catch(e){}
+  setTimeout(()=>{if(!ST.on||ST.ch!==ch)return;if(ch<5)stCard('第'+ch+'章　'+C.name+'　クリア',C.after||'',[['第'+(ch+1)+'章へ進む',()=>stEnter(ch+1,true)],['物語の記録を見る',()=>stDiaryOpen()],['タイトルへ',()=>stStop()]]);
+    else stEnding();},2600);}
+
+// ---------------------------------------------------------------- the screen: chapter title, what to do, talking, the boss, the diary
+function stFlash(t){if(typeof message==='function')message(String(t).replace(/\[\[[^\]]*\]\]/g,''),1600);}
+{const _af=athFlash;athFlash=function(t){if(ST.on&&!PK.on){stFlash(t);return;}return _af.apply(this,arguments);};}
+function stUI(){if(ST.hud){if(ST.on)ST.hud.root.style.display='block';return;}
+  const st=document.createElement('style');st.textContent=`
+#st-root{position:fixed;inset:0;pointer-events:none;z-index:5;font-family:inherit}
+#st-obj{position:absolute;left:12px;top:150px;max-width:min(330px,46vw);color:#fff;font-size:13px;line-height:1.5;text-shadow:0 1px 3px rgba(0,0,0,.75);background:rgba(10,14,30,.42);border-left:3px solid #ffd65a;padding:6px 10px;border-radius:0 8px 8px 0}
+#st-obj .ch{font-size:11px;color:#ffe3a6;letter-spacing:.1em}#st-obj .go{font-size:14px;font-weight:bold}#st-obj .wp{font-size:12px;color:#bfe6ff}
+#st-obj.flash{animation:stFl 1.2s ease-out}@keyframes stFl{0%{background:rgba(255,214,90,.65)}100%{background:rgba(10,14,30,.42)}}
+#st-telop{position:absolute;left:50%;top:22%;transform:translateX(-50%);color:#fff;text-align:center;opacity:0;white-space:nowrap;text-shadow:0 3px 0 rgba(0,0,0,.35),0 0 24px rgba(0,0,0,.6)}
+#st-telop b{display:block;font-size:clamp(18px,3vw,26px);letter-spacing:.4em;color:#ffe3a6;font-weight:700}
+#st-telop span{display:block;font-size:clamp(34px,6.5vw,62px);font-weight:900;letter-spacing:.12em}
+#st-telop.go{animation:stTel 4.2s ease forwards}@keyframes stTel{0%{opacity:0;transform:translate(-50%,10px)}15%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}
+#st-boss{position:absolute;left:50%;top:34px;transform:translateX(-50%);width:min(460px,64vw);display:none;color:#fff;text-align:center;font-size:14px;text-shadow:0 1px 3px #000}
+#st-boss .bar{height:10px;margin-top:3px;border:1px solid rgba(255,255,255,.6);background:rgba(0,0,0,.45);border-radius:5px;overflow:hidden}#st-boss .bar i{display:block;height:100%;background:linear-gradient(#ff7a6a,#c8302a)}
+#st-talk{position:fixed;left:50%;bottom:12%;transform:translateX(-50%);width:min(720px,92vw);z-index:40;display:none;flex-direction:column;pointer-events:auto;cursor:pointer;
+  background:rgba(12,16,30,.9);border:2px solid #d6b24a;border-radius:12px;padding:12px 18px 10px;color:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#st-talk .nm{display:inline-block;font-size:13px;color:#1b1406;background:#ffd65a;border-radius:4px;padding:1px 10px;margin-bottom:6px;align-self:flex-start;font-weight:bold}
+#st-talk .tx{font-size:17px;line-height:1.7;min-height:3.4em;white-space:pre-wrap}#st-talk .nx{align-self:flex-end;font-size:11px;color:#bbb}
+#st-card,#st-diary{position:fixed;inset:0;z-index:45;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+#st-card>div,#st-diary>div{pointer-events:auto;background:rgba(14,18,34,.94);border:2px solid #d6b24a;border-radius:12px;padding:18px 24px;color:#fff;max-width:min(640px,92vw);max-height:84vh;overflow:auto;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#st-card h2,#st-diary h2{margin:4px 0 8px}#st-card p{line-height:1.8;white-space:pre-wrap;text-align:left}#st-card button,#st-diary button{margin:4px}
+#st-diary .dch{text-align:left;margin:10px 0 4px;color:#ffe3a6}#st-diary li{text-align:left;line-height:1.6;font-size:14px}
+body.st-on #hint{display:none}body.st-on #wp-season{display:none!important}`;
+  document.head.appendChild(st);
+  const root=document.createElement('div');root.id='st-root';root.innerHTML='<div id="st-obj"></div><div id="st-telop"></div><div id="st-boss"><div class="nm"></div><div class="bar"><i></i></div></div>';
+  document.body.appendChild(root);
+  const talk=document.createElement('div');talk.id='st-talk';talk.innerHTML='<span class="nm"></span><div class="tx"></div><div class="nx">クリック／スペースで次へ　Escで飛ばす</div>';document.body.appendChild(talk);
+  const card=document.createElement('div');card.id='st-card';card.innerHTML='<div></div>';document.body.appendChild(card);
+  const dia=document.createElement('div');dia.id='st-diary';dia.innerHTML='<div></div>';document.body.appendChild(dia);
+  root.style.display=ST.on?'block':'none';
+  ST.hud={root,obj:root.querySelector('#st-obj'),telop:root.querySelector('#st-telop'),boss:root.querySelector('#st-boss'),talk,card,dia};
+  talk.addEventListener('click',()=>stTalkNext());
+  window.addEventListener('keydown',e=>{if(!ST.talk||state!=='overlay'||OVL.id!=='st-talk')return;if(e.code==='Space'||e.code==='Enter'||e.code==='KeyE'){e.preventDefault();e.stopPropagation();stTalkNext();}},true);
+  const pan=document.querySelector('#pause .panel');if(pan){const a=document.createElement('button');a.id='btn-st-diary';a.textContent='物語の記録';a.onclick=()=>{resumeGame&&resumeGame();setTimeout(stDiaryOpen,80);};
+    const b=document.createElement('button');b.id='btn-st-quit';b.textContent='物語を中断してタイトルへ';b.onclick=()=>stStop();const q=document.getElementById('btn-quit');pan.insertBefore(a,q);pan.insertBefore(b,q);}}
+function stTelop(a,b){const u=ST.hud;if(!u)return;const e=u.telop;e.classList.remove('go');void e.offsetWidth;e.innerHTML=`<b>${icoHTML(a)}</b><span>${icoHTML(b)}</span>`;e.classList.add('go');}
+function stObjFlash(){const e=ST.hud&&ST.hud.obj;if(!e)return;e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');}
+// a conversation: lines of [who, what]; the game waits while it is on
+function stSay(lines,done){if(!lines||!lines.length){done&&done();return;}stUI();ST.talk={lines,i:0,done,shown:0};
+  if(state==='play'){openOverlay('st-talk',()=>{const T=ST.talk;ST.talk=null;ST.hud.talk.style.display='none';if(T&&T.done)T.done();});}
+  else{ST.hud.talk.style.display='flex';}
+  stTalkShow();}
+function stTalkShow(){const T=ST.talk,u=ST.hud;if(!T||!u)return;const[who,txt]=T.lines[T.i];u.talk.querySelector('.nm').textContent=who||'';u.talk.querySelector('.nm').style.display=who?'':'none';
+  const tx=u.talk.querySelector('.tx');tx.innerHTML='';T.full=false;let k=0;clearInterval(T.iv);const s=String(txt);
+  T.iv=setInterval(()=>{k+=2;tx.innerHTML=icoHTML(s.slice(0,k));if(k>=s.length){clearInterval(T.iv);T.full=true;}},28);T.txt=s;}
+function stTalkNext(){const T=ST.talk,u=ST.hud;if(!T)return;if(!T.full){clearInterval(T.iv);u.talk.querySelector('.tx').innerHTML=icoHTML(T.txt);T.full=true;return;}
+  T.i++;if(T.i<T.lines.length){try{sfx.click&&sfx.click();}catch(e){}stTalkShow();return;}
+  clearInterval(T.iv);if(state==='overlay'&&OVL.id==='st-talk')closeOverlay();else{ST.talk=null;u.talk.style.display='none';T.done&&T.done();}}
+function stTalkTo(m){const C=ST.C;if(!C||!C.talk)return;const f=C.talk[m.type];if(!f)return;const r=f(ST.S,m);if(!r)return;
+  const lines=Array.isArray(r)?r:r.lines,done=Array.isArray(r)?null:r.done;stSay(lines,done);}
+// a card in the middle: chapter cleared, the ending ...
+function stCard(title,text,btns){stUI();const u=ST.hud,box=u.card.firstChild;box.innerHTML=`<h2>${icoHTML(title)}</h2>${text?`<p>${icoHTML(text)}</p>`:''}<div>${btns.map((b,i)=>`<button data-i="${i}">${icoHTML(b[0])}</button>`).join('')}</div>`;
+  box.querySelectorAll('button').forEach(el=>el.onclick=()=>{const b=btns[+el.dataset.i];if(state==='overlay'&&OVL.id==='st-card'){closeOverlay();}u.card.style.display='none';b[1]();});
+  if(state==='play')openOverlay('st-card',null);else u.card.style.display='flex';}
+function stDiaryOpen(){stUI();const P=stLoad(),u=ST.hud,box=u.dia.firstChild;let h='<h2>'+ico('scroll')+' 物語の記録</h2><div style="color:#bbb;font-size:13px">『星をなくした島』</div>';
+  for(let ch=1;ch<=5;ch++){const C=ST.chs[ch-1];if(!C)continue;const a=(P.diary||{})[ch]||[],got=ch<=(P.reach|0||1);
+    h+=`<div class="dch">${ico(P.cleared&&P.cleared[ch-1]?'starF':'star')} 第${ch}章　${got?C.name:'？？？'}</div>`;
+    if(got)h+='<ul style="margin:0;padding-left:20px">'+(a.length?a.map(t=>`<li>${icoHTML(t)}</li>`).join(''):'<li style="color:#999">まだ何も書かれていない</li>')+'</ul>';}
+  h+='<div style="margin-top:12px"><button id="st-dia-close">閉じる</button></div>';box.innerHTML=h;
+  box.querySelector('#st-dia-close').onclick=()=>{if(state==='overlay'&&OVL.id==='st-diary')closeOverlay();else u.dia.style.display='none';};
+  if(state==='play')openOverlay('st-diary',null);else u.dia.style.display='flex';}
+function stBossBar(m){const u=ST.hud;if(!u)return;if(!m||m.deathT>0||!mobs.includes(m)){u.boss.style.display='none';return;}u.boss.style.display='block';u.boss.querySelector('.nm').textContent=m.def.name;
+  u.boss.querySelector('i').style.width=Math.max(0,m.hp/m.def.hp*100).toFixed(1)+'%';}
+// where the next thing is: an arrow turned the way you have to look, and how far
+function stArrow(t){if(!t)return'';const p=player,dx=t[0]-p.pos[0],dz=t[2]-p.pos[2],D=Math.hypot(dx,dz);const ang=Math.atan2(dx,-dz)-p.yaw;
+  const k=((Math.round(ang/(Math.PI/4))%8)+8)%8;return`<div class="wp">${ico('dir'+k)} ${D<4?'すぐそこ':Math.round(D)+' m'}${Math.abs(t[1]-p.pos[1])>4?(t[1]>p.pos[1]?'（上）':'（下）'):''}</div>`;}
+
+// ---------------------------------------------------------------- every frame
+XMOD_TICK.push(dt=>{const u=ST.hud;
+  if(!ST.on){if(u&&!ST.hid){ST.hid=true;for(const id of['btn-st-diary','btn-st-quit']){const b=document.getElementById(id);if(b)b.style.display='none';}}return;}
+  ST.hid=false;if(u){u.root.style.display=state!=='title'&&state!=='loading'?'block':'none';for(const id of['btn-st-diary','btn-st-quit']){const b=document.getElementById(id);if(b)b.style.display='';}
+    const bm=document.getElementById('btn-open-mp');if(bm)bm.style.display='none';}
+  if(state!=='play'||!world||!world.story)return;const C=ST.C,S=ST.S;if(!C)return;
+  if(!ST.shown){ST.shown=true;stTelop('第'+ST.ch+'章',C.name);const sg=C.stages[ST.stage];if(ST.stage===0&&C.intro)setTimeout(()=>{if(ST.on&&state==='play')stSay(C.intro);},2600);}
+  S.t+=dt;
+  // people turn to look at you when you come near
+  for(const m of ST.npcs){if(!mobs.includes(m)||m.stNpc.walking)continue;const d=Math.hypot(m.pos[0]-player.pos[0],m.pos[2]-player.pos[2]);if(d<7)stFace(m,player.pos[0],player.pos[2],dt);m.walkAmp=lerp(m.walkAmp||0,0,Math.min(1,dt*8));}
+  if(C.tick)C.tick(S,dt);
+  const sg=C.stages[ST.stage];if(sg&&!ST.talk&&sg.check&&sg.check(S,dt))stAdvance();
+  stBossBar(ST.boss);
+  if(u&&sg){const tgt=sg.at?sg.at(S):null;u.obj.innerHTML=`<div class="ch">第${ST.ch}章　${C.name}</div><div class="go">${icoHTML(sg.t)}</div>${stArrow(tgt)}`;}
+});
+function stNear(t,r){return t&&Math.hypot(player.pos[0]-t[0],player.pos[2]-t[2])<r&&Math.abs(player.pos[1]-t[1])<6;}
+function stGuard(){if(ST.on&&!stOn())stStop();}
+
+// ---------------------------------------------------------------- the ending
+function stEnding(){const P=stLoad();stPut(o=>{o.done=1;});
+  const text='夜空に、ひときわ明るい星がもどった。\n灯台の光が海を照らし、森の民は歌い、雪の峠には春の風が吹いた。\n地下都市の影はほどけ、レンの妹も目を覚ました。\n\n星をなくした島は、もう迷わない。\n\nそして、浜辺に流れ着いたあの日のきみも――\nこの島の、だれかの道しるべになった。\n\n『星をなくした島』　おしまい';
+  stCard('[[starF|#ffe066]] エンディング',text,[['物語の記録を見る',()=>stDiaryOpen()],['タイトルへ',()=>stStop()]]);}
+
+// ---------------------------------------------------------------- the Mod screen section
+function stBuildUI(){const ms=document.querySelector('#modscreen .modpanel');if(!ms||document.getElementById('st-sec'))return;
+  const anchor=document.getElementById('pk-sec')||document.getElementById('wp-sec');const sec=document.createElement('div');sec.id='st-sec';
+  const seg=(id,t)=>`<button id="${id}" class="small">${t}</button>`;
+  sec.innerHTML=`<h3 style="margin:14px 0 4px;font-weight:normal;font-size:17px;border-top:1px solid rgba(255,255,255,0.18);padding-top:10px"><span class="modtag">MOD</span> ストーリーMOD</h3>
+    <p class="note" style="text-align:left;margin-top:2px">ひとつの長い物語を5つの章で遊ぶMODです。章ごとに別々に作られた世界があり、人と話し、目標をこなし、謎を解き、ボスと戦います。章はあとから選んでやり直せます。</p>
+    <div class="setrow2"><span>ストーリーMOD</span><div class="seg">${seg('st-on','オン')}${seg('st-off','オフ')}</div></div><div id="st-list"></div>`;
+  if(anchor)anchor.parentNode.insertBefore(sec,anchor.nextSibling);else ms.appendChild(sec);
+  const S=stS(),save=()=>{saveSettings();stSyncUI();stGuard();};$('st-on').onclick=()=>{S.on=true;save();};$('st-off').onclick=()=>{S.on=false;save();};stSyncUI();}
+function stSyncUI(){if(!document.getElementById('st-sec'))return;const S=stS(),on=stOn(),P=stLoad(),reach=stReached();
+  $('st-on').classList.toggle('on',S.on);$('st-off').classList.toggle('on',!S.on);const L=$('st-list');L.style.opacity=S.on?'1':'0.45';
+  const cur=Math.max(1,Math.min(5,P.ch|0||1));
+  let h=`<div class="st-card" style="border:1px solid rgba(255,255,255,.16);border-left:4px solid #ffd65a;border-radius:8px;padding:8px 10px;margin:6px 0;background:rgba(0,0,0,.22)">
+    <div style="display:flex;align-items:center;gap:8px;font-size:16px">${ico('star','#ffd65a')}<b style="font-weight:normal">星をなくした島</b><small style="margin-left:auto;color:#ffe3a6;font-size:11.5px">${P.done?'物語クリア！':'いま：第'+cur+'章'}</small></div>
+    <small style="display:block;color:#9ab;font-size:11.5px;line-height:1.5;margin:4px 0 2px">嵐の夜、空からいちばん明るい星が消えた。その夜に浜辺へ流れ着いたきみは、灯台守のジンと出会う。くだけて島じゅうに散った「星のかけら」を集め、星を空へ返す旅がはじまる。</small>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap"><button class="small st-go" data-a="cont" style="flex:1">${ico('play')} ${P.stage>0||cur>1?'つづき（第'+cur+'章）':'はじめる'}</button><button class="small st-go" data-a="new" style="flex:1">${ico('back')} 最初から</button><button class="small st-go" data-a="diary" style="flex:1">${ico('scroll')} 物語の記録</button></div>
+    <div style="margin-top:8px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center;font-size:13px">`;
+  for(let ch=1;ch<=5;ch++){const C=ST.chs[ch-1];if(!C)continue;const got=ch<=reach,done=P.cleared&&P.cleared[ch-1];
+    h+=`<span>${ico(done?'starF':'star',done?'#ffd65a':'#889')}</span><span>第${ch}章　${got?C.name:'？？？'}<small style="color:#9ab;margin-left:6px">${done?'クリア':got?(ch===cur?'プレイ中':''):'まだ'}</small></span><button class="small st-ch" data-ch="${ch}" ${got&&on?'':'disabled'} style="opacity:${got&&on?1:0.45}">${ico('play')}</button>`;}
+  h+='</div></div>';L.innerHTML=h;
+  L.querySelectorAll('.st-go').forEach(b=>{const a=b.dataset.a;b.disabled=!on&&a!=='diary';b.style.opacity=b.disabled?'0.5':'1';
+    b.onclick=()=>{if(a==='diary'){stDiaryOpen();return;}if(a==='new'){stPut(o=>{o.ch=1;o.stage=0;o.inv=null;o.flags={};});stPlay(1,false);return;}const Q=stLoad();stPlay(Math.max(1,Math.min(5,Q.ch|0||1)),true);};});
+  L.querySelectorAll('.st-ch').forEach(b=>b.onclick=()=>{const ch=+b.dataset.ch,Q=stLoad();stPlay(ch,Q.ch===ch);});}
+{const _om=openModScreen;openModScreen=function(){const r=_om.apply(this,arguments);try{stBuildUI();stSyncUI();}catch(e){console.error(e);}return r;};}
+setTimeout(()=>{try{stBuildUI();}catch(e){console.error(e);}for(const id of['m-off','mod-lock']){const b=document.getElementById(id);if(b)b.addEventListener('click',()=>setTimeout(stGuard,0));}},0);
+
+// ================================================================ 『星をなくした島』 第1章・第2章
+
+// ---------------------------------------------------------------- 第1章 目覚めの浜辺
+// An island in the morning sea: the beach with the wreck you came on, meadows and woods, a rocky hill with a cave of coal,
+// and on the western cliff the lighthouse that went dark the night the star fell. Its keeper, old Jin, lives beside it.
+const C1={sea:40,keeper:[-32.5,55,13.5],lamp:[-48,74,8],wreck:[12,0,60],cave:[41,51,-31]};
+function c1H(w,x,z){const N=WPG.N(w,101),r=Math.hypot(x,z*1.12),edge=74+WPG.fbm(N,x,z,3,0.02)*12;
+  let h=40+(edge-r)*0.32;h=Math.min(h,48+WPG.fbm(N,x+300,z,3,0.03)*3);
+  const hd=Math.hypot(x-38,z+28);if(hd<27)h=Math.max(h,48+(27-hd)*0.8+WPG.fbm(N,x,z+90,2,0.08)*2);
+  const ld=Math.hypot(x+46,z-10);if(ld<19)h=Math.max(h,54-(ld>14?(ld-14)*1.6:0));
+  return Math.floor(Math.max(26,h));}
+function c1Cave(x,y,z){// the tunnel into the hill and the chamber at its end
+  const ax=24,az=-12,bx=40,bz=-30,vx=bx-ax,vz=bz-az,t=Math.max(0,Math.min(1,((x-ax)*vx+(z-az)*vz)/(vx*vx+vz*vz))),d=Math.hypot(x-(ax+vx*t),z-(az+vz*t));
+  if(d<1.7&&y>=50&&y<=52)return true;const cd=Math.hypot((x-41)/6,(y-51.5)/3.2,(z+31)/6);return cd<1;}
+stDef({n:1,name:'目覚めの浜辺',seed:51001,biome:'PLAINS',time:0.06,yaw:Math.PI*0.25,
+  after:'灯台に光がもどった。ジンはつぶやいた。\n「くだけた星のかけらは四つ。ひとつは、森の民が守る沈んだ遺跡に落ちたと聞く……」\nきみは北の森へ向かう。',
+  intro:[['','……波の音がする。'],['','嵐の夜、船はこわれ、きみは浜辺に打ち上げられた。'],['','見上げた空には、あるはずの星がひとつ足りない。'],['','遠くの崖の上に、灯りの消えた灯台が見える。']],
+  kit(){addItem(I.COOKED_BEEF,2,0);addItem(I.APPLE,3,0);},
+  cp(){return[12.5,c1H(world,12,56)+1.05,56.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=c1H(w,wx,wz);
+      const beach=h<=42,rock=h>=58;stCol(c,x,z,h,beach?B.SAND:rock?B.STONE:B.GRASS,beach?B.SAND:B.DIRT,C1.sea);
+      if(!beach&&!rock&&h<56&&hash2(wx,wz,1101)<0.09)BL[bidx(x,h+1,z)]=hash2(wx,wz,1102)<0.15?(hash2(wx,wz,1103)<0.5?B.FLOWER_Y:B.FLOWER_R):B.TALLGRASS;
+      for(let y=48;y<=56;y++)if(c1Cave(wx,y,wz)){BL[bidx(x,y,z)]=0;}
+      else if(y<=h&&y>=48&&y<=55){let n=0;for(const[a,b,cc]of[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]])if(c1Cave(wx+a,y+b,wz+cc))n++;if(n&&hash3(wx,y,wz,1104)<0.3)BL[bidx(x,y,z)]=B.COAL_ORE;}}
+    // woods in the middle of the island
+    WPG.cells(c,8,3,(gx,gz)=>{if(hash2(gx,gz,1110)>0.55)return;const tx=gx*8+Math.floor(hash2(gx,gz,1111)*8),tz=gz*8+Math.floor(hash2(gx,gz,1112)*8),h=c1H(w,tx,tz);
+      if(h<44||h>55||Math.hypot(tx+46,tz-10)<20||Math.hypot(tx-12,tz-58)<10||Math.hypot(tx-38,tz+28)<20)return;WPG.tree(w,c,hash2(gx,gz,1113)<0.3?1:0,tx,h+1,tz);});},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id);
+    // the lighthouse: white and red rings, a glass lantern room on top
+    const lx=-48,lz=8,y0=55;for(let y=y0-2;y<=y0+17;y++)for(let x=-3;x<=3;x++)for(let z=-3;z<=3;z++){const d=Math.hypot(x,z);if(d>3.3)continue;
+      P(lx+x,y,lz+z,d>2.2?(Math.floor((y-y0)/3)%2?B.WOOL_R:B.QUARTZ_BRICKS):y===y0-2||y===y0+17?B.STONEBRICK:0);}
+    for(let x=-3;x<=3;x++)for(let z=-3;z<=3;z++){const d=Math.hypot(x,z);if(d<=3.3)P(lx+x,y0+18,lz+z,B.STONEBRICK);if(d<=2.4){P(lx+x,y0+22,lz+z,B.DS_TILES||B.STONEBRICK);if(d>1.5)for(let y=y0+19;y<=y0+21;y++)P(lx+x,y,lz+z,B.GLASS);}}
+    P(lx,y0+19,lz,B.REDSTONE_LAMP);P(lx,y0+23,lz,B.LIGHTNING_ROD||B.IRON_BARS);
+    for(let y=y0-1;y<=y0+1;y++)for(let z=0;z<=1;z++)P(lx+3,y,lz+z,0);   // the door
+    // the keeper's hut
+    const hx=-40,hz=13,hy=54;stShell(P,hx,hy,hz-3,hx+6,hy+4,hz+3,B.PLANKS,B.PLANKS,B.SPRUCE_PLANKS);for(const[a,b]of[[hx,hz-3],[hx+6,hz-3],[hx,hz+3],[hx+6,hz+3]])for(let y=hy+1;y<=hy+3;y++)P(a,y,b,B.LOG);
+    for(let y=hy+1;y<=hy+2;y++)P(hx+6,y,hz,0);P(hx+2,hy+1,hz+2,B.CRAFT);P(hx+4,hy+1,hz+2,B.FURNACE);P(hx+1,hy+1,hz-2,B.CAMPFIRE||B.TORCH);P(hx+3,hy+3,hz,B.LANTERN);
+    // the wreck on the beach
+    const wx=C1.wreck[0],wz=C1.wreck[2],wy=41;for(let i=-4;i<=4;i++){P(wx+i,wy,wz,B.SPRUCE_PLANKS);if(Math.abs(i)<4)P(wx+i,wy,wz+1,B.DARK_OAK_PLANKS);if(i%2===0)P(wx+i,wy+1,wz-1,B.SPRUCE_PLANKS);}
+    for(let k=0;k<5;k++)P(wx+2+k,wy+1+(k>>1),wz+2,B.SPRUCE_LOG);P(wx-3,wy+1,wz+1,B.BARREL||B.CHEST);
+    // torches in the cave
+    for(const[a,b,cc]of[[33,50,-21],[38,50,-27],[44,50,-34],[37,50,-34]])P(a,b,cc,B.TORCH);
+    return bl;},
+  setup(S){stNpc('st_jin',C1.keeper[0],c1H(world,-33,13)+1,C1.keeper[2],Math.PI/2);if(ST.stage>=5)c1Light();},
+  stages:[
+    {t:'浜辺を歩いて、崖の上の灯台へ行ってみよう',at:()=>[C1.keeper[0],55,C1.keeper[2]],check:()=>stNear(C1.keeper,8),diary:'嵐の夜、船がこわれて浜辺に流れ着いた。空から星がひとつ消えていた。'},
+    {t:'灯台のそばの老人に話しかけよう（右クリック）',at:()=>[C1.keeper[0],55,C1.keeper[2]],check:S=>S.flags.jin1,diary:'灯台守のジンに出会った。星が消えた夜から、灯台は光らなくなったという。'},
+    {t:'木を切って原木を4個集めよう',check:()=>stCount([B.LOG,B.BIRCH_LOG,B.SPRUCE_LOG])>=4,diary:'木を切って原木を集めた。'},
+    {t:'作業台を作って、木のツルハシを作ろう',check:()=>stCount(I.WOOD_PICK)>=1,diary:'作業台を組み立て、木のツルハシを作った。'},
+    {t:'北東の丘の洞窟で、石炭を3個掘ろう',at:()=>[26,51,-13],check:()=>stCount(I.COAL)>=3,diary:'丘の洞窟で石炭を掘り出した。'},
+    {t:'ジンに石炭を届けよう',at:()=>[C1.keeper[0],55,C1.keeper[2]],check:S=>S.flags.jin2,diary:'灯台にふたたび火がともった。ジンは「星のかけら」の話をしてくれた。'},
+  ],
+  talk:{st_jin(S){const st=ST.stage;
+    if(st<=1)return{lines:[['灯台守ジン','おお……生きておったか。嵐の夜に流れ着いたんじゃな。'],['灯台守ジン','わしはジン。この灯台の番をしておる。'],['灯台守ジン','あの夜、空でいちばん明るい「ミラの星」が落ちてな。くだけて島じゅうに散ってしもうた。'],
+      ['灯台守ジン','星が消えてから、灯台の火もつかんのじゃ。船は迷い、森も山も元気をなくしておる。'],['灯台守ジン','すまんが手を貸してくれんか。灯台を燃やす石炭がいる。まずは木を切って、ツルハシを作るんじゃ。']],done:()=>{S.flags.jin1=true;}};
+    if(st===2)return[['灯台守ジン','島のまん中の林で、木を4本ぶんほど切ってくるとええ。']];
+    if(st===3)return[['灯台守ジン','原木を板にして、作業台を組むんじゃ。棒と板で木のツルハシができる。']];
+    if(st===4)return[['灯台守ジン','石炭は北東の丘の洞窟じゃ。たいまつの明かりをたどるとええ。']];
+    if(st===5){if(stCount(I.COAL)<3)return[['灯台守ジン','石炭が足りんようじゃ。あと少し掘ってきておくれ。']];
+      return{lines:[['灯台守ジン','おお、石炭じゃ！ よし、火を入れるぞ……！'],['','――灯台に、あたたかい光がともった。'],['灯台守ジン','ありがとう。だが、これは星のかわりにはならん。'],['灯台守ジン','くだけた星のかけらは四つ。ひとつは北の森、森の民が守る沈んだ遺跡に落ちたと聞く。'],['灯台守ジン','かけらを集めて、星を空に返してやってくれ。きみなら、きっとできる。']],
+        done:()=>{stTake(I.COAL,3);c1Light();S.flags.jin2=true;}};}
+    return[['灯台守ジン','森の民の長、ユラを訪ねるんじゃ。気をつけてな。']];}},
+});
+function c1Light(){const[x,y,z]=C1.lamp;athSet(x,y,z,B.GLOWSTONE);for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]])athSet(x+a,y+1,z+b,B.LANTERN);
+  if(typeof wq==='function')for(let i=0;i<40;i++)wq({x:x+0.5,y:y+0.5,z:z+0.5,vx:(Math.random()-0.5)*4,vy:Math.random()*3,vz:(Math.random()-0.5)*4,g:-0.5,tile:T.ATH_GOAL_T,s:0.06,life:1.6,glow:true});}
+
+// ---------------------------------------------------------------- 第2章 沈んだ森の遺跡
+// A misty swamp forest. The forest people live in huts on stilts; to the north a temple sinks into the bog:
+// a hall, a room of levers, a room with a plate and a door that shuts again, the arena of its guardian, and the shard.
+const C2={sea:41,yura:[0.5,43,27.5],gate:[0,43,-30],fy:42};
+function c2H(w,x,z){const N=WPG.N(w,202);let h=41+WPG.fbm(N,x,z,3,0.04)*3.2+0.6;
+  if(Math.abs(x)<=14&&z<=-26&&z>=-84)h=42;if(Math.hypot(x,z-32)<14)h=Math.max(h,42.4);return Math.floor(h);}
+stDef({n:2,name:'沈んだ森の遺跡',seed:52002,biome:'SWAMP',time:0.22,yaw:Math.PI,
+  after:'星のかけらをひとつ手に入れた。遺跡を出ると、ユラが待っていた。\n「ふたつめのかけらは、北の雪の峠に落ちたらしい。山の吹雪は人を迷わせる……気をつけて」',
+  intro:[['','北の森は、霧と沼におおわれていた。'],['','木の上の小屋から、だれかがこちらを見ている。']],
+  fog(s,e,col){return[Math.min(s,10),Math.min(e,62),[0.55,0.66,0.55],1.2];},
+  kit(){addItem(I.COOKED_BEEF,3,0);},
+  cp(){return[0.5,43.05,62.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=c2H(w,wx,wz),wet=h<=C2.sea;
+      stCol(c,x,z,h,wet?B.MUD||B.DIRT:(hash2(wx,wz,2201)<0.5?B.MOSS:B.GRASS),B.DIRT,C2.sea);
+      if(!wet&&hash2(wx,wz,2202)<0.1)BL[bidx(x,h+1,z)]=hash2(wx,wz,2203)<0.3?B.FERN||B.TALLGRASS:B.TALLGRASS;}
+    WPG.cells(c,7,3,(gx,gz)=>{if(hash2(gx,gz,2210)>0.62)return;const tx=gx*7+Math.floor(hash2(gx,gz,2211)*7),tz=gz*7+Math.floor(hash2(gx,gz,2212)*7),h=c2H(w,tx,tz);
+      if(h<=C2.sea||(Math.abs(tx)<=17&&tz<=-22&&tz>=-88)||Math.hypot(tx,tz-32)<16||Math.abs(tx)<3)return;WPG.tree(w,c,hash2(gx,gz,2213)<0.25?2:0,tx,h+1,tz);});},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),Y=C2.fy,st=ST.stage;
+    const W=B.MOSSY_STONEBRICK,W2=B.STONEBRICK,W3=B.CRACKED_STONEBRICK||B.STONEBRICK,lamp=B.SEA_LANTERN;
+    const wall=(x,y,z)=>P(x,y,z,hash3(x,y,z,2220)<0.45?W:hash3(x,y,z,2221)<0.3?W3:W2);
+    // the village: three huts on stilts round a fire
+    for(const[hx,hz]of[[-9,28],[8,26],[0,40]]){for(const[a,b]of[[0,0],[4,0],[0,4],[4,4]])for(let y=42;y<=45;y++)P(hx+a,y,hz+b,B.JUNGLE_LOG||B.LOG);
+      stShell(P,hx,46,hz,hx+4,49,hz+4,B.JUNGLE_PLANKS||B.PLANKS,B.JUNGLE_PLANKS||B.PLANKS,B.LEAVES);P(hx+2,47,hz,0);P(hx+2,48,hz,0);P(hx+2,47,hz+2,B.LANTERN);
+      for(let y=43;y<=46;y++)P(hx+2,y,hz-1,(BLOCKS[B.LADDER].vars||[B.LADDER])[2]);}
+    P(0,43,30,B.CAMPFIRE||B.TORCH);
+    // the temple: outer shell from z -26 to -84
+    for(let x=-13;x<=13;x++)for(let z=-84;z<=-26;z++){P(x,Y,z,W2);if(x===-13||x===13||z===-84||z===-26)for(let y=Y+1;y<=Y+9;y++)wall(x,y,z);P(x,Y+10,z,(x+z)&1?W:W2);}
+    for(let x=-12;x<=12;x++)for(let z=-83;z<=-27;z++)for(let y=Y+1;y<=Y+9;y++)P(x,y,z,0);   // nothing growing inside
+    for(let y=Y+1;y<=Y+3;y++)for(const x of[-1,0])P(x,y,-26,0);
+    // inner walls between the rooms (z = -38 hall|levers, -50 levers|plate, -60 plate|arena, -76 arena|shard) and the side walls of the narrow rooms
+    for(const zw of[-38,-50,-60,-76])for(let x=-12;x<=12;x++)for(let y=Y+1;y<=Y+9;y++)wall(x,y,zw);
+    for(let z=-59;z<=-27;z++)for(const x of[-7,7])for(let y=Y+1;y<=Y+9;y++)wall(x,y,z);
+    // lights
+    for(const[x,z]of[[-5,-30],[5,-30],[-5,-45],[5,-45],[-5,-55],[5,-55],[-9,-64],[9,-64],[-9,-72],[9,-72],[0,-80]])P(x,Y+9,z,lamp);
+    // the hall → levers: open doorway
+    for(let y=Y+1;y<=Y+3;y++)for(const x of[-1,0])P(x,y,-38,0);
+    // the room of levers: three levers on the north wall, the lamps above show how they must be set; the door is to the east
+    const goal=C2_GOAL;for(let j=0;j<3;j++){const x=-5+j*2;P(x,Y+2,-49,B.LEVER);P(x,Y+1,-49,B.GOLD_BLOCK);P(x,Y+5,-49,goal[j]?B.REDSTONE_LAMP_ON:B.REDSTONE_LAMP);}
+    for(let y=Y+1;y<=Y+3;y++)for(const x of[3,4])P(x,y,-50,st>=4?0:B.IRON_BARS);
+    // the room of the plate: a channel of water across, the plate by the way in, the door to the arena in the middle
+    for(let x=-6;x<=6;x++)for(const z of[-54,-55]){P(x,Y,z,B.WATER);P(x,Y-1,z,B.WATER);P(x,Y-2,z,W2);}
+    P(-5,Y,-51,B.ATH_PLATE);for(let y=Y+1;y<=Y+3;y++)for(const x of[-1,0])P(x,y,-60,st>=5?0:B.IRON_BARS);
+    // the arena: pillars, broken floor
+    for(const[x,z]of[[-7,-64],[7,-64],[-7,-72],[7,-72]])for(let y=Y+1;y<=Y+9;y++)P(x,y,z,B.CHISELED_STONEBRICK||W2);
+    for(let y=Y+1;y<=Y+3;y++)for(const x of[-1,0])P(x,y,-76,st>=6?0:B.IRON_BARS);
+    // the shard on its pedestal
+    P(0,Y+1,-80,B.CHISELED_STONEBRICK||W2);P(0,Y+2,-80,st>=7?W2:B.AMETHYST);for(const[x,z]of[[-2,-80],[2,-80]])P(x,Y+1,z,B.LANTERN);
+    return bl;},
+  setup(S){stNpc('st_yura',C2.yura[0],43,C2.yura[2],Math.PI);},
+  tick(S,dt){if(ST.stage===4)pkDyn([c2Room()],0,dt);},
+  use(S,x,y,z,id){if(ST.stage===6&&x===0&&y===C2.fy+2&&z===-80&&id===B.AMETHYST){athSet(x,y,z,B.STONEBRICK);S.flags.shard1=true;stFlash('星のかけらを手に入れた！');
+      if(typeof wq==='function')for(let i=0;i<30;i++)wq({x:0.5,y:y+0.6,z:-79.5,vx:(Math.random()-0.5)*3,vy:1+Math.random()*2,vz:(Math.random()-0.5)*3,g:-0.6,tile:T.AMETHYST||T.ATH_GOAL_T,s:0.05,life:1.4,glow:true});return true;}return false;},
+  sw(S,x,y,z,id){if(ST.stage===3&&z===-49&&y===C2.fy+2){const st=[0,1,2].map(j=>world.getBlock(-5+j*2,C2.fy+2,-49)===B.LEVER_ON);if(st.every((v,j)=>v===C2_GOAL[j])){S.flags.levers=true;for(let yy=C2.fy+1;yy<=C2.fy+3;yy++)for(const xx of[3,4])athSet(xx,yy,-50,0);stFlash('扉が開いた！');try{sfx.lever&&sfx.lever([3,43,-50],1);}catch(e){}}}},
+  stages:[
+    {t:'森の民の村へ行こう',at:()=>[0.5,43,27.5],check:()=>stNear(C2.yura,9),diary:'霧の森で、木の上に住む森の民の村を見つけた。'},
+    {t:'森の長ユラに話しかけよう',at:()=>[0.5,43,27.5],check:S=>S.flags.yura1,diary:'森の長ユラから、遺跡の番人の話を聞いた。石の剣を借りた。'},
+    {t:'北の沈んだ遺跡に入ろう',at:()=>[0,43,-30],check:()=>player.pos[2]<-31&&Math.abs(player.pos[0])<12,diary:'沼に沈みかけた遺跡に入った。'},
+    {t:'レバーの部屋：上のランプと同じになるように、レバーを切りかえよう',at:()=>[-3,44,-48],check:S=>S.flags.levers,diary:'レバーの謎を解いた。ランプの光が答えだった。'},
+    {t:'感圧板を踏むと奥の扉が少しだけ開く。閉まる前に抜けよう',at:()=>[-5,43,-51],check:()=>player.pos[2]<-61,diary:'閉まる扉をすりぬけて、遺跡の奥へ進んだ。'},
+    {t:'遺跡の番人を倒そう',start(S){const m=addMob('st_guard',0.5,43,-70.5,{persist:true});if(m){m.persist=true;ST.boss=m;S.boss=m;}},check:S=>!S.boss||S.boss.deathT>0||S.boss.hp<=0||!mobs.includes(S.boss),
+      done(S){ST.boss=null;for(let y=C2.fy+1;y<=C2.fy+3;y++)for(const x of[-1,0])athSet(x,y,-76,0);stTelop('遺跡の番人','たおした！');},diary:'苔むした石の番人と戦い、たおした。'},
+    {t:'奥の台座から星のかけらを取ろう（右クリック）',at:()=>[0.5,44,-79.5],check:S=>S.flags.shard1,diary:'ひとつめの星のかけらを手に入れた。手の中で、かすかにあたたかい。'},
+  ],
+  talk:{st_yura(S){const st=ST.stage;
+    if(st<=1)return{lines:[['森の長ユラ','……海から来た人ね。ジンから聞いているわ。'],['森の長ユラ','星のかけらは、北の遺跡の奥に落ちた。でも遺跡には、石の番人がいるの。'],['森の長ユラ','遺跡の謎は、光を見ればわかる。そして、閉まる扉は待ってくれない。'],['森の長ユラ','この剣を持っていって。わたしたちの森を、どうか。']],
+      done:()=>{S.flags.yura1=true;stGive(I.STONE_SWORD,1);stGive(I.COOKED_BEEF,2);}};
+    return[['森の長ユラ','遺跡は北よ。霧が深いから、道をはずれないで。']];}},
+});
+const C2_GOAL=[true,false,true];
+let C2_ROOM=null;function c2Room(){return C2_ROOM||(C2_ROOM={dyn:[{t:'gate',plate:[[-5,42,-51]],cells:[[-1,43,-60],[0,43,-60],[-1,44,-60],[0,44,-60],[-1,45,-60],[0,45,-60]],id:B.IRON_BARS,dur:6}],regions:[],minY:0});}
+
+// ================================================================ 『星をなくした島』 第3章・第4章・第5章
+
+// ---------------------------------------------------------------- 第3章 雪の峠
+// A valley climbing north into the mountains through a blizzard: a log hut halfway up, a cave in the west wall
+// where the girl Mina is lost, the pass at the top with the shard, and down the far side the rock shelter to run to
+// when the snow comes down.
+const C3={hut:[11.5,64,10.5],garo:[15.5,64,10.5],mina:[-24.5,71,-9.5],summit:[0,90,-62],shelter:[0.5,66,-114.5],ped:[0,90,-62]};
+function c3B(z){return z>40?52:z>-60?52+(40-z)*0.36:Math.max(64,88-(-60-z)*0.42);}
+function c3H(w,x,z){const ax=Math.abs(x),N=WPG.N(w,303);let h=c3B(z)+Math.max(0,ax-8)*1.3+WPG.fbm(N,x,z,3,0.05)*(ax<8?0.6:2.4);
+  if(Math.hypot(x-15,z-10)<8)h=63.4;if(Math.hypot(x,z+62)<5)h=Math.max(h,88.4);
+  return Math.floor(Math.min(122,h));}
+function c3Cave(x,y,z){if(z<-12||z>-7||x>-7||x<-28)return false;return y>=71&&y<=73;}
+stDef({n:3,name:'雪の峠',seed:53003,biome:'SNOWTAIGA',time:0.3,yaw:Math.PI,
+  after:'岩屋で出会った旅人レンは、地下に眠る古い都市の話をした。\n「三つめのかけらは、地下都市の書庫にある。……僕も、星をさがしているんだ」\nふたりは地下へ向かう。',
+  intro:[['','北の峠は、吹雪の中にあった。'],['','白い風の向こうに、小さな山小屋の灯りが見える。']],
+  fog(s,e,col){return[2,34,[0.86,0.9,0.95],1.6];},
+  kit(){addItem(I.COOKED_BEEF,3,0);},
+  cp(){return[0.5,c3H(world,0,58)+1.05,58.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=c3H(w,wx,wz);stCol(c,x,z,h,h>100?B.STONE:B.SNOW,B.DIRT,0);
+      if(h<=100&&hash2(wx,wz,3301)<0.5&&Math.abs(wx)>2)BL[bidx(x,h+1,z)]=B.SNOW_LAYER;
+      for(let y=70;y<=74;y++)if(c3Cave(wx,y,wz))BL[bidx(x,y,z)]=0;}
+    WPG.cells(c,6,3,(gx,gz)=>{if(hash2(gx,gz,3310)>0.5)return;const tx=gx*6+Math.floor(hash2(gx,gz,3311)*6),tz=gz*6+Math.floor(hash2(gx,gz,3312)*6),h=c3H(w,tx,tz);
+      if(Math.abs(tx)<12||h>96||Math.hypot(tx-15,tz-10)<10||(tz<-6&&tz>-14&&tx<0))return;WPG.tree(w,c,2,tx,h+1,tz);});},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id);
+    // the hut of the mountain family
+    const x0=12,z0=7,y0=63;stShell(P,x0,y0,z0,x0+7,y0+5,z0+6,B.SPRUCE_PLANKS,B.SPRUCE_PLANKS,B.SPRUCE_LOG);for(const[a,b]of[[x0,z0],[x0+7,z0],[x0,z0+6],[x0+7,z0+6]])for(let y=y0+1;y<=y0+4;y++)P(a,y,b,B.SPRUCE_LOG);
+    for(let y=y0+1;y<=y0+2;y++)P(x0,y,z0+3,0);P(x0+6,y0+1,z0+1,B.CAMPFIRE||B.TORCH);P(x0+3,y0+4,z0+3,B.LANTERN);P(x0+6,y0+1,z0+5,B.BARREL||B.CHEST);
+    for(let x=x0-1;x<=x0+8;x++)P(x,y0+6,z0+3,B.SPRUCE_PLANKS);
+    // a few torches along the cave, the shrine at the pass, the rock shelter on the far side
+    for(const x of[-12,-18,-24])P(x,71,-12,B.TORCH);
+    P(0,89,-62,B.CALCITE||B.QUARTZ_BRICKS);P(0,90,-62,ST.stage>=7?B.CALCITE||B.QUARTZ_BRICKS:B.AMETHYST);for(const[a,b]of[[-2,-62],[2,-62]])for(let y=89;y<=91;y++)P(a,y,b,y===91?B.LANTERN:B.STONEBRICK);
+    const sy=c3H(world,0,-114);for(let x=-5;x<=5;x++)for(let z=-120;z<=-109;z++){const edge=x===-5||x===5||z===-120;for(let y=sy+1;y<=sy+5;y++)P(x,y,z,edge?B.STONE:0);P(x,sy+6,z,B.STONE);P(x,sy,z,B.STONE);}
+    P(0,sy+1,-118,B.CAMPFIRE||B.TORCH);
+    return bl;},
+  setup(S){stNpc('st_garo',C3.garo[0],64,C3.garo[2],-Math.PI/2);const m=stNpc('st_mina',ST.stage>=5?13.5:C3.mina[0],ST.stage>=5?64:71,ST.stage>=5?12.5:C3.mina[2],Math.PI/2);
+    if(ST.stage>=8){const y=c3H(world,0,-114)+1;stNpc('st_ren',C3.shelter[0],y,C3.shelter[2],0);}S.av={on:false,z:-52,wait:0};if(typeof weather!=='undefined'){weather.kind='rain';weather.rain=1;}},
+  tick(S,dt){const p=player;
+    // the blizzard: snow driven sideways past you
+    if(typeof wq==='function'){const n=Math.random()<dt*70?3:0;for(let i=0;i<n;i++)wq({x:p.pos[0]-10+Math.random()*12,y:p.pos[1]-1+Math.random()*6,z:p.pos[2]+(Math.random()-0.5)*14,vx:7+Math.random()*3,vy:-1.6,vz:(Math.random()-0.5),g:0,tile:T.SNOW,s:0.025,life:1.4});}
+    const mina=stNpcBy('st_mina');
+    if(mina&&S.flags.follow){mina.stNpc.walking=true;if(Math.hypot(mina.pos[0]-p.pos[0],mina.pos[2]-p.pos[2])>16){mina.pos=[p.pos[0]-1,p.pos[1],p.pos[2]-1];}stWalk(mina,p.pos[0],p.pos[2],4.6,dt,2.0);}
+    else if(mina&&S.flags.home&&mina.stNpc.walking){const d=stWalk(mina,13.5,12.5,3,dt,0.3);if(d<0.4)mina.stNpc.walking=false;}
+    // the avalanche
+    const A=S.av;if(A&&A.on){if(A.wait>0){A.wait-=dt;}else{A.z-=4.6*dt;
+      if(typeof wq==='function')for(let i=0;i<6;i++){const gx=-12+Math.random()*24;wq({x:gx,y:c3H(world,Math.floor(gx),Math.floor(A.z))+1+Math.random()*5,z:A.z+Math.random()*2,vx:(Math.random()-0.5)*2,vy:Math.random()*2,vz:-3-Math.random()*3,g:3,tile:T.SNOW,s:0.12,life:0.9});}
+      A.snd=(A.snd||0)-dt;if(A.snd<=0){A.snd=0.7;try{wpSnd([0,p.pos[1],A.z],[{n:1,type:'lowpass',f:110,dur:0.9,g:0.6}],0.3);}catch(e){}}
+      if(p.pos[2]>A.z-0.6){stFlash('雪崩に飲みこまれた！ 峠からやり直し');const q=[0.5,89.1,-58.5];player.pos=q.slice();player.vel=[0,0,0];player.yaw=Math.PI;A.z=-52;A.wait=1.4;}}}},
+  use(S,x,y,z,id){if(ST.stage===6&&x===0&&y===90&&z===-62&&id===B.AMETHYST){athSet(x,y,z,B.CALCITE||B.QUARTZ_BRICKS);S.flags.shard2=true;stFlash('ふたつめの星のかけらを手に入れた！');return true;}return false;},
+  stages:[
+    {t:'吹雪の山道を登って、山小屋をめざそう',at:()=>C3.hut,check:()=>stNear(C3.hut,6),diary:'吹雪の峠道を登り、山小屋にたどり着いた。'},
+    {t:'山小屋のガロに話しかけよう',at:()=>C3.garo,check:S=>S.flags.garo1,diary:'山小屋のガロの娘、ミナが薪を拾いに出たまま帰らないという。'},
+    {t:'西の崖の洞窟で、ミナを探そう',at:()=>C3.mina,check:()=>stNear(C3.mina,4),diary:'たいまつをたどって、西の洞窟へ入った。'},
+    {t:'ミナに話しかけよう',at:()=>C3.mina,check:S=>S.flags.follow,diary:'洞窟でミナを見つけた。足をくじいて動けなくなっていた。'},
+    {t:'ミナを山小屋へ連れて帰ろう（ついてきます）',at:()=>C3.hut,check:S=>{const m=stNpcBy('st_mina');return m&&Math.hypot(m.pos[0]-C3.hut[0],m.pos[2]-C3.hut[2])<4;},
+      done(S){S.flags.follow=false;S.flags.home=true;},diary:'ミナを山小屋に送りとどけた。'},
+    {t:'ガロに話しかけよう',at:()=>C3.garo,check:S=>S.flags.garo2,diary:'ガロから鉄の剣をもらった。かけらは峠の祠にあるらしい。'},
+    {t:'峠の祠から星のかけらを取ろう（右クリック）',at:()=>C3.summit,check:S=>S.flags.shard2,cp:()=>[0.5,89.1,-58.5],diary:'峠の祠で、ふたつめの星のかけらを見つけた。'},
+    {t:'雪崩だ！ 北の岩屋まで走れ！',start(S){S.av.on=true;S.av.z=-52;S.av.wait=1.2;stTelop('！','雪崩だ！');},at:()=>[0.5,68,-114.5],cp:()=>[0.5,89.1,-58.5],
+      check:()=>player.pos[2]<-110&&Math.abs(player.pos[0])<5,done(S){S.av.on=false;const y=c3H(world,0,-114)+1;stNpc('st_ren',C3.shelter[0],y,C3.shelter[2],0);},diary:'うしろから雪崩がせまる中、北の岩屋に逃げこんだ。'},
+    {t:'岩屋にいた旅人に話しかけよう',at:()=>[0.5,68,-114.5],check:S=>S.flags.ren0,diary:'岩屋で旅人のレンと出会った。地下都市にもかけらがあるという。'},
+  ],
+  talk:{st_garo(S){const st=ST.stage;
+      if(st<=1)return{lines:[['山小屋のガロ','この吹雪の中をよく来たな。……すまん、それどころじゃないんだ。'],['山小屋のガロ','娘のミナが薪を拾いに出たまま、もどらない。西の崖の洞窟のほうへ行ったはずだ。'],['山小屋のガロ','わしは足を痛めていて……たのむ、ミナを探してくれ！']],done:()=>{S.flags.garo1=true;}};
+      if(st<5)return[['山小屋のガロ','西の崖の洞窟だ。たいまつが目印になる。']];
+      if(st===5)return{lines:[['山小屋のガロ','ミナ！ よかった……本当にありがとう。'],['山小屋のガロ','あんたの探している光る石なら、峠のてっぺんの祠に落ちたのを見た。'],['山小屋のガロ','だが気をつけろ。峠は雪崩が起きやすい。取ったらすぐ、北の岩屋へ逃げこむんだ。'],['山小屋のガロ','これを持っていけ。わしが若いころに使った剣だ。']],done:()=>{S.flags.garo2=true;stGive(I.IRON_SWORD,1);stGive(I.COOKED_MUTTON||I.COOKED_BEEF,3);}};
+      return[['山小屋のガロ','峠は北だ。雪崩には気をつけろよ。']];},
+    st_mina(S){const st=ST.stage;
+      if(st<=3)return{lines:[['ミナ','……だれ？ お父さんにたのまれたの？'],['ミナ','足をくじいちゃって、もう動けなくて……こわかった。'],['ミナ','いっしょに帰ってくれる？ ゆっくりなら、歩けると思う。']],done:()=>{S.flags.follow=true;}};
+      if(st===4)return[['ミナ','うん、ついていくよ。']];
+      return[['ミナ','助けてくれて、ありがとう。星、見つかるといいね。']];},
+    st_ren(S){return ST.stage===8?{lines:[['旅人','……雪崩の音がしたと思ったら、君か。無事でよかった。'],['旅人レン','僕はレン。君も、星のかけらを探しているんだね。'],['旅人レン','三つめのかけらは、この山の下に眠る古い地下都市の書庫にあるらしい。'],['旅人レン','あそこは影の見張りがうろついている。……一緒に行かないか？']],done:()=>{S.flags.ren0=true;}}:[['旅人レン','行こう。地下都市は、すぐそこだ。']];}},
+});
+
+// ---------------------------------------------------------------- 第4章 地下都市の影
+// A cavern under the mountain with the ruins of a city in it: a wide avenue down the middle, streets across, narrow alleys
+// between the houses, and at the far end the archive. Shadow watchmen walk the streets; sneak past them.
+const C4={FY:40,ent:[0.5,41,40.5],arch:[0.5,41,-86.5],ped:[0,42,-96],lever:[-11,42,-94],exit:[21.5,41,-109.5]};
+const C4_ROWS=[32,12,2,-8,-28,-38,-48,-68,-78],C4_COLS=[-22,-12,12,22];
+function c4Ceil(w,x,z){return 72+Math.floor(WPG.fbm(WPG.N(w,404),x,z,2,0.05)*6);}
+stDef({n:4,name:'地下都市の影',seed:54004,biome:'DARK',time:0.5,yaw:Math.PI,
+  after:'レンは三つめのかけらを持って、星の塔へ消えた。\n書庫の壁画には、星を呑みこむ黒い影――「夜喰い」が描かれていた。\nきみは最後の地、海の上の星の塔へ向かう。',
+  intro:[['','山の下には、光のとどかない大きな空洞が広がっていた。'],['','くずれた家々のあいだを、黒い影がゆっくり歩いている。']],
+  fog(s,e,col){return[8,56,[0.07,0.08,0.13],1];},
+  kit(){addItem(I.COOKED_BEEF,2,0);addItem(B.TORCH,6,0);},
+  cp(){return C4.ent.slice();},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks,F=C4.FY;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,inside=Math.abs(wx)<=32&&wz<=46&&wz>=-116;
+      BL[bidx(x,0,z)]=B.BEDROCK;const top=inside?c4Ceil(w,wx,wz):96;
+      for(let y=1;y<=96;y++){if(inside&&y>F&&y<top)continue;BL[bidx(x,y,z)]=y===F&&inside?(hash2(wx,wz,4401)<0.3?B.GRAVEL:B.DS_TILES||B.DEEPSLATE):(y<70?B.DEEPSLATE:B.STONE);}
+      if(inside&&hash2(wx,wz,4402)<0.01&&Math.abs(wx)>7)BL[bidx(x,top-1,z)]=B.POINTED_DRIPSTONE||B.STONE;}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),F=C4.FY,st=ST.stage;const R=mulberry32(4411);
+    const W=B.DS_BRICKS||B.STONEBRICK,W2=B.STONEBRICK,W3=B.CRACKED_STONEBRICK||B.STONEBRICK;
+    // the houses: broken walls, doorways to the street, half a roof
+    for(const zc of C4_ROWS)for(const xc of C4_COLS){const hh=4+((R()*3)|0);
+      for(let x=xc-3;x<=xc+3;x++)for(let z=zc-3;z<=zc+3;z++){const edge=x===xc-3||x===xc+3||z===zc-3||z===zc+3;
+        if(edge)for(let y=F+1;y<=F+hh;y++){if(R()<0.08+0.05*(y-F))continue;P(x,y,z,R()<0.5?W:R()<0.5?W2:W3);}
+        if(R()<0.4)P(x,F+hh+1,z,W2);}
+      const dx=xc<0?xc+3:xc-3;for(let y=F+1;y<=F+2;y++)P(dx,y,zc,0);if(R()<0.6)P(xc,F+1,zc,B.BARREL||B.CHEST);}
+    // lamps on posts along the avenue, mushrooms in the alleys
+    for(let z=36;z>=-82;z-=8)for(const x of[-6,6]){for(let y=F+1;y<=F+3;y++)P(x,y,z,B.DARK_OAK_FENCE||B.OAK_FENCE);P(x,F+4,z,B.LANTERN);}
+    const glow=B.WP_GLOWSHROOM!==undefined?B.WP_GLOWSHROOM:B.LANTERN;for(let k=0;k<60;k++){const x=[-17,-7,7,17][(R()*4)|0]+((R()*3)|0)-1,z=40-((R()*120)|0);P(x,F+1,z,glow);}
+    // the archive: a great hall of shelves at the north end
+    for(let x=-12;x<=12;x++)for(let z=-101;z<=-88;z++){const edge=x===-12||x===12||z===-101||z===-88;P(x,F,z,B.DARK_OAK_PLANKS);
+      for(let y=F+1;y<=F+8;y++)P(x,y,z,edge?(y===F+4?B.CHISELED_STONEBRICK||W2:W):0);P(x,F+9,z,W);}
+    for(const x of[-9,-6,6,9])for(let z=-99;z<=-91;z++)if(z!==-95)for(let y=F+1;y<=F+3;y++)P(x,y,z,B.BOOKSHELF);
+    for(let z=-100;z<=-89;z++)for(let y=F+1;y<=F+4;y++)P(-11,y,z,B.BOOKSHELF);
+    P(C4.lever[0],C4.lever[1],C4.lever[2],st>=4?B.LEVER_ON:B.LEVER);P(-10,F+1,-94,glow);
+    for(const[x,z]of[[-3,-90],[3,-90],[-3,-99],[3,-99]])P(x,F+8,z,B.LANTERN);
+    P(0,F+1,-96,B.CHISELED_STONEBRICK||W2);P(0,F+2,-96,st>=3?W2:B.AMETHYST);
+    for(let y=F+1;y<=F+3;y++)for(const x of[0,1])P(x,y,-88,st===3?B.IRON_BARS:0);
+    // the mural of the night eater on the east wall
+    for(let y=F+2;y<=F+6;y++)for(let z=-99;z<=-92;z++){const v=Math.hypot(z+95.5,(y-F-4)*1.3);P(11,y,z,v<1.4?B.AMETHYST:v<2.8?B.OBSIDIAN:B.WOOL_K||W);}
+    // the way out: a tunnel in the north-east corner
+    for(let z=-116;z<=-102;z++)for(let x=19;x<=23;x++)for(let y=F+1;y<=F+3;y++)P(x,y,z,(x===19||x===23)?W:0);for(let z=-116;z<=-102;z+=4)P(21,F+3,z,B.LANTERN);
+    return bl;},
+  setup(S){stNpc('st_ren',2.5,41,38.5,Math.PI);S.g=[];const routes=[[[-20,41,20],[20,41,20],2.1],[[0,41,30],[0,41,-40],1.8],[[20,41,-20],[-20,41,-20],2.2],[[3,41,-42],[3,41,-82],1.9],[[-20,41,-60],[20,41,-60],2.3]];
+    for(const[a,b,spd]of routes){const m=stNpc('st_watch',a[0]+0.5,a[1],a[2]+0.5,0);if(m){m.stNpc.walking=true;S.g.push({m,a,b,spd,u:Math.random()});}}},
+  tick(S,dt){const p=player,st=ST.stage;
+    // the watchmen walk their streets; if one sees you, you are sent back to the entrance
+    for(const g of S.g||[]){const m=g.m;if(!mobs.includes(m))continue;const L=Math.hypot(g.b[0]-g.a[0],g.b[2]-g.a[2]);g.u+=g.spd*dt/L;const f=g.u%2,t=f<1?f:2-f,dir=f<1?1:-1;
+      const x=g.a[0]+(g.b[0]-g.a[0])*t+0.5,z=g.a[2]+(g.b[2]-g.a[2])*t+0.5;stFace(m,x+(g.b[0]-g.a[0])*dir,z+(g.b[2]-g.a[2])*dir,dt*3);m.pos[0]=x;m.pos[2]=z;m.walkAmp=1;m.walk=(m.walk||0)+g.spd*dt*1.6;
+      if(st===1&&!S.caughtT){const dx=p.pos[0]-x,dz=p.pos[2]-z,D=Math.hypot(dx,dz),range=p.sneak?4.5:8.5;
+        if(D<range){const fa=Math.atan2(dx,-dz),da=Math.abs(Math.atan2(Math.sin(fa-m.yaw),Math.cos(fa-m.yaw)));
+          if((da<0.95||D<1.6)&&c4Sees(x,41.6,z,p.pos[0],p.pos[1]+1.2,p.pos[2])){S.caughtT=1.2;stFlash('見つかった！ 入口へもどされた');try{sfx.deny&&sfx.deny();}catch(e){}
+            if(typeof wq==='function')for(let i=0;i<10;i++)wq({x,y:43.6,z,vx:(Math.random()-0.5)*2,vy:2,vz:(Math.random()-0.5)*2,g:4,tile:T.CONCRETE_RED,s:0.06,life:0.8,glow:true});}}}}
+    if(S.caughtT){S.caughtT-=dt;if(S.caughtT<=0){S.caughtT=0;player.pos=C4.ent.slice();player.vel=[0,0,0];player.yaw=Math.PI;for(const g of S.g)g.u=Math.random();}}
+    // Ren
+    const ren=stNpcBy('st_ren');
+    if(ren&&S.renGo){ren.stNpc.walking=true;const T=S.renGo;const d=stWalk(ren,T[0],T[2],6.5,dt,0.5);if(d<0.8){S.renGo=null;if(S.renAfter)S.renAfter();}}},
+  use(S,x,y,z,id){if(ST.stage===2&&x===C4.ped[0]&&y===C4.ped[1]&&z===C4.ped[2]&&id===B.AMETHYST){athSet(x,y,z,B.STONEBRICK);S.flags.shard3=true;return true;}return false;},
+  sw(S,x,y,z,id){if(ST.stage===3&&x===C4.lever[0]&&y===C4.lever[1]&&z===C4.lever[2]&&id===B.LEVER_ON){S.flags.secret=true;for(let yy=C4.FY+1;yy<=C4.FY+3;yy++)for(const xx of[0,1])athSet(xx,yy,-88,0);stFlash('本棚の奥で何かが動いた……扉が開いた！');}},
+  stages:[
+    {t:'入口にいるレンに話しかけよう',at:()=>[2.5,41,38.5],check:S=>S.flags.ren1,diary:'レンと地下都市に入った。黒い影の見張りが歩いている。'},
+    {t:'見張りに見つからないように、北の書庫へ忍びこもう（しゃがむと見つかりにくい）',at:()=>C4.arch,cp:()=>C4.ent.slice(),check:()=>player.pos[2]<-88.5&&Math.abs(player.pos[0])<12,diary:'見張りの目をぬけて、北の書庫にたどり着いた。'},
+    {t:'書庫の奥の台座から、星のかけらを取ろう（右クリック）',at:()=>[0.5,42,-95.5],cp:()=>[0.5,41,-90.5],check:S=>S.flags.shard3,
+      done(S){const ren=stNpcBy('st_ren');if(ren){ren.pos=[0.5,41,-89.5];ren.stNpc.walking=true;}},diary:'三つめのかけらを手に入れた――はずだった。'},
+    {t:'閉じこめられた！ 書庫から出る方法を探そう',at:null,cp:()=>[0.5,41,-93.5],start(S){
+        stSay([['旅人レン','……ごめん。そのかけら、僕がもらっていく。'],['旅人レン','夜喰いに、妹を影にされたんだ。かけらを持っていけば、妹を返すって……'],['旅人レン','本当に、ごめん。'],['','レンはかけらをうばい、書庫の扉を閉めて走り去った。']],
+          ()=>{S.renGo=[0.5,41,-84];S.renAfter=()=>{for(let y=C4.FY+1;y<=C4.FY+3;y++)for(const x of[0,1])athSet(x,y,-88,B.IRON_BARS);S.renGo=[21.5,41,-112];S.renAfter=()=>{const r=stNpcBy('st_ren');if(r)r.deathT=0.01,r.hp=0,r.remove=true,mobs.splice(mobs.indexOf(r),1);};};});},
+      check:S=>S.flags.secret,diary:'レンにかけらをうばわれ、書庫に閉じこめられた。本棚の奥の隠しレバーで外へ出た。'},
+    {t:'レンを追いかけよう（北東のトンネル）',at:()=>C4.exit,cp:()=>[0.5,41,-86.5],check:()=>stNear(C4.exit,4),
+      done(S){stSay([['','トンネルの先に、レンの姿はもうなかった。'],['','地面に紙きれが落ちている。'],['レンの手紙','「星の塔で待ってる。ごめん。――レン」']]);},diary:'レンは星の塔へ向かった。書庫の壁画には、星を呑む影「夜喰い」が描かれていた。'},
+  ],
+  talk:{st_ren(S){const st=ST.stage;
+    if(st===0)return{lines:[['旅人レン','ここが地下都市だ。むかしは星を祭る人たちが住んでいたらしい。'],['旅人レン','見張りの影は、前しか見ていない。うしろや、家のかげを通るんだ。'],['旅人レン','しゃがめば足音も小さくなる。僕は外で見張っているよ。書庫は北のいちばん奥だ。']],done:()=>{S.flags.ren1=true;}};
+    return[['旅人レン','気をつけて。']];}},
+});
+function c4Sees(x0,y0,z0,x1,y1,z1){const D=Math.hypot(x1-x0,y1-y0,z1-z0),n=Math.ceil(D/0.4);for(let i=1;i<n;i++){const t=i/n,id=world.getBlock(Math.floor(x0+(x1-x0)*t),Math.floor(y0+(y1-y0)*t),Math.floor(z0+(z1-z0)*t));if(id&&SOLID[id])return false;}return true;}
+
+// ---------------------------------------------------------------- 第5章 星の塔
+// Night over the sea. A stone bridge runs out to the island of the star tower; a stair winds up inside the tower to the
+// roof, where the altar of the star stands. Ren waits there, and so does what swallowed the star.
+const C5={door:[0.5,43,10.5],top:113,altar:[0,114,0]};
+function c5H(w,x,z){const N=WPG.N(w,505),r1=Math.hypot(x,z-72),r0=Math.hypot(x,z);let h=30+WPG.fbm(N,x,z,2,0.04)*3;
+  if(r1<12)h=Math.max(h,43-Math.max(0,r1-8)*1.5);if(r0<16)h=Math.max(h,42-Math.max(0,r0-12)*1.5);return Math.floor(h);}
+function c5Step(x,z){const r=Math.hypot(x+0.5,z+0.5);if(r<5.2||r>8.4)return null;let a=Math.atan2(x+0.5,z+0.5)/(2*Math.PI);if(a<0)a+=1;return a;}
+stDef({n:5,name:'星の塔',seed:55005,biome:'OCEAN',time:0.6,yaw:Math.PI,
+  intro:[['','夜の海の上に、星の塔が立っていた。'],['','塔のてっぺんで、かすかな光がゆれている。']],
+  fog(s,e,col){return[s,Math.min(e,110),[0.05,0.07,0.16],1];},
+  kit(){addItem(I.COOKED_BEEF,4,0);},
+  cp(){return[0.5,44.05,70.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=c5H(w,wx,wz);stCol(c,x,z,h,h>=41?B.GRASS:B.SAND,h>=41?B.DIRT:B.SAND,40);
+      // the tower: a round wall, a winding stair inside, the roof with its rail
+      const r=Math.hypot(wx+0.5,wz+0.5);if(r>9.7)continue;
+      if(r>=8.5){for(let y=42;y<=112;y++){let id=(Math.floor(y/4)+(wx+wz))%7===0?B.SMOOTH_QUARTZ||B.QUARTZ_BRICKS:B.QUARTZ_BRICKS;if(y%12===6&&((wx+wz)&3)===0)id=B.SEA_LANTERN;else if(y%12>=2&&y%12<=4&&((wx*3+wz)&7)===1)id=B.GLASS;BL[bidx(x,y,z)]=id;}
+        if(wz>=8&&Math.abs(wx)<=1)for(let y=43;y<=45;y++)BL[bidx(x,y,z)]=0;
+        BL[bidx(x,113,z)]=B.BIRCH_FENCE||B.OAK_FENCE;continue;}
+      BL[bidx(x,42,z)]=B.QUARTZ_BRICKS;for(let y=43;y<112;y++)BL[bidx(x,y,z)]=0;
+      const a=c5Step(wx,wz);if(a!==null)for(let k=0;k<3;k++){const y=43+Math.floor((k+a)*23);if(y<=112)BL[bidx(x,y,z)]=(k+(a*44|0))%2?B.PURPUR||B.QUARTZ_BRICKS:B.END_BRICKS||B.STONEBRICK;}
+      BL[bidx(x,112,z)]=a!==null&&a>0.9?0:(Math.hypot(wx+0.5,wz+0.5)<2.5?B.GOLD_BLOCK:B.QUARTZ_BRICKS);
+      if(a!==null&&a>0.97)BL[bidx(x,112,z)]=B.END_BRICKS||B.STONEBRICK;}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id);
+    // the stone bridge from the start island to the tower door, with arches down to the sea floor
+    for(let z=14;z<=64;z++){for(let x=-1;x<=1;x++)P(x,43,z,B.STONEBRICK);for(const x of[-2,2]){P(x,43,z,B.STONEBRICK);P(x,44,z,B.OAK_FENCE||B.STONEBRICK);}
+      if(z%8===0)for(let y=30;y<43;y++)for(const x of[-2,2])P(x,y,z,B.STONEBRICK);if(z%8===4)P(0,44,z,0);}
+    for(const z of[20,36,52])for(const x of[-2,2])P(x,45,z,B.LANTERN);
+    // the altar on the roof
+    for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)P(x,113,z,B.QUARTZ_PILLAR||B.QUARTZ_BRICKS);P(0,114,0,ST.stage>=5?B.AMETHYST:B.QUARTZ_BRICKS);
+    return bl;},
+  setup(S){if(ST.stage<=4){const m=stNpc('st_ren',0.5,113.05,-4.5,0);}},
+  tick(S,dt){const p=player,b=ST.boss;
+    if(b&&mobs.includes(b)&&b.hp>0){const f=b.hp/b.def.hp;for(const[k,th]of[[1,0.66],[2,0.33]])if(f<th&&!S['ph'+k]){S['ph'+k]=true;stFlash('夜喰いが影を呼んだ！');
+        for(let i=0;i<2;i++){const a=Math.random()*6.28,m=addMob('wp_ghoul',Math.cos(a)*5+0.5,113.05,Math.sin(a)*5+0.5,{persist:true});if(m)m.persist=true;}}}
+    if(S.rise){S.rise-=dt;if(typeof wq==='function')for(let i=0;i<4;i++)wq({x:0.5+(Math.random()-0.5)*1.5,y:115,z:0.5+(Math.random()-0.5)*1.5,vx:(Math.random()-0.5)*1.5,vy:8+Math.random()*6,vz:(Math.random()-0.5)*1.5,g:0,tile:T.ATH_GOAL_T,s:0.07,life:2.5,glow:true});
+      dayTime=Math.min(0.995,dayTime+dt*0.05);}},
+  use(S,x,y,z,id){if(ST.stage===5&&x===0&&y===114&&z===0){S.flags.star=true;S.rise=8;stTelop('[[starF|#ffe066]]','星が空にもどっていく……');athSet(0,114,0,B.GOLD_BLOCK);try{sfx.pop&&sfx.pop([0.5,114.5,0.5]);}catch(e){}return true;}return false;},
+  stages:[
+    {t:'石の橋をわたって、星の塔へ入ろう',at:()=>C5.door,check:()=>stNear(C5.door,4)||(Math.hypot(player.pos[0],player.pos[2])<8&&player.pos[1]<60),diary:'夜の海にかかる石橋をわたり、星の塔に入った。'},
+    {t:'らせん階段で、塔のてっぺんまで登ろう',at:()=>[0.5,113,0.5],start(S){for(const[y,a]of[[55,0.5],[78,0.5],[96,0.25]]){const x=Math.sin(a*6.283)*6.8,z=Math.cos(a*6.283)*6.8;const m=addMob('wp_ghoul',x,y+1.05,z,{persist:true});if(m)m.persist=true;}},
+      check:()=>player.pos[1]>112.5&&player.onGround,diary:'影の亡者をしりぞけながら、らせん階段を登りきった。'},
+    {t:'祭壇のそばのレンに話しかけよう',at:()=>[0.5,113,-4.5],cp:()=>[0.5,113.05,5.5],check:S=>S.flags.ren5,diary:'塔のてっぺんでレンが待っていた。'},
+    {t:'夜喰いを倒そう',cp:()=>[0.5,113.05,5.5],start(S){const m=addMob('st_night',0.5,113.05,-6.5,{persist:true});if(m){m.persist=true;ST.boss=m;S.boss=m;}stTelop('夜喰い','星を呑んだ影');},
+      check:S=>!S.boss||S.boss.deathT>0||S.boss.hp<=0||!mobs.includes(S.boss),done(S){ST.boss=null;stTelop('夜喰い','たおした！');for(const m of mobs)if(m.type==='wp_ghoul')m.hp=0,m.deathT=0.01;},diary:'星を呑んだ影「夜喰い」をたおした。'},
+    {t:'レンに話しかけよう',at:()=>[0.5,113,-4.5],cp:()=>[0.5,113.05,5.5],check:S=>S.flags.ren6,done(S){athSet(0,114,0,B.AMETHYST);},diary:'レンはかけらを返し、あやまった。影が消え、妹も目を覚ますはずだという。'},
+    {t:'星の祭壇に、四つのかけらをささげよう（右クリック）',at:()=>[0.5,114,0.5],cp:()=>[0.5,113.05,5.5],check:S=>S.flags.star&&S.rise<=0.3,diary:'四つのかけらがひとつになり、星は空へ帰っていった。'},
+  ],
+  talk:{st_ren(S){const st=ST.stage;
+    if(st<=2)return{lines:[['旅人レン','……来てくれたんだね。'],['旅人レン','かけらを渡せば妹を返すと、あいつは言った。でも、うそだった。'],['旅人レン','あいつはかけらを呑んで、もっと大きくなろうとしている。島じゅうの夜を、呑みこむつもりなんだ。'],['旅人レン','君にひどいことをした。でも……たのむ。いっしょに、あいつを止めてくれ！'],['','――塔の上の闇が、ふくれあがった。']],done:()=>{S.flags.ren5=true;}};
+    if(st===3)return[['旅人レン','あいつの影の手下に気をつけて！']];
+    if(st===4)return{lines:[['旅人レン','……やった。夜喰いが、消えた。'],['旅人レン','これを。うばったかけらと、あいつが呑んでいたかけらだ。'],['旅人レン','妹も、きっと目を覚ます。……ありがとう。そして、ごめん。'],['旅人レン','さあ、祭壇へ。四つそろえば、星は空へ帰れるはずだ。']],done:()=>{S.flags.ren6=true;}};
+    return[['旅人レン','祭壇へ。君の手で、星を返してあげて。']];}},
+});
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
