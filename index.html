@@ -666,6 +666,9 @@ const ICO_PATHS={
   play:'<path d="M5 3l8 5-8 5z" fill="currentColor"/>',
   lock:'<rect x="3.2" y="7" width="9.6" height="7.4" rx="1.2"/><path d="M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2"/>',
   heart:'<path d="M8 13.8S2 10 2 5.8A3 3 0 0 1 8 4.4a3 3 0 0 1 6 1.4C14 10 8 13.8 8 13.8z"/>',
+  rocket:'<path d="M8 1.4c2.6 1.8 3.6 4.6 3.2 8.2H4.8C4.4 6 5.4 3.2 8 1.4z"/><circle cx="8" cy="6.2" r="1.3"/><path d="M4.9 8.2L2.6 11l2.4.4M11.1 8.2l2.3 2.8-2.4.4M6.6 11.8L8 14.6l1.4-2.8"/>',
+  moon:'<path d="M10.8 2.2a6 6 0 1 0 3 9.8A5 5 0 0 1 10.8 2.2z"/>',
+  moonF:'<path d="M10.8 2.2a6 6 0 1 0 3 9.8A5 5 0 0 1 10.8 2.2z" fill="currentColor"/>',
   potion:'<path d="M6 1.4h4M6.8 1.4v4.2L2.8 12.8c-.5 1 .2 2 1.2 2h8c1 0 1.7-1 1.2-2L9.2 5.6V1.4"/><path d="M4.3 10.2h7.4" stroke-width="1.1"/><path d="M4 12.6l.9-1.8h6.2l.9 1.8c.2.5-.1 1-.6 1H4.6c-.5 0-.8-.5-.6-1z" fill="currentColor" fill-opacity=".5" stroke="none"/>',
 };
 // the compass needle points in eight directions: dir0 … dir7, every 45° clockwise from straight ahead
@@ -15128,14 +15131,20 @@ pkDef({id:'maze',name:'ギミック迷宮',icon:'maze',col:'#ffd65a',
 // the five chapters, each of which can be chosen again once reached. Every chapter has a world of its own, made for it
 // (never saved as a world): its land, its people to talk to, what you must do next, its puzzles and its boss.
 // What is kept is the story itself: the chapter, how far into it you are, what you carry and the diary.
-const ST={on:false,ch:0,C:null,stage:0,S:null,rules:null,hud:null,talk:null,npcs:[],boss:null,chs:[]};
+const ST={on:false,sid:'isle',ch:0,C:null,stage:0,S:null,rules:null,hud:null,talk:null,npcs:[],boss:null};
+// several stories, each of five chapters; each keeps its own progress, diary and ending
+const STORIES={},ST_ORDER=[];
+function stStory(o){o.chs=[];STORIES[o.id]=o;ST_ORDER.push(o.id);return o;}
+function stStoryOf(sid){return STORIES[sid||ST.sid]||STORIES.isle;}
+function stChOf(code){if(!code)return null;const i=String(code).lastIndexOf(':'),T=STORIES[String(code).slice(0,i)];return T?T.chs[(+String(code).slice(i+1))-1]||null:null;}
 const STX={next:null};
 function stS(){let s=settings.st;if(!s||typeof s!=='object')s=settings.st={on:true};return s;}
 function stOn(){const M=settings.mod;return!!(M&&M.unlocked&&stS().on);}
-function stDef(o){ST.chs[o.n-1]=o;return o;}
-function stLoad(){try{const o=JSON.parse(localStorage.getItem('aro_story')||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
-function stPut(fn){const o=stLoad();try{fn(o);localStorage.setItem('aro_story',JSON.stringify(o));}catch(e){console.warn(e);}}
-function stReached(){const P=stLoad();return Math.max(1,Math.min(5,P.reach|0||1));}
+function stDef(o){const T=STORIES[o.story||'isle'];o.story=T.id;T.chs[o.n-1]=o;return o;}
+function stKey(sid){const T=stStoryOf(sid);return T.key||('aro_story_'+T.id);}
+function stLoad(sid){try{const o=JSON.parse(localStorage.getItem(stKey(sid))||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+function stPut(fn,sid){const o=stLoad(sid);try{fn(o);localStorage.setItem(stKey(sid),JSON.stringify(o));}catch(e){console.warn(e);}}
+function stReached(sid){const P=stLoad(sid);return Math.max(1,Math.min(5,P.reach|0||1));}
 
 // ---------------------------------------------------------------- the people of the story
 const SKIN_ST={};
@@ -15171,13 +15180,13 @@ function stWalk(m,tx,tz,spd,dt,stop){const dx=tx-m.pos[0],dz=tz-m.pos[2],D=Math.
 World.prototype.story=null;
 {const _nw=newWorld;newWorld=function(seed){const t=STX.next;STX.next=null;World.prototype.story=t;
   try{return _nw.apply(this,arguments);}finally{World.prototype.story=null;if(world)world.story=t;}};}
-{const _gen=World.prototype.generate;World.prototype.generate=function(c){const C=this.story&&ST.chs[this.story-1];if(!C||!C.gen||this.dim!==0)return _gen.apply(this,arguments);
+{const _gen=World.prototype.generate;World.prototype.generate=function(c){const C=stChOf(this.story);if(!C||!C.gen||this.dim!==0)return _gen.apply(this,arguments);
   const BL=c.blocks;BL.fill(0);C.gen(this,c);if(ST.idx)pkPutIdx(c,ST.idx);c.spawns=[];
   const ed=this.edits.get(ckey(c.cx,c.cz));if(ed)for(const[i,id]of ed)BL[i]=id;this.finalize(c);};}
 // the biome of the whole chapter (grass colour, and whether the sky drops rain or snow)
-{const _bio=World.prototype.biomeAt;World.prototype.biomeAt=function(x,z){if(this.story&&this.dim===0){const C=ST.chs[this.story-1];if(C&&C.biome)return BI[C.biome];}return _bio.apply(this,arguments);};}
+{const _bio=World.prototype.biomeAt;World.prototype.biomeAt=function(x,z){if(this.story&&this.dim===0){const C=stChOf(this.story);if(C&&C.biome)return BI[C.biome];}return _bio.apply(this,arguments);};}
 // fog of the chapter (blizzard, the dark city, the night sea)
-{const _wf=wpFog;wpFog=function(s,e,col,special,under){if(world&&world.story&&!special&&!under){const C=ST.chs[world.story-1];if(C&&C.fog){const r=C.fog(s,e,col.slice());return[r[0],r[1],r[2],r[3]===undefined?1:r[3]];}}return _wf.apply(this,arguments);};}
+{const _wf=wpFog;wpFog=function(s,e,col,special,under){if(world&&world.story&&!special&&!under){const C=stChOf(world.story);if(C&&C.fog){const r=C.fog(s,e,col.slice());return[r[0],r[1],r[2],r[3]===undefined?1:r[3]];}}return _wf.apply(this,arguments);};}
 // helpers for chapter land: a column of ground, and the blocks of the buildings sorted by chunk
 function stCol(c,x,z,h,top,fill,sea){const BL=c.blocks;h=Math.max(1,Math.min(H-2,h|0));for(let y=1;y<=h;y++)BL[bidx(x,y,z)]=y===h?top:y>h-4?fill:B.STONE;BL[bidx(x,0,z)]=B.BEDROCK;
   if(sea)for(let y=h+1;y<=sea;y++)BL[bidx(x,y,z)]=B.WATER;}
@@ -15193,15 +15202,15 @@ function stGive(id,n){const left=addItem(id,n|0||1,0);if(left>0)spawnItem(player
 function stTake(id,n){takeFromInv(id,n);if(typeof invChanged==='function')invChanged();}
 
 // ---------------------------------------------------------------- going in and coming out
-function stEnter(ch,cont){const C=ST.chs[ch-1];if(!C)return;
+function stEnter(ch,cont,sid){sid=sid||ST.sid;const C=stStoryOf(sid).chs[ch-1];if(!C)return;
   if(typeof ATH!=='undefined'&&ATH.on)athCleanup();if(typeof PK!=='undefined'&&PK.on)pkCleanup(true);if(ST.on)stCleanup(true);
   try{if(world&&curWorldId&&state!=='title'&&!(world.arena||world.parkour||world.pk||world.story))saveGame();}catch(e){}
   try{if(typeof MP!=='undefined'&&MP.active&&typeof mpLeave==='function')mpLeave(true);}catch(e){}
-  const P=stLoad();let stage=0,invA=null,flags={};if(cont&&P.ch===ch){stage=Math.max(0,Math.min(C.stages.length-1,P.stage|0));invA=P.inv;flags=P.flags||{};}
-  ST.on=true;ST.ch=ch;ST.C=C;ST.stage=stage;ST.S={flags,t:0};ST.npcs=[];ST.boss=null;ST.talk=null;ST.shown=false;
+  const P=stLoad(sid);let stage=0,invA=null,flags={};if(cont&&P.ch===ch){stage=Math.max(0,Math.min(C.stages.length-1,P.stage|0));invA=P.inv;flags=P.flags||{};}
+  ST.on=true;ST.sid=sid;ST.ch=ch;ST.C=C;ST.stage=stage;ST.S={flags,t:0};ST.npcs=[];ST.boss=null;ST.talk=null;ST.shown=false;
   ST.rules=Object.assign({},gameRules);Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:true,keepInventory:true,mobGriefing:false});
-  ST.idx=C.build?pkIndex(C.build()):null;
-  curWorldId=null;STX.next=ch;newWorld(C.seed|0);mode='survival';
+  curWorldId=null;STX.next=sid+':'+ch;newWorld(C.seed|0);mode='survival';
+  ST.idx=C.build?pkIndex(C.build()):null;   // (after the new world: the buildings follow its land)
   Object.assign(gameRules,{doMobSpawning:false,doDaylightCycle:false,doWeatherCycle:false,fallDamage:true,keepInventory:true,mobGriefing:false});   // (a new world resets the rules)
   if(typeof weather!=='undefined'){weather.kind='clear';weather.rain=0;weather.thunder=0;}
   resetPlayer();if(invA)stInvLoad(invA);else for(let i=0;i<inv.length;i++)inv[i]=null;if(stage===0&&C.kit)C.kit();if(typeof invChanged==='function')invChanged();
@@ -15221,8 +15230,8 @@ function stStop(){if(!ST.on)return;if(state==='title'||state==='loading'){stClea
 {const _qt=quitToTitle;quitToTitle=function(){const was=ST.on;const r=_qt.apply(this,arguments);if(was)stCleanup();return r;};}
 {const _sg=saveGame;saveGame=function(){if(world&&world.story){stPut(o=>{if(o.ch===ST.ch&&o.stage===ST.stage)o.inv=stInvSnap();});return;}return _sg.apply(this,arguments);};}
 {const _ec=execCommand;execCommand=function(){if(ST.on){toast('物語の中ではコマンドを使えません');return;}return _ec.apply(this,arguments);};}
-function stPlay(ch,cont){if(!stOn()){toast('ストーリーMODをオンにすると遊べます');return;}
-  const go=()=>{try{stEnter(ch,cont);}catch(e){console.error(e);toast('はじめられませんでした');}};
+function stPlay(ch,cont,sid){if(!stOn()){toast('ストーリーMODをオンにすると遊べます');return;}
+  const go=()=>{try{stEnter(ch,cont,sid);}catch(e){console.error(e);toast('はじめられませんでした');}};
   if(state!=='title'&&typeof quitToTitle==='function'){quitToTitle();setTimeout(go,60);}else go();}
 // blocks used in the story: pedestals and altars (right-click), levers and buttons
 {const _u5=useBlock5;useBlock5=function(x,y,z,id){if(ST.on&&ST.C&&ST.C.use){try{if(ST.C.use(ST.S,x,y,z,id))return true;}catch(e){console.warn(e);}}return _u5.apply(this,arguments);};}
@@ -15240,7 +15249,7 @@ function stDiary(t){stPut(o=>{const d=o.diary=o.diary||{};const a=d[ST.ch]=d[ST.
 function stChapterClear(){const ch=ST.ch,C=ST.C;ST.stage=C.stages.length;
   stPut(o=>{o.cleared=o.cleared||[];o.cleared[ch-1]=1;o.reach=Math.max(o.reach|0,Math.min(5,ch+1));if(ch<5){o.ch=ch+1;o.stage=0;o.inv=stInvSnap();o.flags={};}else{o.done=1;}});
   stTelop('第'+ch+'章　完',C.name);try{sfx.pop&&sfx.pop(player.pos.slice());}catch(e){}
-  setTimeout(()=>{if(!ST.on||ST.ch!==ch)return;if(ch<5)stCard('第'+ch+'章　'+C.name+'　クリア',C.after||'',[['第'+(ch+1)+'章へ進む',()=>stEnter(ch+1,true)],['物語の記録を見る',()=>stDiaryOpen()],['タイトルへ',()=>stStop()]]);
+  setTimeout(()=>{if(!ST.on||ST.ch!==ch)return;if(ch<5&&stStoryOf().chs[ch])stCard('第'+ch+'章　'+C.name+'　クリア',C.after||'',[['第'+(ch+1)+'章へ進む',()=>stEnter(ch+1,true)],['物語の記録を見る',()=>stDiaryOpen(ST.sid)],['タイトルへ',()=>stStop()]]);
     else stEnding();},2600);}
 
 // ---------------------------------------------------------------- the screen: chapter title, what to do, talking, the boss, the diary
@@ -15277,7 +15286,7 @@ body.st-on #hint{display:none}body.st-on #wp-season{display:none!important}`;
   ST.hud={root,obj:root.querySelector('#st-obj'),telop:root.querySelector('#st-telop'),boss:root.querySelector('#st-boss'),talk,card,dia};
   talk.addEventListener('click',()=>stTalkNext());
   window.addEventListener('keydown',e=>{if(!ST.talk||state!=='overlay'||OVL.id!=='st-talk')return;if(e.code==='Space'||e.code==='Enter'||e.code==='KeyE'){e.preventDefault();e.stopPropagation();stTalkNext();}},true);
-  const pan=document.querySelector('#pause .panel');if(pan){const a=document.createElement('button');a.id='btn-st-diary';a.textContent='物語の記録';a.onclick=()=>{resumeGame&&resumeGame();setTimeout(stDiaryOpen,80);};
+  const pan=document.querySelector('#pause .panel');if(pan){const a=document.createElement('button');a.id='btn-st-diary';a.textContent='物語の記録';a.onclick=()=>{resumeGame&&resumeGame();setTimeout(()=>stDiaryOpen(ST.sid),80);};
     const b=document.createElement('button');b.id='btn-st-quit';b.textContent='物語を中断してタイトルへ';b.onclick=()=>stStop();const q=document.getElementById('btn-quit');pan.insertBefore(a,q);pan.insertBefore(b,q);}}
 function stTelop(a,b){const u=ST.hud;if(!u)return;const e=u.telop;e.classList.remove('go');void e.offsetWidth;e.innerHTML=`<b>${icoHTML(a)}</b><span>${icoHTML(b)}</span>`;e.classList.add('go');}
 function stObjFlash(){const e=ST.hud&&ST.hud.obj;if(!e)return;e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');}
@@ -15298,8 +15307,8 @@ function stTalkTo(m){const C=ST.C;if(!C||!C.talk)return;const f=C.talk[m.type];i
 function stCard(title,text,btns){stUI();const u=ST.hud,box=u.card.firstChild;box.innerHTML=`<h2>${icoHTML(title)}</h2>${text?`<p>${icoHTML(text)}</p>`:''}<div>${btns.map((b,i)=>`<button data-i="${i}">${icoHTML(b[0])}</button>`).join('')}</div>`;
   box.querySelectorAll('button').forEach(el=>el.onclick=()=>{const b=btns[+el.dataset.i];if(state==='overlay'&&OVL.id==='st-card'){closeOverlay();}u.card.style.display='none';b[1]();});
   if(state==='play')openOverlay('st-card',null);else u.card.style.display='flex';}
-function stDiaryOpen(){stUI();const P=stLoad(),u=ST.hud,box=u.dia.firstChild;let h='<h2>'+ico('scroll')+' 物語の記録</h2><div style="color:#bbb;font-size:13px">『星をなくした島』</div>';
-  for(let ch=1;ch<=5;ch++){const C=ST.chs[ch-1];if(!C)continue;const a=(P.diary||{})[ch]||[],got=ch<=(P.reach|0||1);
+function stDiaryOpen(sid){sid=sid||ST.sid;const T=stStoryOf(sid);stUI();const P=stLoad(sid),u=ST.hud,box=u.dia.firstChild;let h='<h2>'+ico('scroll')+' 物語の記録</h2><div style="color:#bbb;font-size:13px">『'+T.title+'』</div>';
+  for(let ch=1;ch<=5;ch++){const C=T.chs[ch-1];if(!C)continue;const a=(P.diary||{})[ch]||[],got=ch<=(P.reach|0||1);
     h+=`<div class="dch">${ico(P.cleared&&P.cleared[ch-1]?'starF':'star')} 第${ch}章　${got?C.name:'？？？'}</div>`;
     if(got)h+='<ul style="margin:0;padding-left:20px">'+(a.length?a.map(t=>`<li>${icoHTML(t)}</li>`).join(''):'<li style="color:#999">まだ何も書かれていない</li>')+'</ul>';}
   h+='<div style="margin-top:12px"><button id="st-dia-close">閉じる</button></div>';box.innerHTML=h;
@@ -15317,7 +15326,7 @@ XMOD_TICK.push(dt=>{const u=ST.hud;
   ST.hid=false;if(u){u.root.style.display=state!=='title'&&state!=='loading'?'block':'none';for(const id of['btn-st-diary','btn-st-quit']){const b=document.getElementById(id);if(b)b.style.display='';}
     const bm=document.getElementById('btn-open-mp');if(bm)bm.style.display='none';}
   if(state!=='play'||!world||!world.story)return;const C=ST.C,S=ST.S;if(!C)return;
-  if(!ST.shown){ST.shown=true;stTelop('第'+ST.ch+'章',C.name);const sg=C.stages[ST.stage];if(ST.stage===0&&C.intro)setTimeout(()=>{if(ST.on&&state==='play')stSay(C.intro);},2600);}
+  if(!ST.shown){ST.shown=true;stTelop(stStoryOf().title+'　第'+ST.ch+'章',C.name);const sg=C.stages[ST.stage];if(ST.stage===0&&C.intro)setTimeout(()=>{if(ST.on&&state==='play')stSay(C.intro);},2600);}
   S.t+=dt;
   // people turn to look at you when you come near
   for(const m of ST.npcs){if(!mobs.includes(m)||m.stNpc.walking)continue;const d=Math.hypot(m.pos[0]-player.pos[0],m.pos[2]-player.pos[2]);if(d<7)stFace(m,player.pos[0],player.pos[2],dt);m.walkAmp=lerp(m.walkAmp||0,0,Math.min(1,dt*8));}
@@ -15330,35 +15339,40 @@ function stNear(t,r){return t&&Math.hypot(player.pos[0]-t[0],player.pos[2]-t[2])
 function stGuard(){if(ST.on&&!stOn())stStop();}
 
 // ---------------------------------------------------------------- the ending
-function stEnding(){const P=stLoad();stPut(o=>{o.done=1;});
-  const text='夜空に、ひときわ明るい星がもどった。\n灯台の光が海を照らし、森の民は歌い、雪の峠には春の風が吹いた。\n地下都市の影はほどけ、レンの妹も目を覚ました。\n\n星をなくした島は、もう迷わない。\n\nそして、浜辺に流れ着いたあの日のきみも――\nこの島の、だれかの道しるべになった。\n\n『星をなくした島』　おしまい';
-  stCard('[[starF|#ffe066]] エンディング',text,[['物語の記録を見る',()=>stDiaryOpen()],['タイトルへ',()=>stStop()]]);}
+function stEnding(){const T=stStoryOf();stPut(o=>{o.done=1;});
+  stCard('[[starF|#ffe066]] エンディング',T.ending||'おしまい',[['物語の記録を見る',()=>stDiaryOpen(T.id)],['タイトルへ',()=>stStop()]]);}
 
 // ---------------------------------------------------------------- the Mod screen section
 function stBuildUI(){const ms=document.querySelector('#modscreen .modpanel');if(!ms||document.getElementById('st-sec'))return;
   const anchor=document.getElementById('pk-sec')||document.getElementById('wp-sec');const sec=document.createElement('div');sec.id='st-sec';
   const seg=(id,t)=>`<button id="${id}" class="small">${t}</button>`;
   sec.innerHTML=`<h3 style="margin:14px 0 4px;font-weight:normal;font-size:17px;border-top:1px solid rgba(255,255,255,0.18);padding-top:10px"><span class="modtag">MOD</span> ストーリーMOD</h3>
-    <p class="note" style="text-align:left;margin-top:2px">ひとつの長い物語を5つの章で遊ぶMODです。章ごとに別々に作られた世界があり、人と話し、目標をこなし、謎を解き、ボスと戦います。章はあとから選んでやり直せます。</p>
+    <p class="note" style="text-align:left;margin-top:2px">長い物語を5つの章で遊ぶMODです。物語は3つあり、章ごとに別々に作られた世界で、人と話し、目標をこなし、謎を解き、ボスと戦います。章はあとから選んでやり直せます。</p>
     <div class="setrow2"><span>ストーリーMOD</span><div class="seg">${seg('st-on','オン')}${seg('st-off','オフ')}</div></div><div id="st-list"></div>`;
   if(anchor)anchor.parentNode.insertBefore(sec,anchor.nextSibling);else ms.appendChild(sec);
   const S=stS(),save=()=>{saveSettings();stSyncUI();stGuard();};$('st-on').onclick=()=>{S.on=true;save();};$('st-off').onclick=()=>{S.on=false;save();};stSyncUI();}
-function stSyncUI(){if(!document.getElementById('st-sec'))return;const S=stS(),on=stOn(),P=stLoad(),reach=stReached();
-  $('st-on').classList.toggle('on',S.on);$('st-off').classList.toggle('on',!S.on);const L=$('st-list');L.style.opacity=S.on?'1':'0.45';
-  const cur=Math.max(1,Math.min(5,P.ch|0||1));
-  let h=`<div class="st-card" style="border:1px solid rgba(255,255,255,.16);border-left:4px solid #ffd65a;border-radius:8px;padding:8px 10px;margin:6px 0;background:rgba(0,0,0,.22)">
-    <div style="display:flex;align-items:center;gap:8px;font-size:16px">${ico('star','#ffd65a')}<b style="font-weight:normal">星をなくした島</b><small style="margin-left:auto;color:#ffe3a6;font-size:11.5px">${P.done?'物語クリア！':'いま：第'+cur+'章'}</small></div>
-    <small style="display:block;color:#9ab;font-size:11.5px;line-height:1.5;margin:4px 0 2px">嵐の夜、空からいちばん明るい星が消えた。その夜に浜辺へ流れ着いたきみは、灯台守のジンと出会う。くだけて島じゅうに散った「星のかけら」を集め、星を空へ返す旅がはじまる。</small>
-    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap"><button class="small st-go" data-a="cont" style="flex:1">${ico('play')} ${P.stage>0||cur>1?'つづき（第'+cur+'章）':'はじめる'}</button><button class="small st-go" data-a="new" style="flex:1">${ico('back')} 最初から</button><button class="small st-go" data-a="diary" style="flex:1">${ico('scroll')} 物語の記録</button></div>
+function stSyncUI(){if(!document.getElementById('st-sec'))return;const S=stS(),on=stOn();
+  $('st-on').classList.toggle('on',S.on);$('st-off').classList.toggle('on',!S.on);const L=$('st-list');L.style.opacity=S.on?'1':'0.45';let h='';
+  for(const sid of ST_ORDER){const T=STORIES[sid],P=stLoad(sid),reach=stReached(sid),cur=Math.max(1,Math.min(5,P.ch|0||1)),col=T.col||'#ffd65a';
+    h+=`<div class="st-card" data-s="${sid}" style="border:1px solid rgba(255,255,255,.16);border-left:4px solid ${col};border-radius:8px;padding:8px 10px;margin:6px 0;background:rgba(0,0,0,.22)">
+    <div style="display:flex;align-items:center;gap:8px;font-size:16px">${ico(T.icon||'star',col)}<b style="font-weight:normal">${T.title}</b><small style="color:#9ab;font-size:11px">${T.genre||''}</small><small style="margin-left:auto;color:#ffe3a6;font-size:11.5px">${P.done?'物語クリア！':'いま：第'+cur+'章'}</small></div>
+    <small style="display:block;color:#9ab;font-size:11.5px;line-height:1.5;margin:4px 0 2px">${icoHTML(T.desc)}</small>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap"><button class="small st-go" data-s="${sid}" data-a="cont" style="flex:1">${ico('play')} ${P.stage>0||cur>1?'つづき（第'+cur+'章）':'はじめる'}</button><button class="small st-go" data-s="${sid}" data-a="new" style="flex:1">${ico('back')} 最初から</button><button class="small st-go" data-s="${sid}" data-a="diary" style="flex:1">${ico('scroll')} 物語の記録</button></div>
     <div style="margin-top:8px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center;font-size:13px">`;
-  for(let ch=1;ch<=5;ch++){const C=ST.chs[ch-1];if(!C)continue;const got=ch<=reach,done=P.cleared&&P.cleared[ch-1];
-    h+=`<span>${ico(done?'starF':'star',done?'#ffd65a':'#889')}</span><span>第${ch}章　${got?C.name:'？？？'}<small style="color:#9ab;margin-left:6px">${done?'クリア':got?(ch===cur?'プレイ中':''):'まだ'}</small></span><button class="small st-ch" data-ch="${ch}" ${got&&on?'':'disabled'} style="opacity:${got&&on?1:0.45}">${ico('play')}</button>`;}
-  h+='</div></div>';L.innerHTML=h;
-  L.querySelectorAll('.st-go').forEach(b=>{const a=b.dataset.a;b.disabled=!on&&a!=='diary';b.style.opacity=b.disabled?'0.5':'1';
-    b.onclick=()=>{if(a==='diary'){stDiaryOpen();return;}if(a==='new'){stPut(o=>{o.ch=1;o.stage=0;o.inv=null;o.flags={};});stPlay(1,false);return;}const Q=stLoad();stPlay(Math.max(1,Math.min(5,Q.ch|0||1)),true);};});
-  L.querySelectorAll('.st-ch').forEach(b=>b.onclick=()=>{const ch=+b.dataset.ch,Q=stLoad();stPlay(ch,Q.ch===ch);});}
+    for(let ch=1;ch<=5;ch++){const C=T.chs[ch-1];if(!C)continue;const got=ch<=reach,done=P.cleared&&P.cleared[ch-1];
+      h+=`<span>${ico(done?'starF':'star',done?col:'#889')}</span><span>第${ch}章　${got?C.name:'？？？'}<small style="color:#9ab;margin-left:6px">${done?'クリア':got?(ch===cur?'プレイ中':''):'まだ'}</small></span><button class="small st-ch" data-s="${sid}" data-ch="${ch}" ${got&&on?'':'disabled'} style="opacity:${got&&on?1:0.45}">${ico('play')}</button>`;}
+    h+='</div></div>';}
+  L.innerHTML=h;
+  L.querySelectorAll('.st-go').forEach(b=>{const a=b.dataset.a,sid=b.dataset.s;b.disabled=!on&&a!=='diary';b.style.opacity=b.disabled?'0.5':'1';
+    b.onclick=()=>{if(a==='diary'){stDiaryOpen(sid);return;}if(a==='new'){stPut(o=>{o.ch=1;o.stage=0;o.inv=null;o.flags={};},sid);stPlay(1,false,sid);return;}const Q=stLoad(sid);stPlay(Math.max(1,Math.min(5,Q.ch|0||1)),true,sid);};});
+  L.querySelectorAll('.st-ch').forEach(b=>b.onclick=()=>{const ch=+b.dataset.ch,sid=b.dataset.s,Q=stLoad(sid);stPlay(ch,Q.ch===ch,sid);});}
 {const _om=openModScreen;openModScreen=function(){const r=_om.apply(this,arguments);try{stBuildUI();stSyncUI();}catch(e){console.error(e);}return r;};}
 setTimeout(()=>{try{stBuildUI();}catch(e){console.error(e);}for(const id of['m-off','mod-lock']){const b=document.getElementById(id);if(b)b.addEventListener('click',()=>setTimeout(stGuard,0));}},0);
+
+// ---------------------------------------------------------------- the first story
+stStory({id:'isle',title:'星をなくした島',genre:'ファンタジー',key:'aro_story',icon:'star',col:'#ffd65a',
+  desc:'嵐の夜、空からいちばん明るい星が消えた。その夜に浜辺へ流れ着いたきみは、灯台守のジンと出会う。くだけて島じゅうに散った「星のかけら」を集め、星を空へ返す旅がはじまる。',
+  ending:'夜空に、ひときわ明るい星がもどった。\n灯台の光が海を照らし、森の民は歌い、雪の峠には春の風が吹いた。\n地下都市の影はほどけ、レンの妹も目を覚ました。\n\n星をなくした島は、もう迷わない。\n\nそして、浜辺に流れ着いたあの日のきみも――\nこの島の、だれかの道しるべになった。\n\n『星をなくした島』　おしまい'});
 
 // ================================================================ 『星をなくした島』 第1章・第2章
 
@@ -15374,7 +15388,7 @@ function c1H(w,x,z){const N=WPG.N(w,101),r=Math.hypot(x,z*1.12),edge=74+WPG.fbm(
 function c1Cave(x,y,z){// the tunnel into the hill and the chamber at its end
   const ax=24,az=-12,bx=40,bz=-30,vx=bx-ax,vz=bz-az,t=Math.max(0,Math.min(1,((x-ax)*vx+(z-az)*vz)/(vx*vx+vz*vz))),d=Math.hypot(x-(ax+vx*t),z-(az+vz*t));
   if(d<1.7&&y>=50&&y<=52)return true;const cd=Math.hypot((x-41)/6,(y-51.5)/3.2,(z+31)/6);return cd<1;}
-stDef({n:1,name:'目覚めの浜辺',seed:51001,biome:'PLAINS',time:0.06,yaw:Math.PI*0.25,
+stDef({n:1,name:'目覚めの浜辺',seed:51001,biome:'PLAINS',time:0.06,yaw:-0.9,
   after:'灯台に光がもどった。ジンはつぶやいた。\n「くだけた星のかけらは四つ。ひとつは、森の民が守る沈んだ遺跡に落ちたと聞く……」\nきみは北の森へ向かう。',
   intro:[['','……波の音がする。'],['','嵐の夜、船はこわれ、きみは浜辺に打ち上げられた。'],['','見上げた空には、あるはずの星がひとつ足りない。'],['','遠くの崖の上に、灯りの消えた灯台が見える。']],
   kit(){addItem(I.COOKED_BEEF,2,0);addItem(I.APPLE,3,0);},
@@ -15433,7 +15447,7 @@ function c1Light(){const[x,y,z]=C1.lamp;athSet(x,y,z,B.GLOWSTONE);for(const[a,b]
 const C2={sea:41,yura:[0.5,43,27.5],gate:[0,43,-30],fy:42};
 function c2H(w,x,z){const N=WPG.N(w,202);let h=41+WPG.fbm(N,x,z,3,0.04)*3.2+0.6;
   if(Math.abs(x)<=14&&z<=-26&&z>=-84)h=42;if(Math.hypot(x,z-32)<14)h=Math.max(h,42.4);return Math.floor(h);}
-stDef({n:2,name:'沈んだ森の遺跡',seed:52002,biome:'SWAMP',time:0.22,yaw:Math.PI,
+stDef({n:2,name:'沈んだ森の遺跡',seed:52002,biome:'SWAMP',time:0.22,yaw:0,
   after:'星のかけらをひとつ手に入れた。遺跡を出ると、ユラが待っていた。\n「ふたつめのかけらは、北の雪の峠に落ちたらしい。山の吹雪は人を迷わせる……気をつけて」',
   intro:[['','北の森は、霧と沼におおわれていた。'],['','木の上の小屋から、だれかがこちらを見ている。']],
   fog(s,e,col){return[Math.min(s,10),Math.min(e,62),[0.55,0.66,0.55],1.2];},
@@ -15511,7 +15525,7 @@ function c3H(w,x,z){const ax=Math.abs(x),N=WPG.N(w,303);let h=c3B(z)+Math.max(0,
   if(Math.hypot(x-15,z-10)<8)h=63.4;if(Math.hypot(x,z+62)<5)h=Math.max(h,88.4);
   return Math.floor(Math.min(122,h));}
 function c3Cave(x,y,z){if(z<-12||z>-7||x>-7||x<-28)return false;return y>=71&&y<=73;}
-stDef({n:3,name:'雪の峠',seed:53003,biome:'SNOWTAIGA',time:0.3,yaw:Math.PI,
+stDef({n:3,name:'雪の峠',seed:53003,biome:'SNOWTAIGA',time:0.3,yaw:0.2,
   after:'岩屋で出会った旅人レンは、地下に眠る古い都市の話をした。\n「三つめのかけらは、地下都市の書庫にある。……僕も、星をさがしているんだ」\nふたりは地下へ向かう。',
   intro:[['','北の峠は、吹雪の中にあった。'],['','白い風の向こうに、小さな山小屋の灯りが見える。']],
   fog(s,e,col){return[2,34,[0.86,0.9,0.95],1.6];},
@@ -15546,7 +15560,7 @@ stDef({n:3,name:'雪の峠',seed:53003,biome:'SNOWTAIGA',time:0.3,yaw:Math.PI,
     const A=S.av;if(A&&A.on){if(A.wait>0){A.wait-=dt;}else{A.z-=4.6*dt;
       if(typeof wq==='function')for(let i=0;i<6;i++){const gx=-12+Math.random()*24;wq({x:gx,y:c3H(world,Math.floor(gx),Math.floor(A.z))+1+Math.random()*5,z:A.z+Math.random()*2,vx:(Math.random()-0.5)*2,vy:Math.random()*2,vz:-3-Math.random()*3,g:3,tile:T.SNOW,s:0.12,life:0.9});}
       A.snd=(A.snd||0)-dt;if(A.snd<=0){A.snd=0.7;try{wpSnd([0,p.pos[1],A.z],[{n:1,type:'lowpass',f:110,dur:0.9,g:0.6}],0.3);}catch(e){}}
-      if(p.pos[2]>A.z-0.6){stFlash('雪崩に飲みこまれた！ 峠からやり直し');const q=[0.5,89.1,-58.5];player.pos=q.slice();player.vel=[0,0,0];player.yaw=Math.PI;A.z=-52;A.wait=1.4;}}}},
+      if(p.pos[2]>A.z-0.6){stFlash('雪崩に飲みこまれた！ 峠からやり直し');const q=[0.5,89.1,-58.5];player.pos=q.slice();player.vel=[0,0,0];player.yaw=0;A.z=-52;A.wait=1.4;}}}},
   use(S,x,y,z,id){if(ST.stage===6&&x===0&&y===90&&z===-62&&id===B.AMETHYST){athSet(x,y,z,B.CALCITE||B.QUARTZ_BRICKS);S.flags.shard2=true;stFlash('ふたつめの星のかけらを手に入れた！');return true;}return false;},
   stages:[
     {t:'吹雪の山道を登って、山小屋をめざそう',at:()=>C3.hut,check:()=>stNear(C3.hut,6),diary:'吹雪の峠道を登り、山小屋にたどり着いた。'},
@@ -15579,7 +15593,7 @@ stDef({n:3,name:'雪の峠',seed:53003,biome:'SNOWTAIGA',time:0.3,yaw:Math.PI,
 const C4={FY:40,ent:[0.5,41,40.5],arch:[0.5,41,-86.5],ped:[0,42,-96],lever:[-11,42,-94],exit:[21.5,41,-109.5]};
 const C4_ROWS=[32,12,2,-8,-28,-38,-48,-68,-78],C4_COLS=[-22,-12,12,22];
 function c4Ceil(w,x,z){return 72+Math.floor(WPG.fbm(WPG.N(w,404),x,z,2,0.05)*6);}
-stDef({n:4,name:'地下都市の影',seed:54004,biome:'DARK',time:0.5,yaw:Math.PI,
+stDef({n:4,name:'地下都市の影',seed:54004,biome:'DARK',time:0.5,yaw:0,
   after:'レンは三つめのかけらを持って、星の塔へ消えた。\n書庫の壁画には、星を呑みこむ黒い影――「夜喰い」が描かれていた。\nきみは最後の地、海の上の星の塔へ向かう。',
   intro:[['','山の下には、光のとどかない大きな空洞が広がっていた。'],['','くずれた家々のあいだを、黒い影がゆっくり歩いている。']],
   fog(s,e,col){return[8,56,[0.07,0.08,0.13],1];},
@@ -15625,7 +15639,7 @@ stDef({n:4,name:'地下都市の影',seed:54004,biome:'DARK',time:0.5,yaw:Math.P
         if(D<range){const fa=Math.atan2(dx,-dz),da=Math.abs(Math.atan2(Math.sin(fa-m.yaw),Math.cos(fa-m.yaw)));
           if((da<0.95||D<1.6)&&c4Sees(x,41.6,z,p.pos[0],p.pos[1]+1.2,p.pos[2])){S.caughtT=1.2;stFlash('見つかった！ 入口へもどされた');try{sfx.deny&&sfx.deny();}catch(e){}
             if(typeof wq==='function')for(let i=0;i<10;i++)wq({x,y:43.6,z,vx:(Math.random()-0.5)*2,vy:2,vz:(Math.random()-0.5)*2,g:4,tile:T.CONCRETE_RED,s:0.06,life:0.8,glow:true});}}}}
-    if(S.caughtT){S.caughtT-=dt;if(S.caughtT<=0){S.caughtT=0;player.pos=C4.ent.slice();player.vel=[0,0,0];player.yaw=Math.PI;for(const g of S.g)g.u=Math.random();}}
+    if(S.caughtT){S.caughtT-=dt;if(S.caughtT<=0){S.caughtT=0;player.pos=C4.ent.slice();player.vel=[0,0,0];player.yaw=0;for(const g of S.g)g.u=Math.random();}}
     // Ren
     const ren=stNpcBy('st_ren');
     if(ren&&S.renGo){ren.stNpc.walking=true;const T=S.renGo;const d=stWalk(ren,T[0],T[2],6.5,dt,0.5);if(d<0.8){S.renGo=null;if(S.renAfter)S.renAfter();}}},
@@ -15656,7 +15670,7 @@ const C5={door:[0.5,43,10.5],top:113,altar:[0,114,0]};
 function c5H(w,x,z){const N=WPG.N(w,505),r1=Math.hypot(x,z-72),r0=Math.hypot(x,z);let h=30+WPG.fbm(N,x,z,2,0.04)*3;
   if(r1<12)h=Math.max(h,43-Math.max(0,r1-8)*1.5);if(r0<16)h=Math.max(h,42-Math.max(0,r0-12)*1.5);return Math.floor(h);}
 function c5Step(x,z){const r=Math.hypot(x+0.5,z+0.5);if(r<5.2||r>8.4)return null;let a=Math.atan2(x+0.5,z+0.5)/(2*Math.PI);if(a<0)a+=1;return a;}
-stDef({n:5,name:'星の塔',seed:55005,biome:'OCEAN',time:0.6,yaw:Math.PI,
+stDef({n:5,name:'星の塔',seed:55005,biome:'OCEAN',time:0.6,yaw:0,
   intro:[['','夜の海の上に、星の塔が立っていた。'],['','塔のてっぺんで、かすかな光がゆれている。']],
   fog(s,e,col){return[s,Math.min(e,110),[0.05,0.07,0.16],1];},
   kit(){addItem(I.COOKED_BEEF,4,0);},
@@ -15703,6 +15717,571 @@ stDef({n:5,name:'星の塔',seed:55005,biome:'OCEAN',time:0.6,yaw:Math.PI,
     if(st===4)return{lines:[['旅人レン','……やった。夜喰いが、消えた。'],['旅人レン','これを。うばったかけらと、あいつが呑んでいたかけらだ。'],['旅人レン','妹も、きっと目を覚ます。……ありがとう。そして、ごめん。'],['旅人レン','さあ、祭壇へ。四つそろえば、星は空へ帰れるはずだ。']],done:()=>{S.flags.ren6=true;}};
     return[['旅人レン','祭壇へ。君の手で、星を返してあげて。']];}},
 });
+
+// ================================================================ ストーリーMOD: shared pieces for the stories (people, steps, picking things up)
+
+// ---------------------------------------------------------------- the sky of a chapter
+{const _sky=skyState;skyState=function(){const b=_sky.apply(this,arguments);if(world&&world.story&&curDim===0){const C=stChOf(world.story);if(C&&C.sky)C.sky(b);}return b;};}
+
+// ---------------------------------------------------------------- the people of the new stories
+[['pico','ピコ',{skin:[236,240,246],hair:[90,200,230],eye:[60,230,255],shirt:[226,232,240],shirt2:[90,200,230],pants:[170,178,192],shoe:[110,118,132],style:'robot'}],
+ ['mizuru','長老ミズル',{skin:[120,200,182],hair:[70,150,170],eye:[30,24,60],shirt:[110,90,170],shirt2:[200,180,250],pants:[70,60,110],shoe:[50,44,80],style:'coat',long:true}],
+ ['bolt','整備ロボのボルト',{skin:[220,150,60],hair:[120,80,40],eye:[255,240,120],shirt:[214,132,40],shirt2:[60,60,70],pants:[110,90,70],shoe:[60,50,40],style:'robot'}],
+ ['mother','マザー',{skin:[200,210,226],hair:[150,160,180],eye:[255,120,220],shirt:[180,190,210],shirt2:[255,140,230],pants:[140,150,170],shoe:[100,110,130],style:'robot'}],
+ ['kanata','カナタ艦長',{skin:[230,192,160],hair:[40,40,50],eye:[60,90,150],shirt:[30,44,90],shirt2:[230,210,120],pants:[30,36,70],shoe:[20,20,30],style:'coat'}],
+ ['crys','結晶の守り手',{skin:[184,140,255],hair:[230,200,255],eye:[255,255,255],shirt:[150,110,230],shirt2:[240,220,255],pants:[120,90,200],shoe:[90,60,160],style:'robot'}],
+ ['sentry','警備ロボ',{skin:[130,136,150],hair:[90,96,110],eye:[255,60,60],shirt:[110,116,130],shirt2:[255,70,70],pants:[90,96,110],shoe:[60,64,74],style:'robot'}],
+ ['voidq','虚無の母',{skin:[40,20,60],hair:[110,40,160],eye:[255,80,255],shirt:[30,14,46],shirt2:[160,60,220],pants:[24,10,36],shoe:[60,20,90],style:'walker'}],
+ ['voidling','虚無の子',{skin:[50,30,70],hair:[90,40,130],eye:[255,120,255],shirt:[40,24,60],shirt2:[120,50,170],pants:[30,18,44],shoe:[20,12,30],style:'walker'}],
+ ['hinata','巫女ひなた',{skin:[246,214,192],hair:[30,26,34],eye:[120,60,50],shirt:[250,250,250],shirt2:[210,40,50],pants:[206,36,48],shoe:[240,240,240],style:'sailor',long:true}],
+ ['kohaku','狐の子こはく',{skin:[244,210,180],hair:[236,140,50],eye:[230,180,40],shirt:[236,140,50],shirt2:[255,240,220],pants:[120,70,40],shoe:[80,50,30],style:'tee'}],
+ ['okina','たけの翁',{skin:[214,184,150],hair:[226,226,220],eye:[60,50,40],shirt:[110,150,80],shirt2:[200,220,160],pants:[80,110,60],shoe:[70,60,40],style:'coat'}],
+ ['tanuki','化け狸',{skin:[150,110,70],hair:[80,56,36],eye:[30,20,10],shirt:[130,94,60],shirt2:[230,210,170],pants:[100,72,46],shoe:[60,44,30],style:'worker',hat:[200,170,90]}],
+ ['oni','青鬼',{skin:[90,140,210],hair:[40,40,50],eye:[255,220,80],shirt:[90,140,210],shirt2:[240,200,60],pants:[230,180,40],shoe:[60,60,70],style:'worker'}],
+ ['gou','赤鬼のゴウ',{skin:[214,70,60],hair:[40,30,30],eye:[255,230,90],shirt:[214,70,60],shirt2:[250,210,60],pants:[240,190,50],shoe:[70,50,40],style:'worker',hat:[230,230,220]}],
+ ['kuroba','天狗くろば',{skin:[220,60,50],hair:[30,30,36],eye:[255,230,120],shirt:[34,34,44],shirt2:[230,230,230],pants:[50,50,60],shoe:[180,140,60],style:'coat'}],
+ ['tsukuyo','月の姫つくよ',{skin:[250,236,230],hair:[226,230,250],eye:[160,120,220],shirt:[236,226,250],shirt2:[200,170,240],pants:[220,206,246],shoe:[250,250,255],style:'coat',long:true}],
+ ['yami','闇狐',{skin:[50,40,60],hair:[20,16,26],eye:[255,60,90],shirt:[40,30,50],shirt2:[160,40,80],pants:[30,24,40],shoe:[20,16,24],style:'walker',long:true}],
+].forEach(([k,name,o])=>{SKIN_ST[k]=SKINS.push(Object.assign({name},o))-1;});
+MODHOOK.mobs.push(()=>{
+  const npc=(k,o)=>mdef('st_'+k,SKINS[SKIN_ST[k]].name,Object.assign({hp:999,hw:0.3,hh:1.85,model:'biped',skin:SKIN_ST[k],move:'none',kind:'passive',spd:0,egg:false,drops:[]},o||{}));
+  npc('pico',{bp:{sc:0.72},hh:1.35});npc('mizuru');npc('bolt',{bp:{sc:1.1}});npc('mother',{bp:{sc:1.6,bw:10,bd:6},hh:2.9,hw:0.6});npc('kanata');
+  npc('hinata');npc('kohaku',{bp:{sc:0.8},hh:1.5});npc('okina');npc('gou',{bp:{sc:1.35,bw:11,bd:6,lw:5},hh:2.5,hw:0.6});npc('kuroba');npc('tsukuyo');
+  const foe=(k,o)=>mdef('st_'+k,SKINS[SKIN_ST[k]].name,Object.assign({model:'biped',skin:SKIN_ST[k],kind:'hostile',egg:false,drops:[]},o));
+  foe('crys',{hp:60,hw:0.6,hh:3.0,bp:{sc:1.6,bw:10,bd:6,legL:14,armL:16},dmg:2.5,spd:0.8,sight:30,voice:'clank'});
+  foe('sentry',{hp:14,hw:0.35,hh:1.9,dmg:2,spd:1.0,sight:24,voice:'clank'});
+  foe('voidq',{hp:110,hw:0.8,hh:3.4,bp:{sc:1.8,bw:10,bd:6,armL:16},dmg:4,spd:0.9,sight:50,voice:'warble'});
+  foe('voidling',{hp:8,hw:0.3,hh:1.3,bp:{sc:0.7},dmg:1.5,spd:1.25,sight:30,voice:'warble'});
+  foe('tanuki',{hp:60,hw:0.7,hh:2.6,bp:{sc:1.45,bw:13,bd:8,lw:5},dmg:2.5,spd:0.85,sight:30,voice:'growl'});
+  foe('oni',{hp:16,hw:0.4,hh:2.2,bp:{sc:1.15,bw:9,lw:5},dmg:2,spd:1.0,sight:24,voice:'growl'});
+  mdef('st_gouboss','赤鬼のゴウ',{model:'biped',skin:SKIN_ST.gou,kind:'hostile',egg:false,drops:[],hp:90,hw:0.7,hh:2.7,bp:{sc:1.45,bw:11,bd:6,lw:5},dmg:3,spd:0.95,sight:40,voice:'growl'});
+  foe('yami',{hp:120,hw:0.6,hh:2.6,bp:{sc:1.4},dmg:4,spd:1.05,sight:50,voice:'warble'});
+});
+
+// ---------------------------------------------------------------- steps that come up again and again
+function stgReach(text,at,r,diary,o){return Object.assign({t:text,at:()=>at,check:()=>stNear(at,r||5),diary},o||{});}
+function stgTalk(type,flag,text,diary,o){return Object.assign({t:text,at:()=>{const m=stNpcBy(type);return m?m.pos:null;},check:S=>!!S.flags[flag],diary},o||{});}
+function stgBoss(type,pos,text,diary,o){o=o||{};return Object.assign({t:text,start(S){const m=addMob(type,pos[0],pos[1],pos[2],{persist:true});if(m){m.persist=true;ST.boss=m;S.boss=m;}if(o.telop)stTelop(o.telop[0],o.telop[1]);if(o.begin)o.begin(S);},
+  check:S=>!S.boss||S.boss.deathT>0||S.boss.hp<=0||!mobs.includes(S.boss),done(S){ST.boss=null;stTelop(MOB[type].name,'たおした！');if(o.after)o.after(S);},diary},o.cp?{cp:o.cp}:{},o.at?{at:o.at}:{});}
+// a few foes at once: the step is done when none of them is left
+function stgFoes(type,spots,text,diary,o){o=o||{};return Object.assign({t:text,start(S){S.foes=spots.map(p=>{const m=addMob(type,p[0],p[1],p[2],{persist:true});if(m)m.persist=true;return m;}).filter(Boolean);},
+  check:S=>!(S.foes||[]).some(m=>mobs.includes(m)&&m.deathT<=0&&m.hp>0),diary},o);}
+function stgCount(key,n,text,diary,o){return Object.assign({t:text,check:S=>(S.flags[key]|0)>=n,diary},o||{});}
+// right-click to pick something up from a list of spots (inside C.use); what was picked stays picked
+function stPick(S,key,spots,x,y,z,label,n,tile){const i=spots.findIndex(p=>p[0]===x&&p[1]===y&&p[2]===z);if(i<0)return false;const got=S.flags[key+'_got']||(S.flags[key+'_got']=[]);if(got.includes(i))return false;
+  got.push(i);S.flags[key]=got.length;athSet(x,y,z,0);stFlash(label+' '+got.length+' / '+n);stBurst(x+0.5,y+0.5,z+0.5,tile);try{sfx.pop&&sfx.pop([x+0.5,y+0.5,z+0.5]);}catch(e){}return true;}
+function stPicked(S,key,i){return!!(S&&S.flags&&S.flags[key+'_got']&&S.flags[key+'_got'].includes(i));}
+function stBurst(x,y,z,tile,n){if(typeof wq!=='function')return;for(let i=0;i<(n||24);i++)wq({x,y,z,vx:(Math.random()-0.5)*3,vy:1+Math.random()*2.5,vz:(Math.random()-0.5)*3,g:-0.4,tile:tile!==undefined?tile:T.ATH_GOAL_T,s:0.05,life:1.3,glow:true});}
+// a sparkle over the things you can pick up, so they can be found
+function stSparkle(S,key,spots,dt,tile){if(typeof wq!=='function'||Math.random()>dt*10)return;const got=(S.flags[key+'_got'])||[];const i=(Math.random()*spots.length)|0;if(got.includes(i))return;const p=spots[i];
+  wq({x:p[0]+Math.random(),y:p[1]+0.6+Math.random()*0.8,z:p[2]+Math.random(),vx:0,vy:0.6,vz:0,g:0,tile:tile!==undefined?tile:T.ATH_GOAL_T,s:0.04,life:1.0,glow:true});}
+// someone who walks along with you
+function stFollow(type,dt,on){const m=stNpcBy(type);if(!m)return;if(!on){m.stNpc.walking=false;return;}m.stNpc.walking=true;const p=player;
+  if(Math.hypot(m.pos[0]-p.pos[0],m.pos[2]-p.pos[2])>14||Math.abs(m.pos[1]-p.pos[1])>6){m.pos=[p.pos[0]-1.2,p.pos[1],p.pos[2]-1.2];}stWalk(m,p.pos[0],p.pos[2],4.8,dt,2.2);}
+// weak gravity: what is left of it (0..1)
+function stLowG(dt,f){const p=player;if(!p.onGround&&!p.inWater&&!p.flying){p.vel[1]+=28*(1-f)*dt;if(p.vel[1]<-9)p.vel[1]=-9;}p.fall=0;}
+// an order to follow: right-click things in turn; a wrong one starts it over
+function stSeq(S,key,want,i,okMsg){const got=S[key]||(S[key]=[]);if(want[got.length]===i){got.push(i);try{sfx.click&&sfx.click();}catch(e){}if(got.length>=want.length){S.flags[key]=true;stFlash(okMsg||'正解！');return true;}stFlash(got.length+' / '+want.length);return true;}
+  S[key]=[];stFlash('ちがう……最初から');try{sfx.deny&&sfx.deny();}catch(e){}return false;}
+// a moving person on a path at a speed (a race): returns true at the end
+function stRun(m,path,S,key,spd,dt){const st=S[key]||(S[key]={i:0});if(st.i>=path.length)return true;const t=path[st.i];m.stNpc.walking=true;
+  const dx=t[0]-m.pos[0],dy=t[1]-m.pos[1],dz=t[2]-m.pos[2],D=Math.hypot(dx,dy,dz);if(D<0.4){st.i++;return st.i>=path.length;}const s=Math.min(D,spd*dt);
+  m.pos[0]+=dx/D*s;m.pos[1]+=dy/D*s;m.pos[2]+=dz/D*s;stFace(m,t[0],t[2],dt);m.walkAmp=1;m.walk=(m.walk||0)+spd*dt*1.6;return false;}
+
+// ================================================================ ストーリーMOD 『はるかな星の漂流者』 (宇宙SF, five chapters)
+// The shuttle of the exploration ship ASTRA crashes on an unknown planet. With the little robot Pico you look for
+// what it takes to fly back up: a signal, fuel crystals, the help of a robot city's mind, a gravity core ... and on
+// the mother ship, what really brought the shuttle down.
+stStory({id:'star',title:'はるかな星の漂流者',genre:'宇宙SF',icon:'rocket',col:'#7fd0ff',
+  desc:'探査船アストラ号のシャトルが、見知らぬ惑星ヴェルナに墜落した。小さなロボットのピコといっしょに、軌道上の母船へ帰る方法を探す。結晶の森、ロボットの都市、重力の谷――そして母船の外には、大きな影が泳いでいた。',
+  ending:'母船アストラ号のエンジンに、ふたたび青い火がともった。\n星くじらは大きく身をひるがえし、虚無の群れのいない航路へと船を導いていく。\n\n窓の外で、惑星ヴェルナが小さくなっていく。\n結晶の森の光も、ロボットたちの街の灯りも、重力の谷の浮島も。\n\n「また来ようね、隊員さん」とピコが言った。\n星くじらの歌が、船体をやさしくふるわせた。\n\n『はるかな星の漂流者』　おしまい'});
+const SF_SKY=(zen,hor,k)=>b=>{b.zen=mixc(b.zen,zen,k);b.hor=mixc(b.hor,hor,k);};
+
+// ---------------------------------------------------------------- 第1章 墜落した宇宙船
+function s1H(w,x,z){const N=WPG.N(w,611);let h=46+WPG.fbm(N,x,z,3,0.025)*5+Math.max(0,WPG.fbm(N,x+200,z,2,0.012))*12;
+  const d=Math.hypot(x-2,z-2);if(d<13)h-=(13-d)*0.3;return Math.floor(h);}
+const SF1={parts:null,want:[1,2,0]};
+stDef({story:'star',n:1,name:'墜落した宇宙船',seed:61001,time:0.42,biome:'DESERT',yaw:2.0,
+  after:'アンテナが母船の信号をとらえた。母船アストラ号は軌道上で待っている。\n「でもシャトルを飛ばすには燃料がいる。北の森に、強いエネルギーの反応があるよ」とピコ。',
+  intro:[['','……警報の音で目を覚ました。'],['','探査船アストラ号のシャトルは、隕石の嵐にまきこまれて、見知らぬ惑星に落ちたらしい。'],['','こわれた壁のすき間から、オレンジ色の空が見える。']],
+  sky:SF_SKY([0.42,0.22,0.5],[0.96,0.6,0.42],0.55),fog(s,e,col){return[s,Math.min(e,120),[0.86,0.58,0.46],1];},
+  kit(){addItem(I.COOKED_BEEF,3,0);},
+  cp(){const y=s1H(world,0,0)+1;return[-2.5,y+0.05,0.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=s1H(w,wx,wz),band=((h>>1)+((wx*7+wz*3)>>5))%3;
+      stCol(c,x,z,h,h>52?(band?B.TERRA_ORANGE:B.TERRA_YELLOW):B.RED_SAND,band===0?B.TERRA_ORANGE:B.RED_SANDSTONE||B.TERRA_ORANGE,0);
+      const r=hash2(wx,wz,6101);if(r<0.012){BL[bidx(x,h+1,z)]=B.AMETHYST_CLUSTER;}
+      else if(r<0.016){for(let y=h+1;y<=h+3;y++)BL[bidx(x,y,z)]=B.END_ROD;BL[bidx(x,h+4,z)]=B.SHROOMLIGHT;}}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),w=world;const SB=s1H(w,0,0);
+    // the shuttle, nose down in its crater: a hull of white plates and glass, the cabin inside, a hole torn in its side
+    for(let x=-7;x<=7;x++)for(let z=-3;z<=3;z++)for(let y=SB;y<=SB+5;y++){const edge=Math.abs(z)===3||x===-7||x===7||y===SB||y===SB+5;
+      let id=edge?((x+y)%5===0?B.IRON_BLOCK:B.SMOOTH_QUARTZ):0;if(edge&&y===SB+3&&Math.abs(z)===3&&x%3===0)id=B.GLASS;P(x,y,z,id);}
+    for(let x=1;x<=4;x++)for(let y=SB+1;y<=SB+3;y++)P(x,y,3,0);for(let x=-6;x<=-4;x++)P(x,SB+1,-2,B.SEA_LANTERN);P(-6,SB+1,2,B.BARREL||B.CHEST);P(6,SB+4,0,B.REDSTONE_LAMP);
+    for(let k=0;k<6;k++)P(8+k,s1H(w,8+k,1)+1,1+(k&1),k%2?B.IRON_BLOCK:B.SMOOTH_QUARTZ);
+    // the parts thrown out in the crash
+    SF1.parts=[[18,0,12],[-15,0,14],[4,0,-20]].map(([x,_,z])=>[x,s1H(w,x,z)+1,z]);
+    SF1.parts.forEach((p,i)=>{if(!stPicked(ST.S,'part',i))P(p[0],p[1],p[2],B.COPPER_BLOCK);});
+    // the antenna: a deck, a mast, three levers on coloured blocks, three lamps that show the order, a button to show it
+    const PY=s1H(w,16,-10)+1;SF1.PY=PY;for(let x=11;x<=20;x++)for(let z=-13;z<=-8;z++){P(x,PY,z,B.IRON_BLOCK);for(let y=PY+1;y<=PY+6;y++)P(x,y,z,0);}
+    for(let y=PY+1;y<=PY+9;y++)P(19,y,-9,B.IRON_BARS);P(19,PY+10,-9,B.END_ROD);
+    const cols=[B.WOOL_R,B.WOOL_B,B.WOOL_G];for(let j=0;j<3;j++){const x=13+j*2;P(x,PY+1,-12,cols[j]);P(x,PY+2,-12,ST.stage>=4?B.LEVER_ON:B.LEVER);P(x,PY+3,-12,B.IRON_BARS);P(x,PY+4,-12,B.REDSTONE_LAMP);}
+    P(19,PY+1,-12,B.IRON_BLOCK);P(19,PY+2,-12,B.BUTTON);
+    return bl;},
+  setup(S){stNpc('st_pico',4.5,s1H(world,4,6)+1,6.5,Math.PI);},
+  tick(S,dt){stFollow('st_pico',dt,ST.stage>=2);if(ST.stage===2)stSparkle(S,'part',SF1.parts,dt,T.COPPER_BLOCK);},
+  use(S,x,y,z,id){if(ST.stage===2&&id===B.COPPER_BLOCK)return stPick(S,'part',SF1.parts,x,y,z,'部品',3,T.COPPER_BLOCK);return false;},
+  sw(S,x,y,z,id){const PY=SF1.PY;
+    if(ST.stage===3&&x===19&&y===PY+2&&z===-12&&id===B.BUTTON_ON){S.seq=[];let i=0;stFlash('ランプの光る順番を見て……');const step=()=>{if(!ST.on||ST.stage!==3)return;
+        if(i>0)athSet(13+SF1.want[i-1]*2,PY+4,-12,B.REDSTONE_LAMP);if(i>=3){stFlash('同じ順にレバーを入れよう');return;}athSet(13+SF1.want[i]*2,PY+4,-12,B.REDSTONE_LAMP_ON);try{sfx.click&&sfx.click();}catch(e){}i++;setTimeout(step,800);};setTimeout(step,600);return;}
+    if(ST.stage===3&&y===PY+2&&z===-12&&(x===13||x===15||x===17)&&id===B.LEVER_ON){const j=(x-13)/2;
+      if(!stSeq(S,'seq',SF1.want,j,'アンテナに電気が通った！'))for(let k=0;k<3;k++)athSet(13+k*2,PY+2,-12,B.LEVER);
+      else if(S.flags.seq){for(let k=0;k<3;k++)athSet(13+k*2,PY+4,-12,B.REDSTONE_LAMP_ON);stBurst(19.5,PY+10.5,-8.5,T.END_ROD,40);}}},
+  stages:[
+    {t:'こわれたシャトルの外へ出よう',check:()=>player.pos[2]>3.6||Math.abs(player.pos[0])>8,diary:'シャトルは見知らぬ惑星に墜落していた。空はオレンジ色だった。'},
+    stgTalk('st_pico','pico1','そばにいるロボットに話しかけよう（右クリック）','小さなロボットのピコと出会った。'),
+    stgCount('part',3,'散らばったシャトルの部品を3つ拾おう（光っている銅のかたまり）','こわれたシャトルの部品を3つ集めた。'),
+    {t:'アンテナを直そう：ボタンを押してランプの順番を見て、同じ順にレバーを入れよう',at:()=>[17,SF1.PY+1,-11],check:S=>!!S.flags.seq,diary:'アンテナを直した。ランプの光る順にレバーを入れるのがこつだった。'},
+    stgTalk('st_pico','pico2','ピコに話しかけよう','アンテナが母船アストラ号の信号をとらえた。'),
+  ],
+  talk:{st_pico(S){const st=ST.stage;
+    if(st<=1)return{lines:[['ピコ','ピピッ！ 目が覚めましたか、隊員さん！'],['ピコ','ぼくはピコ。アストラ号の小型ロボットです。シャトルは隕石の嵐で、この星に落ちちゃいました。'],['ピコ','母船に連絡したいけど、アンテナがこわれています。まずは飛び散った部品を3つ集めましょう！']],done:()=>{S.flags.pico1=true;}};
+    if(st===2)return[['ピコ','銅色の部品が、あちこちで光っているはずです。']];
+    if(st===3)return[['ピコ','アンテナの台のボタンを押すと、ランプが順番に光ります。その順にレバーを入れてください！']];
+    if(st===4)return{lines:[['ピコ','つながった！ 母船アストラ号の信号です！'],['ピコ','母船は軌道の上で待っています。でもシャトルを飛ばすには燃料がたりません。'],['ピコ','北の森から、強いエネルギーの反応がありますよ。行ってみましょう！']],done:()=>{S.flags.pico2=true;}};
+    return[['ピコ','北の森へ行きましょう！']];}},
+});
+
+// ---------------------------------------------------------------- 第2章 結晶の森
+function s2H(w,x,z){const N=WPG.N(w,621);return Math.floor(45+WPG.fbm(N,x,z,3,0.03)*5);}
+const SF2={cry:null,pil:null,order:null};
+stDef({story:'star',n:2,name:'結晶の森',seed:62002,time:0.6,biome:'DARK',yaw:0,
+  after:'大結晶はあたたかい光を放っている。これならシャトルの燃料になる。\nだが、空へ上がるための機械を動かすには、この星の古い都市の力が必要だと、長老ミズルは言った。',
+  intro:[['','北の森は、夜の中で光っていた。'],['','木のかわりに、色とりどりの結晶がのびている。']],
+  sky:SF_SKY([0.1,0.04,0.2],[0.3,0.1,0.36],0.6),fog(s,e,col){return[10,80,[0.18,0.08,0.26],1];},
+  kit(){addItem(I.COOKED_BEEF,2,0);addItem(I.STONE_SWORD,1,0);},
+  cp(){return[0.5,s2H(world,0,60)+1.05,60.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=s2H(w,wx,wz);stCol(c,x,z,h,hash2(wx,wz,6201)<0.4?B.MOSS:B.DEEPSLATE,B.DEEPSLATE,0);
+      if(hash2(wx,wz,6202)<0.02)BL[bidx(x,h+1,z)]=B.AMETHYST_CLUSTER;}
+    // crystal trees: a white trunk, a crown of coloured glass round a light
+    WPG.cells(c,9,4,(gx,gz)=>{if(hash2(gx,gz,6210)>0.6)return;const tx=gx*9+Math.floor(hash2(gx,gz,6211)*9),tz=gz*9+Math.floor(hash2(gx,gz,6212)*9);
+      if(Math.hypot(tx,tz-28)<14||Math.abs(tx)<3||(Math.abs(tx)<14&&tz<-55&&tz>-90))return;const h=s2H(w,tx,tz),th=4+Math.floor(hash2(gx,gz,6213)*4),col=[B.SGLASS_MAGENTA,B.SGLASS_CYAN,B.SGLASS_LIGHT_BLUE,B.SGLASS_PURPLE][(hash2(gx,gz,6214)*4)|0]||B.GLASS;
+      for(let y=h+1;y<=h+th;y++)WPG.set(c,tx,y,tz,B.CALCITE);for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=0;dy<=2;dy++){const r=Math.abs(dx)+Math.abs(dz)+dy;if(r>3)continue;WPG.set(c,tx+dx,h+th+dy,tz+dz,r===0&&dy===1?B.SEA_LANTERN:col,true);}});},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),w=world;
+    // the village of the Lumina: domes of glass
+    for(const[cx,cz]of[[-9,30],[9,30],[0,40]]){const y0=s2H(w,cx,cz);for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){const d=Math.hypot(x,z);if(d>4.4)continue;P(cx+x,y0,cz+z,B.CALCITE);
+        for(let y=1;y<=4;y++){const r=Math.hypot(d,y-0.5);P(cx+x,y0+y,cz+z,r>3.6&&r<4.6?B.SGLASS_CYAN:0);}}
+      P(cx,y0+1,cz,B.SEA_LANTERN);for(let y=1;y<=2;y++)P(cx,y0+y,cz+(cz>32?-4:4),0);}
+    // energy crystals to gather, each on a white stand
+    SF2.cry=[[24,0],[-22,-6],[12,-30],[-10,-44]].map(([x,z])=>[x,s2H(w,x,z)+2,z]);SF2.cry.forEach((p,i)=>{P(p[0],p[1]-1,p[2],B.CALCITE);if(!stPicked(ST.S,'cry',i))P(p[0],p[1],p[2],B.AMETHYST);});
+    // four pillars that ring when touched from the lowest to the highest; a wall of glass that falls when they all ring
+    const hs=[4,2,5,3];SF2.pil=[];const y0=s2H(w,0,-62);for(let j=0;j<4;j++){const x=-6+j*4;for(let y=1;y<=hs[j];y++)P(x,y0+y,-62,B.CALCITE);P(x,y0+hs[j]+1,-62,ST.stage>=4?B.SEA_LANTERN:B.AMETHYST);SF2.pil.push([x,y0+hs[j]+1,-62]);}
+    SF2.order=[1,3,0,2];
+    const gy=s2H(w,0,-80);for(let x=-13;x<=13;x++)for(let z=-93;z<=-67;z++){const d=Math.hypot(x,z+80);if(d<11.4||d>12.6)continue;const gate=z>=-69&&Math.abs(x)<=1;
+      for(let y=gy-6;y<=gy+7;y++)P(x,y,z,gate&&y>gy-6?(ST.stage>=4||y<=s2H(w,x,z)?0:B.SGLASS_MAGENTA):(y>gy+5?B.SEA_LANTERN:(x+z+y)%3?B.AMETHYST:B.CALCITE));}
+    const cy=s2H(w,0,-86);P(0,cy+1,-86,B.CALCITE);P(0,cy+2,-86,ST.stage>=6?B.CALCITE:B.DIAMOND_BLOCK);SF2.core=[0,cy+2,-86];
+    return bl;},
+  setup(S){stNpc('st_mizuru',0.5,s2H(world,0,26)+1,26.5,Math.PI);stNpc('st_pico',2.5,s2H(world,2,58)+1,58.5,Math.PI);},
+  tick(S,dt){stFollow('st_pico',dt,true);if(ST.stage===2)stSparkle(S,'cry',SF2.cry,dt,T.AMETHYST);
+    if(typeof wq==='function'&&Math.random()<dt*25){const p=player.pos;wq({x:p[0]+(Math.random()-0.5)*20,y:p[1]+Math.random()*5,z:p[2]+(Math.random()-0.5)*20,vx:0,vy:0.3,vz:0,g:0,tile:[T.SGLASS_MAGENTA,T.SGLASS_CYAN,T.SEA_LANTERN][(Math.random()*3)|0],s:0.025,life:2,glow:true});}},
+  use(S,x,y,z,id){
+    if(ST.stage===2&&id===B.AMETHYST&&SF2.cry.some(p=>p[0]===x&&p[1]===y&&p[2]===z))return stPick(S,'cry',SF2.cry,x,y,z,'エネルギー結晶',4,T.AMETHYST);
+    if(ST.stage===3){const j=SF2.pil.findIndex(p=>p[0]===x&&p[1]===y&&p[2]===z);if(j>=0){if(stSeq(S,'ring',SF2.order,j,'結晶が共鳴した！ ガラスの壁が消えていく'))athSet(x,y,z,B.SEA_LANTERN);else SF2.pil.forEach(p=>athSet(p[0],p[1],p[2],B.AMETHYST));
+      if(S.flags.ring){const gy=s2H(world,0,-80);for(let xx=-1;xx<=1;xx++)for(let zz=-69;zz<=-67;zz++)for(let yy=gy-5;yy<=gy+7;yy++)if(world.getBlock(xx,yy,zz)===B.SGLASS_MAGENTA)athSet(xx,yy,zz,0);}return true;}}
+    if(ST.stage===5&&id===B.DIAMOND_BLOCK&&x===0&&z===-86){athSet(x,y,z,B.CALCITE);S.flags.core=true;stBurst(0.5,y+0.5,-85.5,T.DIAMOND_BLOCK,50);return true;}
+    return false;},
+  stages:[
+    stgReach('光る森の村へ行こう',[0.5,46,28.5],9,'夜の森で、結晶のドームが並ぶ村を見つけた。'),
+    stgTalk('st_mizuru','miz1','村の長老に話しかけよう','長老ミズルは、森の奥の大結晶の話をしてくれた。'),
+    stgCount('cry',4,'森に散らばるエネルギー結晶を4つ集めよう（白い台の上）','エネルギー結晶を4つ集めた。'),
+    {t:'4本の結晶の柱を、低いものから高いものへ順に右クリックしよう',at:()=>[0,47,-61],check:S=>!!S.flags.ring,diary:'結晶の柱を低い順に鳴らすと、ガラスの壁が消えた。'},
+    stgBoss('st_crys',[0.5,0,-76.5],'結晶の守り手をしずめよう','暴れていた結晶の守り手をしずめた。',{begin(S){S.boss.pos[1]=s2H(world,0,-76)+1.05;},telop:['結晶の守り手','森の奥を守る巨人']}),
+    {t:'大結晶を手に入れよう（右クリック）',at:()=>SF2.core,check:S=>!!S.flags.core,diary:'大結晶を手に入れた。これでシャトルの燃料になる。'},
+  ],
+  talk:{st_mizuru(S){const st=ST.stage;
+      if(st<=1)return{lines:[['長老ミズル','……空から落ちてきた旅人ですね。ようこそ、ルミナの村へ。'],['長老ミズル','あなたの船を動かす力なら、森の奥の大結晶にあります。'],['長老ミズル','でも今は、結晶の守り手が目を覚まして暴れています。まずは森に散らばるエネルギー結晶を4つ集めて、道をひらく力にしてください。'],['長老ミズル','奥の柱は、低い音から高い音へ鳴らすのですよ。']],done:()=>{S.flags.miz1=true;}};
+      return[['長老ミズル','結晶の柱は、低いものから高いものへ。森があなたを守りますように。']];},
+    st_pico(S){return[['ピコ',ST.stage<=2?'白い台の上の結晶です！ キラキラ光ってますよ。':ST.stage===3?'柱の高さを見て！ いちばん低いのはどれかな？':'がんばって、隊員さん！']];}},
+});
+
+// ---------------------------------------------------------------- 第3章 ロボットの都市
+const SF3={Y:50,tow:[[-30,-20],[30,-20],[0,-50]]};
+stDef({story:'star',n:3,name:'ロボットの都市',seed:63003,time:0.28,biome:'PLAINS',yaw:0,
+  after:'マザーは言った。「シャトルを空へ運ぶには、重力コアが要ります。東の重力の谷に眠っています」\nボルトが、谷までの地図をくれた。',
+  intro:[['','森をぬけると、銀色の都市が広がっていた。'],['','人はいない。動いているのはロボットだけだ。']],
+  sky:SF_SKY([0.3,0.5,0.62],[0.75,0.86,0.9],0.4),
+  kit(){addItem(I.COOKED_BEEF,2,0);},
+  cp(){return[0.5,SF3.Y+1.05,34.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks,Y=SF3.Y;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,road=(Math.abs(wx)<=3)||((wz%24+24)%24<=4),line=road&&((Math.abs(wx)===0&&(wz&3)===0)||((wz%24+24)%24===2&&(wx&3)===0));
+      for(let y=1;y<=Y;y++)BL[bidx(x,y,z)]=y===Y?(line?B.QUARTZ_BRICKS:road?B.BLACKSTONE:((wx+wz)&1?B.SMOOTH_QUARTZ:B.QUARTZ_BRICKS)):B.STONE;BL[bidx(x,0,z)]=B.BEDROCK;
+      if(road||Math.hypot(wx,wz)<14||Math.abs(wx)>70||wz>40||wz<-110)continue;
+      // buildings on every block between the roads
+      const gx=Math.floor(wx/12),gz=Math.floor((wz+5)/24),r=hash2(gx,gz,6301),hgt=6+Math.floor(r*16),lx=((wx%12)+12)%12;if(lx>=10||r<0.06)continue;
+      if(SF3.tow.some(([tx,tz])=>Math.abs(wx-tx)<=7&&Math.abs(wz-tz)<=7)||(Math.abs(wx)<=12&&wz<-68))continue;
+      for(let y=Y+1;y<=Y+hgt;y++){const win=(y-Y)%4===2&&lx%3===1;BL[bidx(x,y,z)]=win?(hash2(wx,y,6302)<0.6?B.SEA_LANTERN:B.GLASS):(y===Y+hgt?B.IRON_BLOCK:B.SMOOTH_QUARTZ);}}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),Y=SF3.Y;
+    // three power towers: a ladder up the south face to a lever on top
+    const lad=(BLOCKS[B.LADDER].vars||[B.LADDER])[3];SF3.tow.forEach(([tx,tz],j)=>{for(let x=tx-2;x<=tx+2;x++)for(let z=tz-2;z<=tz+2;z++)for(let y=Y+1;y<=Y+12;y++)P(x,y,z,(x+z+y)%4===0?B.SEA_LANTERN:B.IRON_BLOCK);
+      for(let y=Y+1;y<=Y+12;y++)P(tx,y,tz+3,lad);P(tx,Y+13,tz,ST.stage>=3?B.LEVER_ON:B.LEVER);for(const[a,b]of[[-2,-2],[2,-2],[-2,2],[2,2]])P(tx+a,Y+13,tz+b,B.IRON_BARS);});
+    // the dome of Mother: a gate with three lamps over it
+    for(let x=-12;x<=12;x++)for(let z=-100;z<=-76;z++){const d=Math.hypot(x,(z+88)*1.0);if(d>12.4)continue;for(let y=1;y<=10;y++){const r=Math.hypot(d,y*1.2);P(x,Y+y,z,r>11.4&&r<12.6?(y%3===0?B.SEA_LANTERN:B.GLASS):0);}}
+    for(let y=Y+1;y<=Y+3;y++)for(const x of[0,1])P(x,y,-76,ST.stage>=3?0:B.IRON_BARS);for(let j=0;j<3;j++)P(-1+j,Y+5,-76,ST.stage>=3?B.REDSTONE_LAMP_ON:B.REDSTONE_LAMP);
+    P(0,Y+1,-94,B.IRON_BLOCK);P(0,Y+2,-94,B.SEA_LANTERN);
+    return bl;},
+  setup(S){stNpc('st_bolt',2.5,SF3.Y+1,30.5,Math.PI);stNpc('st_pico',-1.5,SF3.Y+1,32.5,Math.PI);stNpc('st_mother',0.5,SF3.Y+1,-90.5,0);},
+  tick(S,dt){stFollow('st_pico',dt,true);},
+  sw(S,x,y,z,id){if(ST.stage!==2||id!==B.LEVER_ON||y!==SF3.Y+13)return;const j=SF3.tow.findIndex(([tx,tz])=>tx===x&&tz===z);if(j<0)return;const got=S.flags.pw||(S.flags.pw=[]);if(!got.includes(j))got.push(j);S.flags.pwn=got.length;
+    athSet(-1+j,SF3.Y+5,-76,B.REDSTONE_LAMP_ON);stFlash('電源 '+got.length+' / 3');if(got.length>=3){for(let yy=SF3.Y+1;yy<=SF3.Y+3;yy++)for(const xx of[0,1])athSet(xx,yy,-76,0);stFlash('ドームの門が開いた！');}},
+  stages:[
+    stgTalk('st_bolt','bolt1','都市の入口にいるロボットに話しかけよう','整備ロボのボルトに出会った。マザーが警備ロボを止められなくなっているという。'),
+    stgFoes('st_sentry',[[-6,51,4],[6,51,4],[-6,51,-6],[6,51,-6]],'広場の警備ロボを止めよう（4体）','暴走した警備ロボを4体止めた。'),
+    stgCount('pwn',3,'3つの電源塔に登って、てっぺんのレバーを入れよう','3つの電源塔のレバーを入れて、マザーのドームの門を開けた。'),
+    stgTalk('st_mother','mother1','ドームの中のマザーに話しかけよう','都市の頭脳マザーから、重力コアのことを聞いた。'),
+  ],
+  talk:{st_bolt(S){const st=ST.stage;
+      if(st===0)return{lines:[['整備ロボのボルト','ガガッ……ニンゲン？ ひさしぶりに見た。'],['整備ロボのボルト','この街の頭脳マザーが眠っている。そのせいで警備ロボが、だれかれかまわずおそってくる。'],['整備ロボのボルト','広場の警備ロボを止めて、3つの電源塔のレバーを入れてくれ。そうすればマザーが目を覚ます。']],done:()=>{S.flags.bolt1=true;}};
+      return[['整備ロボのボルト',st===1?'警備ロボは広場にいる。気をつけろ！':st===2?'電源塔は、はしごで登れる。':'マザーのドームは北の奥だ。']];},
+    st_mother(S){return ST.stage===3?{lines:[['マザー','……システム再起動。あなたが電源を戻してくれたのですね。ありがとう。'],['マザー','あなたのシャトルを空へ運ぶには、重力コアが必要です。'],['マザー','東の重力の谷に眠っています。あの谷では、体が軽くなります。おそれずに跳んでください。']],done:()=>{S.flags.mother1=true;}}:[['マザー','重力の谷は東です。']];},
+    st_pico(S){return[['ピコ','ロボットの街、すごいですね！ ぼくの親せきかも？']];}},
+});
+
+// ---------------------------------------------------------------- 第4章 重力の谷
+// floating islands over a deep valley; the air is thin with gravity, so you jump far. The far half has its field switched off.
+const SF4={isl:[[0,70,30,6],[3,71,16,3],[-4,72,5,3],[2,71,-6,3],[0,73,-20,5],[-4,74,-34,3],[2,73,-45,3],[-1,75,-57,3],[3,74,-69,3],[0,74,-86,7]]};
+stDef({story:'star',n:4,name:'重力の谷',seed:64004,time:0.5,biome:'PLAINS',yaw:0,
+  after:'重力コアは、手の中でふわりと浮いている。\nピコが母船に連絡すると、カナタ艦長の声が返ってきた。「シャトルを打ち上げろ。母船で待っている！」',
+  intro:[['','谷の上に、岩の島がいくつも浮かんでいた。'],['ピコ','この谷は重力が弱いみたい。思いきりジャンプしてみて！']],
+  sky:SF_SKY([0.14,0.4,0.46],[0.5,0.82,0.78],0.5),fog(s,e,col){return[s,Math.min(e,130),[0.5,0.72,0.74],1];},
+  kit(){addItem(I.COOKED_BEEF,2,0);},
+  cp(){return[0.5,71.05,32.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,ax=Math.abs(wx);let h=22;
+      if(ax>34)h=72+Math.min(30,(ax-34)*2.2)+WPG.fbm(WPG.N(w,641),wx,wz,2,0.05)*4;if(wz>34)h=Math.max(h,69);if(wz<-100)h=Math.max(h,75);
+      stCol(c,x,z,Math.floor(h),h<30?B.SEA_LANTERN:B.STONE,h<30?B.DEEPSLATE:B.STONE,0);if(h<30&&hash2(wx,wz,6401)<0.3)BL[bidx(x,23,z)]=B.AMETHYST_CLUSTER;}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id);
+    SF4.isl.forEach(([cx,cy,cz,r],i)=>{for(let x=-r;x<=r;x++)for(let z=-r;z<=r;z++){const d=Math.hypot(x,z);if(d>r+0.3)continue;const depth=Math.max(1,Math.round((r+0.3-d)*1.3));
+      for(let y=cy-depth;y<=cy;y++)P(cx+x,y,cz+z,y===cy?(i===9?B.QUARTZ_BRICKS:B.MOSS):B.STONE);if(hash2(cx+x,cz+z,6402)<0.08&&y0ok(x,z,r))P(cx+x,cy+1,cz+z,B.AMETHYST_CLUSTER);}});
+    function y0ok(x,z,r){return Math.hypot(x,z)<r-1;}
+    // the switch of the far field on the middle island, the core in its shrine on the last
+    P(2,74,-20,ST.stage>=3?B.LEVER_ON:B.LEVER);
+    for(const[x,z]of[[-3,-89],[3,-89],[-3,-83],[3,-83]])for(let y=75;y<=79;y++)P(x,y,z,B.QUARTZ_PILLAR||B.QUARTZ_BRICKS);for(let x=-3;x<=3;x++)for(let z=-89;z<=-83;z++)P(x,80,z,B.QUARTZ_BRICKS);
+    P(0,74,-86,B.SEA_LANTERN);P(0,75,-86,ST.stage>=5?B.QUARTZ_BRICKS:B.BEACON);
+    return bl;},
+  setup(S){stNpc('st_pico',2.5,71,30.5,Math.PI);},
+  tick(S,dt){const p=player;stFollow('st_pico',dt,ST.stage>=1);
+    const inV=Math.abs(p.pos[0])<34&&p.pos[2]<36&&p.pos[2]>-100,far=p.pos[2]<-26;
+    if(inV&&(!far||S.flags.field2))stLowG(dt,0.34);
+    if(typeof wq==='function'&&Math.random()<dt*30){const z=-100+Math.random()*134;if(z>-26||S.flags.field2)wq({x:(Math.random()-0.5)*60,y:30+Math.random()*60,z,vx:0,vy:1.2,vz:0,g:0,tile:T.SEA_LANTERN,s:0.03,life:3,glow:true});}
+    if(p.pos[1]<36){const sg=stStage();const q=(sg&&sg.cp?sg.cp(S):null)||spawnPoint;player.pos=q.slice();player.vel=[0,0,0];stFlash('谷底に落ちた！ 島へもどる');}},
+  sw(S,x,y,z,id){if(ST.stage===2&&x===2&&y===74&&z===-20&&id===B.LEVER_ON){S.flags.field2=true;stFlash('奥の重力場が動き出した！');}},
+  use(S,x,y,z,id){if(ST.stage===4&&x===0&&y===75&&z===-86&&id===B.BEACON){athSet(x,y,z,B.QUARTZ_BRICKS);S.flags.gcore=true;stBurst(0.5,75.5,-85.5,T.SEA_LANTERN,50);return true;}return false;},
+  stages:[
+    stgTalk('st_pico','pico4','ピコに話しかけよう','重力の谷についた。体がふわりと軽い。'),
+    stgReach('浮島を跳んで、谷のまん中の大きな島へ行こう',[0.5,74,-19.5],6,'浮島を跳びついで、谷のまん中の島にたどり着いた。',{cp:()=>[0.5,71.05,32.5]}),
+    {t:'島のレバーで、奥の重力場を動かそう',at:()=>[2.5,74,-19.5],cp:()=>[0.5,74.05,-17.5],check:S=>!!S.flags.field2,diary:'レバーを入れると、谷の奥の重力場が動き出した。'},
+    stgReach('奥の神殿の島へ渡ろう',[0.5,75,-82.5],6,'奥の神殿の島に渡った。',{cp:()=>[0.5,74.05,-17.5]}),
+    {t:'神殿の重力コアを手に入れよう（右クリック）',at:()=>[0.5,75,-85.5],cp:()=>[0.5,75.05,-81.5],check:S=>!!S.flags.gcore,diary:'重力コアを手に入れた。これでシャトルは空へ上がれる。'},
+  ],
+  talk:{st_pico(S){return ST.stage===0?{lines:[['ピコ','この谷は重力がとても弱いんです。ふだんの3倍は跳べますよ！'],['ピコ','でも奥の半分は、重力場が止まっているみたい。まん中の島のレバーで動かしましょう。'],['ピコ','落ちても、谷底の光から島へ戻れるようにしておきます。いってらっしゃい！']],done:()=>{S.flags.pico4=true;}}:[['ピコ','ジャンプ、ジャンプ！']];}},
+});
+
+// ---------------------------------------------------------------- 第5章 母船と星くじら
+// the mother ship in orbit: dock, corridor, bridge; an airlock to the hull; the engine at the stern; the star whale outside
+const SF5={Y:58,panels:[[-44,62,-3],[-44,62,3],[-46,64,0]]};
+stDef({story:'star',n:5,name:'母船と星くじら',seed:65005,time:0.74,biome:'PLAINS',yaw:Math.PI/2,
+  intro:[['','シャトルは母船アストラ号のドックにすべりこんだ。'],['','窓の外では、星の海を、大きな何かが泳いでいる。']],
+  sky:b=>{b.zen=[0.004,0.006,0.02];b.hor=[0.01,0.012,0.04];b.dayLight=Math.min(b.dayLight,0.35);},fog(s,e,col){return[s,e,[0.01,0.012,0.04],0.6];},
+  kit(){addItem(I.COOKED_BEEF,3,0);addItem(I.IRON_SWORD,1,0);},
+  cp(){return[-34.5,SF5.Y+1.05,0.5];},
+  gen(w,c){},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),Y=SF5.Y;
+    // the hull: a long box of plates, windows along both sides, lights down the middle
+    for(let x=-40;x<=40;x++)for(let z=-6;z<=6;z++)for(let y=Y;y<=Y+8;y++){const shell=y===Y||y===Y+8||Math.abs(z)===6||Math.abs(x)===40;
+      let id=shell?((x+y)%6===0?B.IRON_BLOCK:B.SMOOTH_QUARTZ):0;if(shell&&Math.abs(z)===6&&y>=Y+2&&y<=Y+5&&(x&3)!==0)id=B.GLASS;if(y===Y+8&&z===0&&(x&3)===0)id=B.SEA_LANTERN;if(y===Y&&z===0)id=B.QUARTZ_BRICKS;P(x,y,z,id);}
+    for(let x=34;x<=39;x++)for(let z=-5;z<=5;z++)if(Math.abs(z)<=2&&x>=36)P(x,Y+1,z,B.IRON_BLOCK);for(let y=Y+2;y<=Y+5;y++)for(let z=-4;z<=4;z++)P(40,y,z,B.GLASS);
+    // the airlock: a hatch in the roof over the middle of the ship, a ladder up to it, a button
+    const lad=(BLOCKS[B.LADDER].vars||[B.LADDER])[3];for(let y=Y+1;y<=Y+8;y++)P(0,y,-4,lad);for(let y=Y+1;y<=Y+8;y++)P(0,y,-5,B.IRON_BLOCK);
+    P(0,Y+8,-4,ST.stage>=2?0:B.IRON_BARS);P(2,Y+2,-5,B.BUTTON);P(2,Y+1,-5,B.IRON_BLOCK);
+    // the engine at the stern, with its broken panels
+    for(let x=-46;x<=-41;x++)for(let z=-4;z<=4;z++)for(let y=Y+1;y<=Y+7;y++){const d=Math.hypot(z,(y-Y-4)*1.2);if(d<4.6)P(x,y,z,d<2?B.SEA_LANTERN:B.IRON_BLOCK);}
+    SF5.panels.forEach((p,i)=>P(p[0],p[1],p[2],stPicked(ST.S,'fix',i)?B.IRON_BLOCK:B.REDSTONE_BLOCK));
+    // the deck on the roof to stand and fight on, with a rail
+    for(let x=-40;x<=40;x++)for(const z of[-6,6])P(x,Y+9,z,B.IRON_BARS);
+    return bl;},
+  setup(S){stNpc('st_kanata',37.5,SF5.Y+1,0.5,-Math.PI/2);stNpc('st_pico',-33.5,SF5.Y+1,2.5,Math.PI/2);const wh=stNpc('wp_whale',6,SF5.Y+12,-11,Math.PI/2);if(wh){wh.stNpc.whale=true;}},
+  tick(S,dt){const p=player;stFollow('st_pico',dt,ST.stage<2);
+    if(p.pos[1]>SF5.Y+8.5)stLowG(dt,0.45);
+    if(p.pos[1]<SF5.Y-14){const sg=stStage();const q=(sg&&sg.cp?sg.cp(S):null)||spawnPoint;player.pos=q.slice();player.vel=[0,0,0];stFlash('命綱にひっぱられてもどった');}
+    const wh=stNpcBy('wp_whale');if(wh){wh.pos[1]=SF5.Y+12+Math.sin(S.t*0.5)*0.8;}
+    if(S.press>0){S.press-=dt;if(S.press<=0){athSet(0,SF5.Y+8,-4,0);stFlash('ハッチが開いた！ はしごで船の外へ');}}
+    if(ST.stage===2)stSparkle(S,'fix',SF5.panels,dt,T.REDSTONE_BLOCK);},
+  sw(S,x,y,z,id){if(ST.stage===1&&x===2&&y===SF5.Y+2&&z===-5&&id===B.BUTTON_ON&&!(S.press>0)&&world.getBlock(0,SF5.Y+8,-4)){S.press=3;stFlash('エアロック減圧中……3秒');}},
+  use(S,x,y,z,id){if(ST.stage===2&&id===B.REDSTONE_BLOCK){const i=SF5.panels.findIndex(p=>p[0]===x&&p[1]===y&&p[2]===z);if(i>=0){stPick(S,'fix',SF5.panels,x,y,z,'修理した',3,T.IRON_BLOCK);athSet(x,y,z,B.IRON_BLOCK);return true;}}return false;},
+  stages:[
+    stgTalk('st_kanata','kan1','艦橋（船の前の端）のカナタ艦長に報告しよう','母船アストラ号にもどり、カナタ艦長に再会した。'),
+    {t:'ボタンでエアロックを開けて、はしごで船の外へ出よう',at:()=>[0.5,SF5.Y+9,-3.5],check:()=>player.pos[1]>SF5.Y+8.6,diary:'エアロックをぬけて、船の外へ出た。体がふわりと軽い。'},
+    stgCount('fix',3,'船尾のエンジンの、赤く光る壊れたパネルを3つ直そう（右クリック）','船尾のエンジンのパネルを3つ直した。',{cp:()=>[0.5,SF5.Y+9.05,0.5]}),
+    stgBoss('st_voidq',[-20,0,0],'虚無の母を倒そう','シャトルを落とした犯人――虚無の母をたおした。',{cp:()=>[0.5,SF5.Y+9.05,0.5],telop:['虚無の母','星を食い荒らす群れの女王'],
+      begin(S){S.boss.pos=[-20.5,SF5.Y+9.05,0.5];for(const z of[-3,3]){const m=addMob('st_voidling',-14.5,SF5.Y+9.05,z+0.5,{persist:true});if(m)m.persist=true;}}}),
+    stgTalk('wp_whale','whale','船のそばを泳ぐ星くじらに近づいて、話しかけよう（右クリック）','星くじらは、虚無の群れから船を守ろうとしていたのだった。',{cp:()=>[0.5,SF5.Y+9.05,0.5],start(S){setTimeout(()=>{if(ST.on&&ST.stage===4&&!ST.talk){const m=stNpcBy('wp_whale');if(m)stTalkTo(m);}},3000);}}),
+  ],
+  talk:{st_kanata(S){const st=ST.stage;
+      if(st===0)return{lines:[['カナタ艦長','よく戻った！ 通信が途絶えたときは、もうだめかと思ったぞ。'],['カナタ艦長','だが状況は悪い。船尾のエンジンが何かにかじられて、動かない。'],['カナタ艦長','外にいるあの大きな生き物は「星くじら」と呼ばれている。敵か味方か、まだわからん。'],['カナタ艦長','エアロックから外へ出て、エンジンのパネルを直してくれ。たのんだぞ！']],done:()=>{S.flags.kan1=true;}};
+      return[['カナタ艦長',st===1?'エアロックは船のまん中だ。ボタンを押してから、はしごを登れ。':'エンジンは船尾、左の端だ。気をつけろ。']];},
+    wp_whale(S){return ST.stage===4?{lines:[['星くじら','（低く、やさしい歌が、頭の中にひびいてくる）'],['星くじら','……ちいさな旅人。虚無の群れを追いはらってくれて、ありがとう。'],['星くじら','あの夜、群れに追われていたわたしは、あなたたちの船にぶつかってしまった。ごめんなさい。'],['星くじら','おわびに、群れのいない航路を教えましょう。わたしについてきて。']],done:()=>{S.flags.whale=true;}}:[['星くじら','（大きな目が、じっとこちらを見ている）']];},
+    st_pico(S){return[['ピコ','ただいま、アストラ号！']];}},
+});
+
+// ================================================================ ストーリーMOD 『月影の里』 (和風ファンタジー, five chapters)
+// For three nights the moon has not risen over the hidden village of Tsukikage. The shrine maiden Hinata sees in her
+// mirror the moon princess Tsukuyo shut in her palace. To open the road to the moon you gather three treasures: the
+// bamboo flute, the drum of the oni island, the tengu's feather.
+stStory({id:'moon',title:'月影の里',genre:'和風ファンタジー',icon:'moon',col:'#e8c86a',
+  desc:'三日のあいだ、月がのぼらない。かくれ里「月影の里」をたずねたきみは、狐の子こはくと巫女ひなたに出会う。月の姫を救い出すため、竹の笛・鬼の太鼓・天狗の羽の三つの宝を集め、月の御殿をめざす。',
+  ending:'月の御殿に、やわらかな光がもどった。\nつくよ姫が手をかざすと、大きな月がゆっくりと夜空にのぼっていく。\n\n里の灯籠がいっせいにゆれ、竹林のほたるが舞い、\n鬼が島からは祝いの太鼓が、雲の上からは天狗の笛が聞こえてきた。\n\n「ありがとう。あなたのことは、月がずっと見ています」\nこはくは、きみの肩の上で、まんまるな月を見上げていた。\n\n『月影の里』　おしまい'});
+const MO_SKY=(zen,hor,k)=>b=>{b.zen=mixc(b.zen,zen,k);b.hor=mixc(b.hor,hor,k);};
+function moTorii(P,x,y,z,ax){const R=B.CONCRETE_RED,K=B.BLACKSTONE;for(let k=1;k<=5;k++){P(ax?x-2:x,y+k,ax?z:z-2,R);P(ax?x+2:x,y+k,ax?z:z+2,R);}
+  for(let d=-3;d<=3;d++){P(ax?x+d:x,y+6,ax?z:z+d,K);if(Math.abs(d)<=2)P(ax?x+d:x,y+4,ax?z:z+d,R);}}
+function moHouse(P,x0,y,z0,w,d,doorSide){stShell(P,x0,y,z0,x0+w,y+4,z0+d,B.DARK_OAK_PLANKS,B.SPRUCE_PLANKS,null);for(const[a,b]of[[x0,z0],[x0+w,z0],[x0,z0+d],[x0+w,z0+d]])for(let k=1;k<=4;k++)P(a,y+k,b,B.SPRUCE_LOG);
+  for(let x=x0-1;x<=x0+w+1;x++)for(let z=z0-1;z<=z0+d+1;z++)P(x,y+5,z,B.DS_TILES||B.BLACKSTONE);for(let x=x0+1;x<=x0+w-1;x++)for(let z=z0+1;z<=z0+d-1;z++)P(x,y+6,z,B.DS_TILES||B.BLACKSTONE);
+  const dx=doorSide===0?x0+(w>>1):doorSide===1?x0+w:x0+(w>>1),dz=doorSide===0?z0+d:doorSide===1?z0+(d>>1):z0;for(let k=1;k<=2;k++)P(dx,y+k,dz,0);P(x0+1,y+3,z0+1,B.LANTERN);}
+function moTree(w,c,x,y,z){for(let k=1;k<=4;k++)WPG.set(c,x,y+k-1,z,B.CHERRY_LOG||B.LOG);for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=3;dy<=5;dy++){if(Math.abs(dx)+Math.abs(dz)+(dy===5?1:0)>3)continue;WPG.set(c,x+dx,y+dy,z+dz,B.CHERRY_LEAVES||B.LEAVES,true);}}
+
+// ---------------------------------------------------------------- 第1章 月影の里
+function m1H(w,x,z){const N=WPG.N(w,711);let h=46+WPG.fbm(N,x,z,3,0.03)*2;const ax=Math.abs(x);if(ax>34)h+=(ax-34)*0.8;
+  if(z<-24)h=Math.max(h,Math.min(56,46+(-24-z)*0.8));if(z<-36)h=Math.max(h,56);return Math.floor(h);}
+const MN1={lan:null};
+stDef({story:'moon',n:1,name:'月影の里',seed:71001,time:0.47,biome:'CHERRY',yaw:0,
+  after:'鏡の中に、月の御殿にとじこめられた姫の姿が見えた。\nひなたは言った。「月への道をひらくには、三つの宝が要ります。竹の笛、鬼の太鼓、天狗の羽……」\nこはくといっしょに、まずは西の竹林へ。',
+  intro:[['','夕暮れの山あいに、ちいさな里があった。'],['','鳥居の向こうで、灯籠の灯りが消えている。今夜も、月はのぼらないらしい。']],
+  sky:MO_SKY([0.3,0.24,0.46],[0.98,0.58,0.42],0.4),
+  kit(){addItem(I.COOKED_BEEF,3,0);addItem(I.APPLE,2,0);},
+  cp(){return[0.5,m1H(world,0,44)+1.05,44.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=m1H(w,wx,wz);let top=B.GRASS;
+      const paddy=wx>14&&wx<32&&wz>-14&&wz<26&&((wx-14)%6!==0)&&((wz+14)%6!==0);if(paddy)top=B.WATER;if(Math.abs(wx)<=2&&wz>-12&&wz<44)top=B.GRAVEL;
+      stCol(c,x,z,h,top,B.DIRT,0);if(top===B.GRASS&&hash2(wx,wz,7101)<0.06)BL[bidx(x,h+1,z)]=hash2(wx,wz,7102)<0.3?B.FLOWER_R:B.TALLGRASS;}
+    WPG.cells(c,11,3,(gx,gz)=>{if(hash2(gx,gz,7110)>0.5)return;const tx=gx*11+Math.floor(hash2(gx,gz,7111)*11),tz=gz*11+Math.floor(hash2(gx,gz,7112)*11);
+      if(Math.abs(tx)<16&&tz>-50&&tz<46)return;if(tx>12&&tx<34&&tz>-16&&tz<28)return;moTree(w,c,tx,m1H(w,tx,tz)+1,tz);});},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),w=world;
+    moTorii(P,0,m1H(w,0,30),30,true);
+    for(const[x,z]of[[-13,2],[7,2],[-13,14],[7,16],[-13,-8]])moHouse(P,x,m1H(w,x+3,z+2),z,6,5,x<0?1:3);
+    // four stone lanterns round the square, out
+    MN1.lan=[[-4,8],[4,8],[-4,20],[4,20]].map(([x,z])=>{const y=m1H(w,x,z);P(x,y+1,z,B.STONEBRICK);P(x,y+2,z,B.STONEBRICK);P(x,y+4,z,athSlab('STONEBRICK'));return[x,y+3,z];});
+    MN1.lan.forEach((p,i)=>P(p[0],p[1],p[2],stPicked(ST.S,'lan',i)?B.GLOWSTONE:B.COBBLE));
+    // the shrine on the hill: a stair, a torii, the hall with the moon-viewing mirror
+    for(let z=-39;z<=-12;z++){const y=m1H(w,0,z);for(let x=-1;x<=1;x++){P(x,y,z,B.STONEBRICK);for(let k=1;k<=4;k++)P(x,y+k,z,0);}}
+    moTorii(P,0,m1H(w,0,-14),-14,true);const sy=m1H(w,0,-44);MN1S.sy=sy;
+    for(let x=-5;x<=5;x++)for(let z=-50;z<=-40;z++){P(x,sy,z,B.SPRUCE_PLANKS);for(let k=1;k<=5;k++)P(x,sy+k,z,(Math.abs(x)===5||z===-50)&&!(z===-40)?(Math.abs(x)===5&&(z===-50||z===-40||z===-45)?B.CONCRETE_RED:B.DARK_OAK_PLANKS):0);}
+    for(let x=-6;x<=6;x++)for(let z=-51;z<=-39;z++)P(x,sy+6,z,B.DS_TILES||B.BLACKSTONE);for(const x of[-5,5])for(let k=1;k<=5;k++)P(x,sy+k,-40,B.CONCRETE_RED);
+    P(0,sy+1,-48,B.GOLD_BLOCK);P(0,sy+2,-48,ST.stage>=5?B.GLOWSTONE:B.GLASS);for(const x of[-2,2])P(x,sy+1,-48,B.LANTERN);
+    return bl;},
+  setup(S){stNpc('st_kohaku',1.5,m1H(world,1,27)+1,27.5,Math.PI);stNpc('st_hinata',0.5,MN1S.sy+1,-44.5,Math.PI);},
+  tick(S,dt){stFollow('st_kohaku',dt,ST.stage>=2);if(ST.stage===3)stSparkle(S,'lan',MN1.lan,dt,T.GLOWSTONE);
+    if(typeof wq==='function'&&Math.random()<dt*6){const p=player.pos;wq({x:p[0]+(Math.random()-0.5)*16,y:p[1]+4+Math.random()*4,z:p[2]+(Math.random()-0.5)*16,vx:0.6,vy:-0.5,vz:0.3,g:0,tile:T.CHERRY_LEAVES||T.LEAVES,s:0.03,life:4});}},
+  use(S,x,y,z,id){
+    if(ST.stage===3&&id===B.COBBLE){const i=MN1.lan.findIndex(p=>p[0]===x&&p[1]===y&&p[2]===z);if(i>=0){stPick(S,'lan',MN1.lan,x,y,z,'灯籠',4,T.GLOWSTONE);athSet(x,y,z,B.GLOWSTONE);return true;}}
+    if(ST.stage===4&&id===B.GLASS&&x===0&&z===-48){S.flags.mirror=true;athSet(x,y,z,B.GLOWSTONE);stBurst(0.5,y+0.5,-47.5,T.GLOWSTONE,40);return true;}return false;},
+  stages:[
+    stgReach('里の入口の赤い鳥居まで行こう',[0.5,47,30.5],5,'夕暮れの山あいで、月影の里を見つけた。'),
+    stgTalk('st_kohaku','koh1','鳥居のそばの子どもに話しかけよう','狐の耳をした子ども、こはくと出会った。'),
+    stgTalk('st_hinata','hin1','丘の上の神社にいる巫女に話しかけよう','巫女のひなたから、月がのぼらなくなった話を聞いた。'),
+    stgCount('lan',4,'里の広場の、消えた灯籠を4つともそう（右クリック）','消えていた里の灯籠を、4つともした。'),
+    {t:'神社の月見の鏡をのぞこう（右クリック）',at:()=>[0.5,MN1S.sy+2,-47.5],check:S=>!!S.flags.mirror,done(S){stSay([['','鏡が白く光り、どこか遠くの景色が映った。'],['','雲より高い空にうかぶ、白い御殿。その奥で、銀色の髪の姫が格子の中にいる。'],['巫女ひなた','月の姫、つくよさま……！ 御殿にとじこめられて、月をのぼらせられないのですね。'],['巫女ひなた','月への道をひらくには、三つの宝が要ります。竹の笛、鬼の太鼓、天狗の羽。どうか、力を貸してください。']]);},diary:'月見の鏡に、御殿にとじこめられた月の姫が映った。'},
+  ],
+  talk:{st_kohaku(S){const st=ST.stage;
+      if(st<=1)return{lines:[['こはく','わっ、人間だ！ ……あ、こわくないよ。ぼくはこはく。この里の狐の子なんだ。'],['こはく','月がね、もう三日ものぼらないの。夜になっても、まっくらで。'],['こはく','神社のひなたねえちゃんなら、何か知ってるかも。いっしょに行こう！']],done:()=>{S.flags.koh1=true;}};
+      return[['こはく',st===3?'灯籠は広場の四すみにあるよ。':'ひなたねえちゃん、何かわかったかな。']];},
+    st_hinata(S){const st=ST.stage;
+      if(st<=2)return{lines:[['巫女ひなた','旅のかた……こはくが連れてきてくれたのですね。'],['巫女ひなた','月がのぼらないと、里の灯りも力をなくしてしまいます。広場の灯籠まで消えてしまいました。'],['巫女ひなた','まずは灯籠を四つ、もう一度ともしてくださいませんか。そうすれば、月見の鏡がはたらくはずです。']],done:()=>{S.flags.hin1=true;}};
+      if(st===3)return[['巫女ひなた','灯籠のあかりは、灯籠の中の石にふれればともります。']];
+      return[['巫女ひなた','さあ、月見の鏡をのぞいてみてください。']];}},
+});
+const MN1S={sy:56};
+
+// ---------------------------------------------------------------- 第2章 竹林のあやかし
+// a bamboo wood with three forks: follow the white fox-fire, not the red; past them, an old man with a riddle
+function m2H(w,x,z){return Math.floor(46+WPG.fbm(WPG.N(w,721),x,z,2,0.03)*1.5);}
+const MN2={forks:[24,4,-16],bad:[1,-1,1]};
+function m2Path(x,z){if(Math.abs(x)<=1.5&&(z>23||z<-28))return true;for(let k=0;k<3;k++){const z0=MN2.forks[k];if(z>z0+1||z<z0-13)continue;
+    for(const s of[-1,1]){const segs=[[0,z0,8*s,z0-6],[8*s,z0-6,0,z0-12]];for(const[a,b,c,d]of segs){const vx=c-a,vz=d-b,t=Math.max(0,Math.min(1,((x-a)*vx+(z-b)*vz)/(vx*vx+vz*vz))),dd=Math.hypot(x-(a+vx*t),z-(b+vz*t));if(dd<1.6)return true;}}}
+  for(let k=0;k<2;k++){const za=MN2.forks[k]-12,zb=MN2.forks[k+1];if(z<=za+1&&z>=zb-1&&Math.abs(x)<=1.5)return true;}
+  if(z<=-28&&z>=-56&&Math.hypot(x,z+44)<13)return true;return false;}
+stDef({story:'moon',n:2,name:'竹林のあやかし',seed:72002,time:0.6,biome:'JUNGLE',yaw:0,
+  after:'竹の笛は、吹くと月の光の色をしていた。\nこはくが言う。「次は鬼が島だね。こわい鬼がいるって、みんな言うけど……」',
+  intro:[['','夜の竹林は、風もないのにざわざわと鳴っていた。'],['こはく','ここは「迷いの竹林」。あやかしが、人を化かして迷わせるんだ。']],
+  sky:MO_SKY([0.02,0.06,0.05],[0.06,0.14,0.1],0.5),fog(s,e,col){return[6,46,[0.05,0.12,0.08],1];},
+  kit(){addItem(I.COOKED_BEEF,2,0);addItem(I.STONE_SWORD,1,0);},
+  cp(){return[0.5,m2H(world,0,40)+1.05,40.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=m2H(w,wx,wz),path=m2Path(wx,wz);stCol(c,x,z,h,path?B.GRAVEL:(hash2(wx,wz,7201)<0.5?B.MOSS:B.GRASS),B.DIRT,0);
+      if(!path){BL[bidx(x,h+1,z)]=B.BAMBOO_BLOCK||B.JUNGLE_LOG;BL[bidx(x,h+2,z)]=B.BAMBOO_BLOCK||B.JUNGLE_LOG;if(hash2(wx,wz,7202)<0.6){const t=4+Math.floor(hash2(wx,wz,7203)*6);for(let y=h+3;y<=h+t;y++)BL[bidx(x,y,z)]=B.BAMBOO;}}}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),w=world;
+    // fox-fires at each fork: white on the true way, red on the false
+    for(let k=0;k<3;k++){const z0=MN2.forks[k];for(const s of[-1,1]){const x=8*s,z=z0-6,y=m2H(w,x,z);P(x,y+1,z,B.SPRUCE_FENCE||B.OAK_FENCE);P(x,y+2,z,s===MN2.bad[k]?B.REDSTONE_LAMP_ON:B.SEA_LANTERN);}}
+    // the clearing: the old man's place, three levers on coloured blocks for his riddle, the bamboo altar with the flute
+    const cy=m2H(w,0,-44);const cols=[B.WOOL_R,B.WOOL_LB,B.WOOL_W];for(let j=0;j<3;j++){const x=-4+j*4;P(x,cy+1,-50,cols[j]);P(x,cy+2,-50,B.LEVER);}
+    P(0,cy+1,-54,B.SPRUCE_PLANKS);P(0,cy+2,-54,ST.stage>=6?B.SPRUCE_PLANKS:B.EMERALD_BLOCK);for(const x of[-2,2])P(x,cy+1,-54,B.LANTERN);
+    return bl;},
+  setup(S){stNpc('st_kohaku',1.5,m2H(world,1,38)+1,38.5,Math.PI);if(ST.stage<=3)stNpc('st_okina',0.5,m2H(world,0,-42)+1,-42.5,Math.PI);},
+  tick(S,dt){const p=player;stFollow('st_kohaku',dt,ST.stage>=1);
+    if(typeof wq==='function'&&Math.random()<dt*14)wq({x:p.pos[0]+(Math.random()-0.5)*14,y:p.pos[1]+Math.random()*3,z:p.pos[2]+(Math.random()-0.5)*14,vx:(Math.random()-0.5)*0.4,vy:0.1,vz:(Math.random()-0.5)*0.4,g:0,tile:T.GLOWSTONE,s:0.02,life:2.5,glow:true});
+    // taken in by the spirits: a red fox-fire sends you back to where its fork began
+    if(ST.stage<=1)for(let k=0;k<3;k++){const z0=MN2.forks[k],x=8*MN2.bad[k];if(Math.hypot(p.pos[0]-x,p.pos[2]-(z0-6))<2.2){p.pos=[0.5,m2H(world,0,z0+3)+1.05,z0+3.5];p.vel=[0,0,0];stFlash('あやかしに化かされた！ 分かれ道にもどされた');try{sfx.eerie&&sfx.eerie(p.pos.slice());}catch(e){}}}},
+  sw(S,x,y,z,id){if(ST.stage!==3||id!==B.LEVER_ON||z!==-50)return;const j=(x+4)/4;if(j===0){S.flags.riddle=true;}else{stFlash('「ちがうのう、ほっほっ」');athSet(x,y,z,B.LEVER);}},
+  use(S,x,y,z,id){if(ST.stage===5&&id===B.EMERALD_BLOCK&&x===0&&z===-54){athSet(x,y,z,B.SPRUCE_PLANKS);S.flags.flute=true;stBurst(0.5,y+0.5,-53.5,T.EMERALD_BLOCK,40);return true;}return false;},
+  stages:[
+    stgTalk('st_kohaku','koh2','こはくに話しかけよう','迷いの竹林に入った。'),
+    stgReach('白い狐火を追って、竹林の奥の広場へ出よう',[0.5,47,-38.5],6,'白い狐火を追って、迷いの竹林をぬけた。',{cp:()=>[0.5,m2H(world,0,40)+1.05,40.5]}),
+    stgTalk('st_okina','oki1','広場の老人に話しかけよう','広場で、竹の翁という老人に出会った。'),
+    {t:'翁のなぞなぞに、レバーで答えよう（赤＝灯籠／水色＝ほたる／白＝鏡）',at:()=>[0.5,47,-49.5],check:S=>!!S.flags.riddle,diary:'なぞなぞの答えは「灯籠」だった。'},
+    stgBoss('st_tanuki',[0.5,0,-44.5],'正体をあらわした化け狸をこらしめよう','翁の正体は化け狸だった。こらしめると、竹の笛のありかを白状した。',{begin(S){S.boss.pos[1]=m2H(world,0,-44)+1.05;const o=stNpcBy('st_okina');if(o){mobs.splice(mobs.indexOf(o),1);stBurst(o.pos[0],o.pos[1]+1,o.pos[2],T.SNOW,40);}},telop:['化け狸','翁に化けていたあやかし']}),
+    {t:'竹の台から竹の笛を取ろう（右クリック）',at:()=>[0.5,48,-53.5],check:S=>!!S.flags.flute,diary:'竹の笛を手に入れた。'},
+  ],
+  talk:{st_kohaku(S){return ST.stage===0?{lines:[['こはく','この竹林では、狐火が道を教えてくれる。白い狐火はほんもの、赤い狐火はあやかしのいたずらだよ。'],['こはく','赤いほうへ行くと、化かされて道をもどされちゃう。白いほうだけを追いかけよう！']],done:()=>{S.flags.koh2=true;}}:[['こはく','白い狐火、白い狐火……']];},
+    st_okina(S){return ST.stage===2?{lines:[['竹の翁','ほっほっ、よくここまで来たのう。竹の笛がほしいのじゃな？'],['竹の翁','ならば、わしのなぞなぞに答えてみよ。'],['竹の翁','「月がなくても、里の夜を照らしたものは、なあに？」'],['竹の翁','赤は灯籠、水色はほたる、白は鏡。答えのレバーを入れるのじゃ。']],done:()=>{S.flags.oki1=true;}}:[['竹の翁','ほっほっ。']];}},
+});
+
+// ---------------------------------------------------------------- 第3章 鬼が島
+// stepping stones over the sea to a red island, a fortress with a gate opened by two drums, the oni and their chief
+function m3H(w,x,z){const r=Math.hypot(x,z),r2=Math.hypot(x,z-62);let h=30+WPG.fbm(WPG.N(w,731),x,z,2,0.05)*2;if(r<30)h=Math.max(h,41+Math.min(5,(30-r)*0.5));if(r2<8)h=Math.max(h,42);return Math.floor(h);}
+const MN3={stones:[[0,52],[3,48],[0,44],[-3,40],[0,36],[2,32]],drums:[[-4,18],[4,18]]};
+stDef({story:'moon',n:3,name:'鬼が島',seed:73003,time:0.46,biome:'BADLANDS',yaw:0,
+  after:'ゴウは大きな太鼓を差し出した。「闇狐め、わしらをだましおって。この太鼓で、月への道をひらけ」\n残る宝は、天狗の羽。雲の上の社へ向かう。',
+  intro:[['','夕焼けの海に、赤い岩の島が浮かんでいた。'],['こはく','あれが鬼が島……。岩を跳んで渡れそうだよ。']],
+  sky:MO_SKY([0.4,0.18,0.2],[1.0,0.45,0.28],0.5),
+  kit(){addItem(I.COOKED_BEEF,3,0);},
+  cp(){return[0.5,43.05,62.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=m3H(w,wx,wz);stCol(c,x,z,h,h>=41?(hash2(wx,wz,7301)<0.5?B.TERRA_RED:B.TERRA_ORANGE):B.SAND,h>=41?B.TERRACOTTA:B.SAND,40);}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id);
+    for(const[x,z]of MN3.stones)for(let dx=0;dx<=1;dx++)for(let dz=0;dz<=1;dz++)for(let y=32;y<=41;y++)P(x+dx,y,z+dz,y===41?B.STONE:B.COBBLE);
+    // the fortress: walls of black stone and dark wood, a gate of bars, two great drums beside it, the throne at the back
+    const Y=46;for(let x=-16;x<=16;x++)for(let z=-20;z<=16;z++)for(let y=38;y<Y;y++)P(x,y,z,B.BLACKSTONE);
+    for(let x=-16;x<=16;x++)for(let z=-20;z<=16;z++){const edge=Math.abs(x)===16||z===-20||z===16;P(x,Y,z,B.BLACKSTONE);
+      if(edge)for(let y=Y+1;y<=Y+7;y++)P(x,y,z,y===Y+7?((x+z)&1?B.BLACKSTONE:0):(y%3===0?B.DARK_OAK_PLANKS:B.P_BLACKSTONE||B.BLACKSTONE));else for(let y=Y+1;y<=Y+7;y++)P(x,y,z,0);}
+    for(let x=-2;x<=1;x++)for(let y=Y+1;y<=Y+4;y++)P(x,y,16,ST.stage>=2?0:B.IRON_BARS);
+    for(const[x,z]of MN3.drums){for(let y=40;y<=Y;y++)P(x,y,z,B.STONEBRICK);P(x,Y+1,z,B.DARK_OAK_PLANKS);P(x,Y+2,z,ST.stage>=2?B.DARK_OAK_PLANKS:B.NOTE_BLOCK);}
+    for(let x=-4;x<=4;x++)for(let z=-19;z<=-14;z++)P(x,Y+1,z,B.CONCRETE_RED);for(let x=-2;x<=2;x++)P(x,Y+2,-18,B.GOLD_BLOCK);
+    for(const[x,z]of[[-12,12],[12,12],[-12,-16],[12,-16],[-6,0],[6,0]]){P(x,Y+1,z,B.STONEBRICK);P(x,Y+2,z,B.CAMPFIRE||B.TORCH);}
+    for(let z=17;z<=30;z++){const cy=41+Math.round((30-z)/13*5);for(let x=-2;x<=1;x++){for(let y=33;y<=cy;y++)P(x,y,z,y===cy?B.STONEBRICK:B.COBBLE);for(let y=cy+1;y<=cy+4;y++)P(x,y,z,0);}}
+    return bl;},
+  setup(S){stNpc('st_kohaku',1.5,43,60.5,Math.PI);if(ST.stage>=4)stNpc('st_gou',0.5,48,-15.5,0);},
+  tick(S,dt){stFollow('st_kohaku',dt,ST.stage<1);if(ST.stage===1)stSparkle(S,'drum',MN3.drums.map(([x,z])=>[x,48,z]),dt,T.GOLD_BLOCK);},
+  use(S,x,y,z,id){if(ST.stage===1&&id===B.NOTE_BLOCK){const sp=MN3.drums.map(([a,b])=>[a,48,b]);const i=sp.findIndex(p=>p[0]===x&&p[1]===y&&p[2]===z);if(i>=0){stPick(S,'drum',sp,x,y,z,'太鼓',2,T.GOLD_BLOCK);athSet(x,y,z,B.DARK_OAK_PLANKS);
+      try{wpSnd([x,y,z],[{type:'sine',f:70,f2:48,dur:0.5,g:0.9},{n:1,type:'lowpass',f:160,dur:0.3,g:0.5}],0.4);}catch(e){}
+      if((S.flags.drum|0)>=2){for(let xx=-2;xx<=1;xx++)for(let yy=47;yy<=50;yy++)athSet(xx,yy,16,0);stFlash('ドーン！ 門が開いた！');}return true;}}return false;},
+  stages:[
+    stgReach('岩を跳んで、鬼が島の門の前まで渡ろう',[-0.5,47,20.5],6,'海の岩を跳びついで、鬼が島に渡った。'),
+    stgCount('drum',2,'門の左右の大太鼓を、両方たたこう（右クリック）','門の左右の大太鼓を鳴らすと、鬼の城の門が開いた。'),
+    stgFoes('st_oni',[[-8,47,6],[8,47,6],[0,47,-4]],'城の中の青鬼をたおそう（3体）','青鬼たちをたおした。',{cp:()=>[-0.5,47.05,20.5]}),
+    stgBoss('st_gouboss',[0.5,47.05,-12.5],'鬼の大将、赤鬼のゴウとたたかおう','鬼の大将、赤鬼のゴウに勝った。',{cp:()=>[-0.5,47.05,10.5],telop:['赤鬼のゴウ','鬼が島の大将'],after(S){stNpc('st_gou',0.5,48,-15.5,0);}}),
+    stgTalk('st_gou','gou1','ゴウに話しかけよう','ゴウは闇狐にだまされていた。ゴウから鬼の太鼓をもらった。',{cp:()=>[-0.5,47.05,10.5]}),
+  ],
+  talk:{st_kohaku(S){return[['こはく','岩から岩へ、ジャンプだよ！']];},
+    st_gou(S){return ST.stage===4?{lines:[['赤鬼のゴウ','……ぐぬぬ、まいった。おまえ、つよいな。'],['赤鬼のゴウ','月の姫をさらったのは、わしらではない。闇狐だ。'],['赤鬼のゴウ','「月がなければ鬼の力は夜じゅう続く」と、あやつにそそのかされて、御殿への道を見張っておったのだ。'],['赤鬼のゴウ','すまなんだ。この太鼓を持っていけ。月への道をひらく音が出る。']],done:()=>{S.flags.gou1=true;}}:[['赤鬼のゴウ','闇狐に気をつけろ。']];}},
+});
+
+// ---------------------------------------------------------------- 第4章 雲の上の社
+// a mountain of steep terraces with a winding road of stone and red gates up to the clouds; a race with the tengu
+const MN4={pts:null,grid:null};
+function m4Road(){if(MN4.pts)return MN4.pts;const pts=[];for(let i=0;i<=900;i++){const t=i/900,th=t*Math.PI*3.2,r=58-53*t;pts.push([Math.sin(th)*r,Math.cos(th)*r,46+0.9*(60-r)]);}
+  const grid=new Map();pts.forEach((p,i)=>{const k=Math.floor(p[0]/4)+','+Math.floor(p[1]/4);if(!grid.has(k))grid.set(k,[]);grid.get(k).push(i);});MN4.pts=pts;MN4.grid=grid;return pts;}
+function m4Near(x,z){m4Road();let best=null,bd=9;const gx=Math.floor(x/4),gz=Math.floor(z/4);for(let a=gx-1;a<=gx+1;a++)for(let b=gz-1;b<=gz+1;b++){const L=MN4.grid.get(a+','+b);if(!L)continue;for(const i of L){const p=MN4.pts[i],d=Math.hypot(p[0]-x,p[1]-z);if(d<bd){bd=d;best=i;}}}return best===null?null:[best,bd];}
+function m4H(w,x,z){const r=Math.hypot(x,z);if(r>62)return 45+Math.floor(WPG.fbm(WPG.N(w,741),x,z,2,0.04)*2);const raw=46+0.9*(60-Math.max(r,4));return Math.floor(46+Math.floor((raw-46)/4)*4);}
+const M4_START=0.36;
+stDef({story:'moon',n:4,name:'雲の上の社',seed:74004,time:0.2,biome:'MEADOW',yaw:0,
+  after:'くろばは、黒い羽を一本ぬいてくれた。「おぬしの足、天狗にも負けぬわ」\n三つの宝がそろった。月の御殿への道をひらく時だ。',
+  intro:[['','朝もやの向こうに、雲をつきぬける山がそびえていた。'],['こはく','赤い鳥居の道が、ぐるぐる山を回って上まで続いてるよ。']],
+  sky:MO_SKY([0.36,0.56,0.86],[0.92,0.86,0.8],0.3),
+  kit(){addItem(I.COOKED_BEEF,2,0);},
+  cp(){const p=m4Road()[6];return[p[0]+0.5,Math.floor(p[2])+1.05,p[1]+0.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16,BL=c.blocks;
+    for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z;let h=m4H(w,wx,wz),top=h>90?B.SNOW:h>70?B.STONE:B.GRASS;const nr=Math.hypot(wx,wz)<=62?m4Near(wx+0.5,wz+0.5):null;
+      if(nr&&nr[1]<2.1){h=Math.floor(MN4.pts[nr[0]][2]);top=B.STONEBRICK;}
+      stCol(c,x,z,h,top,h>70?B.STONE:B.DIRT,0);for(let y=h+1;y<=Math.min(H-1,h+7);y++)BL[bidx(x,y,z)]=0;
+      if(top===B.GRASS&&hash2(wx,wz,7401)<0.05)BL[bidx(x,h+1,z)]=B.TALLGRASS;
+      const r=Math.hypot(wx,wz);if(r>14&&r<44&&hash2(wx>>2,wz>>2,7402)<0.35&&!(nr&&nr[1]<5)){const cy=88+Math.floor(hash2(wx>>3,wz>>3,7403)*3);if(cy>h+1)BL[bidx(x,cy,z)]=B.WOOL_W;}}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),pts=m4Road();
+    for(let k=1;k<10;k++){const i=Math.floor(k/10*900),p=pts[i],q=pts[Math.min(900,i+3)],dx=q[0]-p[0],dz=q[1]-p[1],L=Math.hypot(dx,dz)||1,nx=-dz/L,nz=dx/L,y=Math.floor(p[2]);
+      for(const s of[-2.6,2.6]){const x=Math.round(p[0]+nx*s),z=Math.round(p[1]+nz*s);for(let k2=1;k2<=4;k2++)P(x,y+k2,z,B.CONCRETE_RED);}
+      for(let s=-3;s<=3;s++){const x=Math.round(p[0]+nx*s),z=Math.round(p[1]+nz*s);P(x,y+5,z,B.BLACKSTONE);}}
+    // the shrine on the top, and the feather on its altar
+    const ty=Math.floor(pts[900][2]);MN4.top=[0.5,ty+1,0.5];for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){P(x,ty,z,B.SPRUCE_PLANKS);if(Math.abs(x)===4&&Math.abs(z)===4)for(let k=1;k<=4;k++)P(x,ty+k,z,B.CONCRETE_RED);P(x,ty+5,z,B.DS_TILES||B.BLACKSTONE);}
+    P(0,ty+1,-3,B.SPRUCE_PLANKS);P(0,ty+2,-3,ST.stage>=4?B.SPRUCE_PLANKS:B.OBSIDIAN);
+    return bl;},
+  setup(S){const p=m4Road()[Math.floor(M4_START*900)];stNpc('st_kuroba',p[0]+0.5,Math.floor(p[2])+1,p[1]+0.5,0);stNpc('st_kohaku',1.5,47,52.5,Math.PI);},
+  tick(S,dt){const pts=m4Road(),p=player;stFollow('st_kohaku',dt,ST.stage<2);
+    if(ST.stage===2&&S.race){const R=S.race;if(R.cd>0){R.cd-=dt;const n=Math.ceil(R.cd);if(n!==R.n){R.n=n;if(n>0)stFlash(String(n));else stFlash('はじめ！');}return;}
+      const kb=stNpcBy('st_kuroba');if(kb&&!R.done){R.u=Math.min(900,R.u+3.5*dt/0.35);const q=pts[Math.floor(R.u)];kb.stNpc.walking=true;stFace(kb,q[0]+0.5,q[1]+0.5,dt*4);kb.pos=[q[0]+0.5,Math.floor(q[2])+1.02,q[1]+0.5];kb.walkAmp=1;kb.walk=(kb.walk||0)+dt*6;
+        if(R.u>=900){R.done=true;stFlash('くろばの勝ち！ 「まだまだじゃな」 もう一度');setTimeout(()=>{if(ST.on&&ST.stage===2)m4RaceStart(S);},1800);}}
+      if(Math.hypot(p.pos[0],p.pos[2])<4.5&&p.pos[1]>pts[900][2]&&!R.done){R.done=true;S.flags.win=true;}}},
+  use(S,x,y,z,id){if(ST.stage===3&&id===B.OBSIDIAN&&x===0&&z===-3){athSet(x,y,z,B.SPRUCE_PLANKS);S.flags.feather=true;stBurst(0.5,y+0.5,-2.5,T.OBSIDIAN,30);return true;}return false;},
+  stages:[
+    {t:'鳥居の道を登って、天狗の待つ岩まで行こう',at:()=>{const q=m4Road()[Math.floor(M4_START*900)];return[q[0],q[2]+1,q[1]];},check:()=>{const q=m4Road()[Math.floor(M4_START*900)];return stNear([q[0],q[2]+1,q[1]],5);},diary:'鳥居の道を登ると、岩の上で天狗が待っていた。'},
+    stgTalk('st_kuroba','kur1','天狗に話しかけよう','天狗のくろばに、雲の上の社までの競走をいどまれた。'),
+    {t:'天狗くろばより先に、山のてっぺんの社に着こう',at:()=>MN4.top,start(S){m4RaceStart(S);},check:S=>!!S.flags.win,done(S){const kb=stNpcBy('st_kuroba');if(kb){kb.pos=[3.5,MN4.top[1],2.5];kb.stNpc.walking=false;}stTelop('勝った！','天狗より先に着いた');},diary:'天狗との競走に勝った。'},
+    {t:'社の祭壇から天狗の羽を取ろう（右クリック）',at:()=>[0.5,MN4.top[1]+1,-2.5],check:S=>!!S.flags.feather,diary:'天狗の羽を手に入れた。三つの宝がそろった。'},
+  ],
+  talk:{st_kuroba(S){const st=ST.stage;
+      if(st<=1)return{lines:[['天狗くろば','ほう、人の子が、ここまで登ってきたか。'],['天狗くろば','天狗の羽がほしいとな。ならば、わしと競走じゃ。'],['天狗くろば','このてっぺんの雲の社まで、わしより先に着いてみせよ。……いくぞ！']],done:()=>{S.flags.kur1=true;}};
+      return[['天狗くろば',st===2?'ほれほれ、置いていくぞ！':'羽は社の祭壇じゃ。持っていけ。']];},
+    st_kohaku(S){return[['こはく','ぐるぐる道だね。てっぺんは雲の上だよ！']];}},
+});
+function m4RaceStart(S){const pts=m4Road(),i=Math.floor(M4_START*900),q=pts[i];S.race={u:i,cd:3.2,n:0,done:false};S.flags.win=false;
+  player.pos=[q[0]+0.5,Math.floor(q[2])+1.05,q[1]+0.5];player.vel=[0,0,0];const kb=stNpcBy('st_kuroba');if(kb){const r=pts[i+3];kb.pos=[r[0]+0.5,Math.floor(r[2])+1.02,r[1]+0.5];}}
+
+// ---------------------------------------------------------------- 第5章 月の御殿
+// a peak with a small shrine; the three treasures raise a bridge of light to the moon palace floating in the night sky
+function m5H(w,x,z){const r=Math.hypot(x,z);let h=40+WPG.fbm(WPG.N(w,751),x,z,3,0.03)*6;if(r<30)h=Math.max(h,70-r*0.8);if(r<8)h=70;return Math.floor(h);}
+const MN5={P:[0,96,-64]};
+stDef({story:'moon',n:5,name:'月の御殿',seed:75005,time:0.72,biome:'SNOWY',yaw:0,
+  intro:[['','月のない夜。山のてっぺんの社で、ひなたが待っていた。'],['巫女ひなた','三つの宝を祭壇にささげれば、月への橋がかかるはずです。']],
+  sky(b){b.zen=mixc(b.zen,[0.01,0.01,0.04],0.6);b.hor=mixc(b.hor,[0.04,0.03,0.1],0.6);if(ST.S&&ST.S.flags&&ST.S.flags.tsu1){b.dayLight=Math.max(b.dayLight,0.55);b.zen=mixc(b.zen,[0.1,0.12,0.26],0.7);WPMOON.size=2.4;WPMOON.col=[1,0.93,0.62];}},
+  kit(){addItem(I.COOKED_BEEF,3,0);addItem(I.IRON_SWORD,1,0);},
+  cp(){return[0.5,71.05,6.5];},
+  gen(w,c){const bx=c.cx*16,bz=c.cz*16;for(let z=0;z<16;z++)for(let x=0;x<16;x++){const wx=bx+x,wz=bz+z,h=m5H(w,wx,wz);stCol(c,x,z,h,h>60?B.SNOW:B.GRASS,h>60?B.STONE:B.DIRT,0);}},
+  build(){const bl=[],P=(x,y,z,id)=>bl.push(x,y,z,id),[px,py,pz]=MN5.P;
+    // the shrine of the peak and its altar
+    for(let x=-3;x<=3;x++)for(let z=-6;z<=-2;z++){P(x,70,z,B.SPRUCE_PLANKS);P(x,75,z,B.DS_TILES||B.BLACKSTONE);}for(const[x,z]of[[-3,-6],[3,-6],[-3,-2],[3,-2]])for(let k=1;k<=4;k++)P(x,70+k,z,B.CONCRETE_RED);
+    P(0,71,-5,B.GOLD_BLOCK);P(0,72,-5,ST.stage>=1?B.GLOWSTONE:B.CALCITE);
+    // the bridge of light (only once the treasures are offered)
+    if(ST.stage>=1)for(const c of m5Bridge())P(c[0],c[1],c[2],c[3]);
+    // the palace: white walls, gold, windows of violet glass, a throne room with the princess in a cage
+    for(let x=-14;x<=14;x++)for(let z=pz-26;z<=pz+12;z++){const edge=Math.abs(x)===14||z===pz-26||z===pz+12;P(x,py,z,(x+z)&1?B.QUARTZ_BRICKS:B.SMOOTH_QUARTZ);
+      for(let y=py+1;y<=py+9;y++)P(x,y,z,edge?(y%4===0?B.GOLD_BLOCK:(y>=py+3&&y<=py+6&&(x+z)%4===0?B.SGLASS_PURPLE||B.GLASS:B.QUARTZ_BRICKS)):0);P(x,py+10,z,B.QUARTZ_BRICKS);
+      for(let y=py-4;y<py;y++)if(Math.hypot(x,(z-pz+7)*0.7)<12-(py-y)*2)P(x,y,z,B.QUARTZ_BRICKS);}
+    for(let x=-1;x<=1;x++)for(let y=py+1;y<=py+3;y++)P(x,y,pz+12,0);
+    for(const[x,z]of[[-8,pz+4],[8,pz+4],[-8,pz-8],[8,pz-8],[-8,pz-18],[8,pz-18]])for(let y=py+1;y<=py+9;y++)P(x,y,z,y===py+5?B.SEA_LANTERN:B.QUARTZ_PILLAR||B.QUARTZ_BRICKS);
+    const cz=pz-22;for(let x=-2;x<=2;x++)for(let z=cz-2;z<=cz+2;z++)for(let y=py+1;y<=py+4;y++){const edge=Math.abs(x)===2||Math.abs(z-cz)===2||y===py+4;P(x,y,z,edge?(ST.stage>=4?0:B.IRON_BARS):0);}
+    P(0,py+1,cz+3,ST.stage>=4?B.QUARTZ_BRICKS:B.GOLD_BLOCK);MN5.lock=[0,py+1,cz+3];MN5.cage=[0.5,py+1,cz+0.5];
+    return bl;},
+  setup(S){stNpc('st_hinata',2.5,71,-0.5,Math.PI);stNpc('st_kohaku',-1.5,71,2.5,Math.PI);stNpc('st_tsukuyo',MN5.cage[0],MN5.cage[1],MN5.cage[2],0);},
+  tick(S,dt){const p=player;stFollow('st_kohaku',dt,ST.stage>=1&&ST.stage!==2);
+    if(S.build&&S.build.length){for(let k=0;k<6&&S.build.length;k++){const c=S.build.shift();athSet(c[0],c[1],c[2],c[3]);if(Math.random()<0.2)stBurst(c[0]+0.5,c[1]+1,c[2]+0.5,T.SEA_LANTERN,4);}}
+    if(p.pos[1]<45&&ST.stage>=1){const sg=stStage();const q=(sg&&sg.cp?sg.cp(S):null)||spawnPoint;player.pos=q.slice();player.vel=[0,0,0];stFlash('月の光が受けとめてくれた');}
+    const b=ST.boss;if(b&&mobs.includes(b)&&b.hp>0){if(b.hp<b.def.hp*0.5&&!S.ph){S.ph=1;stFlash('闇狐が分身を呼んだ！');for(const x of[-6,6]){const m=addMob('st_oni',x+0.5,MN5.P[1]+1.05,MN5.P[2]-10.5,{persist:true});if(m)m.persist=true;}}
+      S.tp=(S.tp||4)-dt;if(S.tp<=0&&b.hp<b.def.hp*0.5){S.tp=5;stBurst(b.pos[0],b.pos[1]+1,b.pos[2],T.OBSIDIAN,20);b.pos=[(Math.random()-0.5)*20,MN5.P[1]+1.05,MN5.P[2]-4-Math.random()*16];}}
+    if(S.rise){S.rise-=dt;if(typeof wq==='function')for(let i=0;i<3;i++)wq({x:(Math.random()-0.5)*30,y:MN5.P[1]+Math.random()*12,z:MN5.P[2]-Math.random()*30,vx:0,vy:2+Math.random()*2,vz:0,g:0,tile:T.GLOWSTONE,s:0.05,life:2,glow:true});}},
+  use(S,x,y,z,id){
+    if(ST.stage===0&&x===0&&y===72&&z===-5){S.flags.offer=true;athSet(0,72,-5,B.GLOWSTONE);S.build=m5Bridge().slice();stBurst(0.5,72.5,-4.5,T.GLOWSTONE,60);return true;}
+    if(ST.stage===3&&id===B.GOLD_BLOCK&&x===MN5.lock[0]&&y===MN5.lock[1]&&z===MN5.lock[2]){athSet(x,y,z,B.QUARTZ_BRICKS);const[px,py,pz]=MN5.P,cz=pz-22;for(let xx=-2;xx<=2;xx++)for(let zz=cz-2;zz<=cz+2;zz++)for(let yy=py+1;yy<=py+4;yy++)if(world.getBlock(xx,yy,zz)===B.IRON_BARS)athSet(xx,yy,zz,0);S.flags.cage=true;stFlash('格子が開いた！');return true;}
+    return false;},
+  stages:[
+    {t:'祭壇に三つの宝をささげよう（右クリック）',at:()=>[0.5,72,-4.5],check:S=>!!S.flags.offer,diary:'三つの宝をささげると、夜空に光の橋がかかった。'},
+    stgReach('光の橋をわたって、月の御殿の門へ行こう',[0.5,MN5.P[1]+1,MN5.P[2]+14.5],5,'光の橋をわたり、空にうかぶ月の御殿に着いた。'),
+    stgBoss('st_yami',[0.5,MN5.P[1]+1.05,MN5.P[2]-8.5],'御殿の奥へ。姿をあらわした闇狐をたおそう','月をうばった闇狐をたおした。',{cp:()=>[0.5,MN5.P[1]+1.05,MN5.P[2]+8.5],telop:['闇狐','月を呑もうとした狐'],
+      begin(S){stSay([['闇狐','ほう……三つの宝をそろえて、ここまで来たか。'],['闇狐','月がなければ、夜はわたしのもの。この里も、山も、海も、ぜんぶ闇の中だ。'],['こはく','……にいちゃん！ どうしてこんなことするの！'],['闇狐','こはくか。おまえも、闇の側へ来い……！']]);}}),
+    {t:'格子の前の金の錠を外して、姫を助けよう（右クリック）',at:()=>MN5.lock,cp:()=>[0.5,MN5.P[1]+1.05,MN5.P[2]+8.5],check:S=>!!S.flags.cage,diary:'格子の錠を外し、つくよ姫を助け出した。'},
+    stgTalk('st_tsukuyo','tsu1','つくよ姫に話しかけよう','つくよ姫が月をのぼらせた。三日ぶりの月が、里を照らした。',{cp:()=>[0.5,MN5.P[1]+1.05,MN5.P[2]+8.5],done(S){S.rise=6;stTelop('[[moonF|#ffe9a0]]','月がのぼる');}}),
+  ],
+  talk:{st_hinata(S){return[['巫女ひなた',ST.stage===0?'祭壇に三つの宝をささげてください。':'どうか、姫を……！']];},
+    st_kohaku(S){return[['こはく',ST.stage<=1?'この光の橋、月まで続いてる……！':'姫さまを助けよう！']];},
+    st_tsukuyo(S){return ST.stage===4?{lines:[['月の姫つくよ','……ありがとう、勇気ある旅人。そして、こはく。'],['月の姫つくよ','闇狐は、ほんとうはさびしかったのです。月のない夜なら、みんなが自分を見てくれると思って……'],['こはく','にいちゃんは、ぼくがつれて帰るよ。ちゃんと、ごめんなさいさせる。'],['月の姫つくよ','さあ、月をのぼらせましょう。三日ぶんの光を、里へ。']],done:()=>{S.flags.tsu1=true;}}:[['月の姫つくよ','たすけて……！ 錠は格子の前です。']];}},
+});
+function m5Bridge(){const out=[],[px,py,pz]=MN5.P,z0=-8,z1=pz+13,y0=71;for(let z=z0;z>=z1;z--){const t=(z0-z)/(z0-z1),y=Math.round(y0+(py-y0)*Math.sin(t*Math.PI/2));
+    for(let x=-1;x<=1;x++)out.push([x,y,z,(z&3)===0?B.SEA_LANTERN:B.QUARTZ_BRICKS]);for(const x of[-2,2])if((z&1)===0)out.push([x,y+1,z,B.END_ROD]);}return out;}
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
