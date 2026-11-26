@@ -820,10 +820,12 @@ const SKINS=[
   {name:'夜歩き',skin:[58,74,96],hair:[30,34,44],eye:[150,255,210],shirt:[70,66,74],shirt2:[46,44,52],pants:[44,46,58],shoe:[30,30,36],style:'walker'},
 ];
 const SKIN_TILES=[];// per skin: {headF,headS,headB,headT,headU,bodyF,bodyB,bodyS,bodyT,armS,armT,armU,legS,legU}
+const SKIN_FACES=[];// per skin: the same faces as plain pixels {w,h,px:[[r,g,b]...]} (the skin painter starts from these)
 function lp(x,y,w,h){return[Math.floor(x*w/16),Math.floor(y*h/16)];}
 function buildSkin(si){
-  const s=SKINS[si],k='SK'+si+'_',tiles={};
-  const def=(n,w,h,fn)=>{tiles[n]=nt(k+n);paint(tiles[n],(x,y,r)=>{const[a,b]=lp(x,y,w,h);return nz(fn(a,b,r),r,5);});};
+  const s=SKINS[si],k='SK'+si+'_',tiles={},faces={},r0=()=>0.5;
+  const def=(n,w,h,fn)=>{tiles[n]=nt(k+n);const px=[];for(let b=0;b<h;b++)for(let a=0;a<w;a++){const c=fn(a,b,r0);px.push([clamp(Math.round(c[0]),0,255),clamp(Math.round(c[1]),0,255),clamp(Math.round(c[2]),0,255)]);}faces[n]={w,h,px};
+    paint(tiles[n],(x,y,r)=>{const[a,b]=lp(x,y,w,h);return nz(fn(a,b,r),r,5);});};
   const hairTop=s.hat||s.hair;
   def('headF',8,8,(x,y)=>{
     if(s.style==='robot'){if(y===3||y===4)return x>=1&&x<=6?(y===3?s.eye:sh(s.eye,0.7)):s.skin;if(y===0)return s.hair;if(y===6&&x>=2&&x<=5)return sh(s.skin,0.6);return s.skin;}
@@ -864,7 +866,7 @@ function buildSkin(si){
     if(s.style==='sailor'){if(y<=3)return s.pants;if(y===9)return[245,245,245];return s.skin;}
     if(s.style==='worker'&&y===7)return s.shirt2;return s.pants;});
   def('legU',4,4,()=>s.shoe);
-  SKIN_TILES[si]=tiles;
+  SKIN_TILES[si]=tiles;SKIN_FACES[si]=faces;
 }
 const PIG={};
 function buildPig(){
@@ -5864,15 +5866,17 @@ function drawHumanoid(buf,skin,x,y,z,pose,sk,bl){
   const kneeOf=c=>-(amp*ground*(1-swim)*((1-run)*0.38*Math.max(0,c)+run*(0.3+1.45*Math.max(0,c))))-sn*0.35;
   const kneeL=kneeOf(Math.cos(ph))-air*(lead>0?0.5:1.05),kneeR=kneeOf(-Math.cos(ph))-air*(lead>0?1.05:0.5);
   const leg=[st.legS,st.legS,st.armT,st.legU,st.legS,st.legS];
+  // a painted skin (st.cu) has every face of its own: +x the right side, -x the left (mirrored), +z the back, -z the front
+  const legRt=st.cu?[st.legOR,st.legOL,st.legU,st.legU,st.legRB,st.legRF]:leg,legLt=st.cu?[st.legOR,st.legOL,st.legU,st.legU,st.legLB,st.legLF]:leg;
   const lgL=mChain(root,mT(-2,12,4*sn),mRX(legL),mRZ(0.03*fly)),lgR=mChain(root,mT(2,12,4*sn),mRX(legR),mRZ(-0.03*fly));
   const shL=mChain(lgL,mT(0,-6,0),mRX(kneeL),mT(0,6,0)),shR=mChain(lgR,mT(0,-6,0),mRX(kneeR),mT(0,6,0));
   // (thigh and shin overlap round the knee, the shin a hair thinner, so a bent knee never opens a gap)
-  pushBoxV(buf,lgL,-2,-8,-2,2,0,2,leg,flash,sk,bl,0,8/12);pushBoxV(buf,shL,-1.96,-12,-1.96,1.96,-4.1,1.96,leg,flash,sk,bl,4.1/12,1);
-  pushBoxV(buf,lgR,-2,-8,-2,2,0,2,leg,flash,sk,bl,0,8/12);pushBoxV(buf,shR,-1.96,-12,-1.96,1.96,-4.1,1.96,leg,flash,sk,bl,4.1/12,1);
+  pushBoxV(buf,lgL,-2,-8,-2,2,0,2,legLt,flash,sk,bl,0,8/12);pushBoxV(buf,shL,-1.96,-12,-1.96,1.96,-4.1,1.96,legLt,flash,sk,bl,4.1/12,1);
+  pushBoxV(buf,lgR,-2,-8,-2,2,0,2,legRt,flash,sk,bl,0,8/12);pushBoxV(buf,shR,-1.96,-12,-1.96,1.96,-4.1,1.96,legRt,flash,sk,bl,4.1/12,1);
   // torso: crouch hunches the shoulders forward; running leans the whole body well into the run
   const runLean=-0.34*run*ground-0.1*fly;
   const bodyM=sn?mChain(root,mT(0,24,0),mRX(-0.5),mT(0,-24,0)):mChain(root,mT(0,12,0),mRX(runLean),mT(0,-12,0));
-  pushBox(buf,bodyM,-4,12,-2,4,24,2,[st.bodyS,st.bodyS,st.bodyT,st.bodyT,st.bodyB,st.bodyF],flash,sk,bl);
+  pushBox(buf,bodyM,-4,12,-2,4,24,2,st.cu?[st.bodySR,st.bodySL,st.bodyT,st.bodyT,st.bodyB,st.bodyF]:[st.bodyS,st.bodyS,st.bodyT,st.bodyT,st.bodyB,st.bodyF],flash,sk,bl);
   // arms swing against the legs; relaxed sway when standing; spread a little when jumping
   const armAmp=(0.42+0.5*run)*amp*ground*(sn?0.6:1);
   const breath=Math.sin(t*1.7)*0.035*idle;
@@ -5888,16 +5892,16 @@ function drawHumanoid(buf,skin,x,y,z,pose,sk,bl){
   const armR=mChain(bodyM,mT(6,22-sn,0),mRY(-punch*0.35-0.55*eat-0.25*aim),mRX(lerp(lerp(lerp(armRx,1.55+pit,aim),2.9,raise),swRx,swim)),mRZ(lerp(lerp(0.06+breath+spread,-0.12,eat),swZ,swim)));
   // elbows: nearly straight when walking, bent to about a right angle and pumping when running
   const elbow=k=>(0.12*(1-run)*amp+run*(1.25+0.3*k))*ground*(1-swim)*(1-aim)*(1-raise)*(1-eat);
-  const aT=[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS];
+  const aT=[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS],aTR=st.cu?[st.armOR,st.armOL,st.armT,st.armU,st.armRB,st.armRF]:aT,aTL=st.cu?[st.armOR,st.armOL,st.armT,st.armU,st.armLB,st.armLF]:aT;
   const faR=mChain(armR,mT(0,-4,0),mRX(elbow(Math.sin(ph))+punch*0.2),mT(0,4,0));
-  pushBoxV(buf,armR,-2,-6,-2,2,2,2,aT,flash,sk,bl,0,8/12);pushBoxV(buf,faR,-1.96,-10,-1.96,1.96,-2.1,1.96,aT,flash,sk,bl,4.1/12,1);
+  pushBoxV(buf,armR,-2,-6,-2,2,2,2,aTR,flash,sk,bl,0,8/12);pushBoxV(buf,faR,-1.96,-10,-1.96,1.96,-2.1,1.96,aTR,flash,sk,bl,4.1/12,1);
   const armL=mChain(bodyM,mT(-6,22-sn,0),mRY(0.6*aim+(pose.shield?-0.5:0)),mRX(pose.shield?0.9:lerp(lerp(armLx,1.5+pit,aim),swLx,swim)),mRZ(lerp(-0.06-breath-spread,-swZ,swim)));
   const faL=mChain(armL,mT(0,-4,0),mRX(pose.shield?0:elbow(-Math.sin(ph))),mT(0,4,0));
-  pushBoxV(buf,armL,-2,-6,-2,2,2,2,aT,flash,sk,bl,0,8/12);pushBoxV(buf,faL,-1.96,-10,-1.96,1.96,-2.1,1.96,aT,flash,sk,bl,4.1/12,1);
+  pushBoxV(buf,armL,-2,-6,-2,2,2,2,aTL,flash,sk,bl,0,8/12);pushBoxV(buf,faL,-1.96,-10,-1.96,1.96,-2.1,1.96,aTL,flash,sk,bl,4.1/12,1);
   if(pose.held)pushThing(buf,mChain(faR,mT(0,-9,-3.5),mRX(-0.5),mS(1/HUMAN_S)),pose.held,0.32*((!isBlockId(pose.held)&&ITEMS[pose.held]&&ITEMS[pose.held].hs)||1),1,sk,bl);
   // head stays level while the body leans, then turns/looks
   const headM=mChain(bodyM,mT(0,24-sn,0),mRX(sn?0.5:-runLean),mRY(-(pose.headYaw||0)),mRX(clamp(pose.pitch,-1.4,1.4)*(1-swim)+swimTilt*0.85));
-  pushBox(buf,headM,-4,0,-4,4,8,4,[st.headS,st.headS,st.headT,st.headU,st.headB,st.headF],flash,sk,bl);
+  pushBox(buf,headM,-4,0,-4,4,8,4,st.cu?[st.headSR,st.headSL,st.headT,st.headU,st.headB,st.headF]:[st.headS,st.headS,st.headT,st.headU,st.headB,st.headF],flash,sk,bl);
   if(pose.armor||pose.shieldHeld)drawArmorOn(buf,pose,{lgL,lgR,shL,shR,bodyM,armR,armL,faL,headM},flash,sk,bl);
 }
 function drawPig(buf,x,y,z,yaw,walk,amp,sk,bl,hurt,dying){
@@ -7750,11 +7754,11 @@ function buildDynamic(){
   if(typeof MP!=='undefined')for(const r of MP.remotes.values()){
     if(!r.ready||(r.d|0)!==curDim)continue;const L=lightAt(r.pos[0],r.pos[1]+1,r.pos[2]);
     {if((r.air||0)>0.5&&!r._inAir){r._inAir=true;const sw=Math.sin(r.walk||0);r.lead=sw>0.15?1:sw<-0.15?-1:-(r.lead||-1);}else if((r.air||0)<0.2)r._inAir=false;}
-    drawHumanoid(DYN,r.skin,r.pos[0],r.pos[1]+(r.hopY||0),r.pos[2],{lead:r.lead||1,yaw:r.bodyYaw,headYaw:r.yaw-r.bodyYaw,pitch:r.pitch,walk:r.walk,amp:r.amp,run:r.run||0,air:r.air||0,swing:r.swing>0?1-r.swing:0,eat:r.eat?1:0,aim:r.aim?1:0,raise:r.raise?1:0,sneak:r.sneak,held:r.held,swim:r.swim||0,t:gameTime,hurt:r.hurtT>0?0.35+0.65*Math.min(1,r.hurtT/0.4):0,kick:hitKick(r)},L[0],L[1]);
+    drawHumanoid(DYN,typeof cskRemoteIdx==='function'?cskRemoteIdx(r):r.skin,r.pos[0],r.pos[1]+(r.hopY||0),r.pos[2],{lead:r.lead||1,yaw:r.bodyYaw,headYaw:r.yaw-r.bodyYaw,pitch:r.pitch,walk:r.walk,amp:r.amp,run:r.run||0,air:r.air||0,swing:r.swing>0?1-r.swing:0,eat:r.eat?1:0,aim:r.aim?1:0,raise:r.raise?1:0,sneak:r.sneak,held:r.held,swim:r.swim||0,t:gameTime,hurt:r.hurtT>0?0.35+0.65*Math.min(1,r.hurtT/0.4):0,kick:hitKick(r)},L[0],L[1]);
   }
   if(camMode>0&&state!=='title'&&!player.dead&&!specMode&&!(player.fx&&player.fx.invisibility)){
     const p=player;
-    const slp=p.sleeping;drawHumanoid(DYN,settings.skin,p.pos[0],p.pos[1],p.pos[2],{lead:p.jumpLead||1,lie:!!slp,yaw:slp?Math.atan2(-FDIR[slp.f][0],FDIR[slp.f][1]):p.bodyYaw,headYaw:slp?0:p.yaw-p.bodyYaw,pitch:slp?0:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),hurt:p.hurtT>0?0.35+0.65*Math.min(1,p.hurtT/0.35):0,kick:slp?null:hitKick(p),swim:p.swimAmt||0,t:gameTime,armor:ARMOR.slice(0,4).map(s=>s&&s.id),shield:shieldUp(),shieldHeld:!!holdingShield()},psk,pbl);
+    const slp=p.sleeping;drawHumanoid(DYN,skinIdx(),p.pos[0],p.pos[1],p.pos[2],{lead:p.jumpLead||1,lie:!!slp,yaw:slp?Math.atan2(-FDIR[slp.f][0],FDIR[slp.f][1]):p.bodyYaw,headYaw:slp?0:p.yaw-p.bodyYaw,pitch:slp?0:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),hurt:p.hurtT>0?0.35+0.65*Math.min(1,p.hurtT/0.35):0,kick:slp?null:hitKick(p),swim:p.swimAmt||0,t:gameTime,armor:ARMOR.slice(0,4).map(s=>s&&s.id),shield:shieldUp(),shieldHeld:!!holdingShield()},psk,pbl);
   }
   if(mining.active&&target&&!target.ent){
     const k=clamp(Math.floor(mining.prog*10),0,9),t=CRACK[k],e=0.004;
@@ -7783,7 +7787,7 @@ function buildHand(){
   const eq=1-Math.pow(1-clamp(equipP,0,1),3),lift=(1-eq)*0.45;
   if(!id){
     // bare hand: a quick forward jab toward the crosshair, then a short downward follow-through
-    const st=SKIN_TILES[settings.skin],arm=[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS];
+    const st=SKIN_TILES[skinIdx()]||SKIN_TILES[0],arm=st.cu?[st.armOR,st.armOL,st.armT,st.armU,st.armRB,st.armRF]:[st.armS,st.armS,st.armT,st.armU,st.armS,st.armS];
     // the arm is very close to the camera, so small moves read big: a short jab in (toward the crosshair), a lift, then a downward follow-through
     const M=mChain(mT(0.6+bob1-s2*0.05,-0.78-bob2-lift+s2*0.05-s3*0.04,-0.42-s1*0.14),mRY(0.35+s2*0.3),mRX(1.95+s2*0.2-s3*0.38),mRZ(-s2*0.12),mS(0.06));
     pushBox(HAND,M,-2,-12,-2,2,2,2,arm,1,sk,hb);
@@ -8533,7 +8537,7 @@ function renderReal(){
     if(typeof drawCastleMesh==='function')drawCastleMesh(true);
     // in first person your own body is not drawn, but it still casts a shadow
     if(camMode===0&&state!=='title'&&!player.dead){const p=player;SELF.reset();
-      drawHumanoid(SELF,settings.skin,p.pos[0],p.pos[1],p.pos[2],{lead:p.jumpLead||1,yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
+      drawHumanoid(SELF,skinIdx(),p.pos[0],p.pos[1],p.pos[2],{lead:p.jumpLead||1,yaw:p.bodyYaw,headYaw:p.yaw-p.bodyYaw,pitch:p.pitch,walk:p.walk,amp:p.walkAmp,run:p.runAmt||0,air:p.airAmt||0,fly:p.flying,swing:swingNow(),eat:eating.on?smooth(0,0.22,eating.t):0,aim:(charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel])?1:0,raise:charge.on&&kindOf(charge.id)==='trident'?1:0,sneak:p.sneak,held:heldId(),t:gameTime},1,0);
       selfMesh=uploadMesh(selfMesh,SELF,gl.DYNAMIC_DRAW);if(selfMesh){gl.bindVertexArray(selfMesh.vao);gl.drawElements(gl.TRIANGLES,selfMesh.count,gl.UNSIGNED_INT,0);}}
     gl.disable(gl.POLYGON_OFFSET_FILL);
     SC.vp.set(lightVP);SC.eye=[eye[0],eye[1],eye[2]];SC.ld=[Ld[0],Ld[1],Ld[2]];SC.ok=true;
@@ -9914,7 +9918,7 @@ function pkArmorPanel(top){
 }
 function drawPreview(cv){
   const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,cv.width,cv.height);
-  const st=SKIN_TILES[settings.skin]||SKIN_TILES[0],ox=16,oy=4;
+  const st=SKIN_TILES[skinIdx()]||SKIN_TILES[0],ox=16,oy=4;
   const dr=(t,x,y,w,h,a)=>{if(t===undefined)return;const[sx,sy]=tileSrc(t);g.globalAlpha=a||1;g.drawImage(atlasCanvas,sx,sy,16,16,ox+x,oy+y,w,h);g.globalAlpha=1;};
   const at=k=>{const s=ARMOR[k],a=s&&ITEMS[s.id]&&ITEMS[s.id].armor;return a?T['ARM_'+a.mat]:undefined;};
   if(ARMOR[1]&&ARMOR[1].id===I.ELYTRA){dr(T.ARM_ELYTRA,-8,32,30,52);dr(T.ARM_ELYTRA,42,32,30,52);}
@@ -9960,7 +9964,8 @@ const num=(v,d)=>(isFinite(+v)?+v:(d||0));
 function sanitizeState(s){
   if(!s||typeof s!=='object'||!Array.isArray(s.p)||s.p.length!==3)return null;
   const p=s.p.map(Number);if(!p.every(isFinite))return null;
-  return{p:[clamp(p[0],-3e6,3e6),clamp(p[1],-64,512),clamp(p[2],-3e6,3e6)],y:num(s.y),x:clamp(num(s.x),-1.6,1.6),h:validItem(s.h|0)?s.h|0:0,k:clamp(s.k|0,0,5),a:s.a|0,d:clamp(s.d|0,0,2)};
+  return{p:[clamp(p[0],-3e6,3e6),clamp(p[1],-64,512),clamp(p[2],-3e6,3e6)],y:num(s.y),x:clamp(num(s.x),-1.6,1.6),h:validItem(s.h|0)?s.h|0:0,k:clamp(s.k|0,0,5),a:s.a|0,d:clamp(s.d|0,0,2),
+    cs:typeof s.cs==='string'&&/^s[a-z0-9]{4,14}$/.test(s.cs)?s.cs:'',sd:typeof s.sd==='string'&&s.sd.length<=6000&&/^[A-Za-z0-9+/=]+$/.test(s.sd)?s.sd:''};
 }
 function sanitizeEdits(e){
   const out=[];if(!Array.isArray(e))return out;
@@ -10193,7 +10198,7 @@ function wireNet(net){
     for(const q of list){
       let r=MP.remotes.get(q.id);
       if(!r){r={id:q.id,name:'',pos:q.s.p.slice(),tgt:q.s.p.slice(),yaw:q.s.y,tyaw:q.s.y,pitch:q.s.x,bodyYaw:q.s.y,walk:0,amp:0,swing:0,sneak:false,held:0,skin:0,ready:true,el:null,last:now};MP.remotes.set(q.id,r);}
-      if(q.n)r.name=q.n;r.d=q.s.d|0;if(r.holdT>0)r.pend=q.s.p;else r.tgt=q.s.p;r.tyaw=q.s.y;r.pitch=q.s.x;r.held=q.s.h;r.skin=q.s.k;r.sneak=!!(q.s.a&2);r.eat=!!(q.s.a&4);r.aim=!!(q.s.a&8);r.raise=!!(q.s.a&16);r.swimT=(q.s.a&32)?1:(q.s.a&64)?0.55:0;if((q.s.a&1)&&r.swing<=0)r.swing=1;{const hb=!!(q.s.a&128);if(hb&&!r.hb&&!(r.hurtT>0.12)&&typeof remoteHurtFx==='function')remoteHurtFx(r);r.hb=hb;}r.last=now;
+      if(q.n)r.name=q.n;r.d=q.s.d|0;if(r.holdT>0)r.pend=q.s.p;else r.tgt=q.s.p;r.tyaw=q.s.y;r.pitch=q.s.x;r.held=q.s.h;r.skin=q.s.k;r.cs=q.s.cs||'';if(q.s.cs&&q.s.sd&&typeof cskRemember==='function')cskRemember(q.s.cs,q.s.sd);r.sneak=!!(q.s.a&2);r.eat=!!(q.s.a&4);r.aim=!!(q.s.a&8);r.raise=!!(q.s.a&16);r.swimT=(q.s.a&32)?1:(q.s.a&64)?0.55:0;if((q.s.a&1)&&r.swing<=0)r.swing=1;{const hb=!!(q.s.a&128);if(hb&&!r.hb&&!(r.hurtT>0.12)&&typeof remoteHurtFx==='function')remoteHurtFx(r);r.hb=hb;}r.last=now;
     }
   });
   net.on('left',({id,name})=>{removeRemote(id);if(name){addChat('',name+' が退出しました',true);sfx.leave();}});
@@ -10233,7 +10238,7 @@ function remoteProj(b){const d=Math.hypot(b.v[0],b.v[1],b.v[2])||1;const o={arro
 function mpChat(t){if(MP.active)mpNet().chat(t);}
 function mpTick(dt){
   if(!MP.active)return;const net=mpNet();
-  net.sendPos({p:player.pos.map(v=>Math.round(v*100)/100),y:Math.round(player.yaw*1000)/1000,x:Math.round(player.pitch*1000)/1000,h:heldId(),k:settings.skin,a:(swingP<0.7?1:0)|(player.sneak?2:0)|(eating.on?4:0)|(((charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel]))?8:0)|(charge.on&&kindOf(charge.id)==='trident'?16:0)|((player.swimAmt||0)>0.8?32:(player.swimAmt||0)>0.3?64:0)|(player.hurtT>0?128:0),d:curDim});
+  net.sendPos({p:player.pos.map(v=>Math.round(v*100)/100),y:Math.round(player.yaw*1000)/1000,x:Math.round(player.pitch*1000)/1000,h:heldId(),k:settings.skin,a:(swingP<0.7?1:0)|(player.sneak?2:0)|(eating.on?4:0)|(((charge.on&&kindOf(charge.id)!=='trident')||slotLoaded(inv[sel]))?8:0)|(charge.on&&kindOf(charge.id)==='trident'?16:0)|((player.swimAmt||0)>0.8?32:(player.swimAmt||0)>0.3?64:0)|(player.hurtT>0?128:0),d:curDim,cs:typeof cskWire==='function'?cskWire().cs:'',sd:typeof cskWire==='function'?cskWire().sd:''});
   if(MP.pending.length){const e=MP.pending;MP.pending=[];for(let i=0;i<e.length;i+=8000)net.sendEdits(e.slice(i,i+8000));}
   const now=performance.now(),k=1-Math.exp(-12*dt);
   for(const r of MP.remotes.values()){
@@ -16986,7 +16991,9 @@ function frClean(pr){if(!pr||pr.g!=='aro')return null;const c=frCode(pr.c);if(!c
     r:/^[A-Z0-9]{3,8}$/.test(pr.r||'')?pr.r:'',rk:pr.rk==='peer'?'peer':'room',j:!!pr.j,p:clamp(pr.p|0,0,99),
     img:typeof pr.img==='string'&&pr.img.length<=2400&&/^[A-Za-z0-9+/=]*$/.test(pr.img)?pr.img:'',
     rq:Array.isArray(pr.rq)?pr.rq.slice(0,30).map(frCode).filter(Boolean):[],ok:Array.isArray(pr.ok)?pr.ok.slice(0,30).map(frCode).filter(Boolean):[],
-    jw:frCode(pr.jw),jt:+pr.jt||0};}
+    jw:frCode(pr.jw),jt:+pr.jt||0,cs:frSkinIn(pr)};}
+// a painted skin in someone's presence: remember its pixels (the hash must match them)
+function frSkinIn(pr){const h=typeof pr.cs==='string'&&/^s[a-z0-9]{4,14}$/.test(pr.cs)?pr.cs:'';if(h&&typeof pr.sd==='string'&&pr.sd.length<=6000&&typeof cskRemember==='function')cskRemember(h,pr.sd);return h;}
 function frPeer(c){let best=null;for(const p of FRN.peers.values())if(p&&p.c===c&&(!best||(p.s==='p'&&best.s!=='p')||(p.r&&!best.r)))best=p;return best;}
 async function frLobbyInit(){
   const ns=await RoomNet.available();if(!ns||typeof ns.presence!=='function'||typeof ns.onPeers!=='function')return;FRN.ns=ns;
@@ -17013,10 +17020,10 @@ function frMine(){const d=frD(),inW=frInWorld(),now=Date.now();
   d.out=d.out.filter(o=>now-o.at<14*864e5);
   return{g:'aro',c:d.code,n:myName(),k:settings.skin|0,s:inW?'p':'t',w:inW?frWorldInfo():null,
     r:MP.active&&MP.code?String(MP.code):'',rk:MP.active&&MP.kind==='peer'?'peer':'room',j:frJoinable()?1:0,p:MP.active?mpNet().count():1,
-    img:inW&&!FRN.noImg?FRN.thumb:'',rq:d.out.map(o=>o.c),ok:[...FRN.ok.keys()],jw:FRN.want?FRN.want.c:'',jt:FRN.want?FRN.want.t:0};}
+    img:inW&&!FRN.noImg?FRN.thumb:'',cs:typeof CSK!=='undefined'?CSK.ownHash:'',sd:typeof CSK!=='undefined'&&CSK.ownHash&&!FRN.noSkin?CSK.ownData:'',rq:d.out.map(o=>o.c),ok:[...FRN.ok.keys()],jw:FRN.want?FRN.want.c:'',jt:FRN.want?FRN.want.t:0};}
 function frPublish(force){if(!FRN.ns)return;const now=performance.now();if(!force&&now-FRN.pubT<1500)return;
   const o=frMine(),key=JSON.stringify(o);if(key===FRN.pubKey&&now-FRN.pubT<30000)return;
-  FRN.pubT=now;FRN.pubKey=key;FRN.ns.presence(o).catch(()=>{if(o.img){FRN.noImg=true;FRN.thumb='';FRN.pubKey='';}});}
+  FRN.pubT=now;FRN.pubKey=key;FRN.ns.presence(o).catch(()=>{if(o.img){FRN.noImg=true;FRN.thumb='';}else if(o.sd)FRN.noSkin=true;FRN.pubKey='';});}
 function frOnPeers(){const d=frD(),now=Date.now();let ch=false;
   for(const p of FRN.peers.values()){if(!p||p.c===d.code)continue;
     const f=d.list.find(x=>x.c===p.c),asked=d.out.some(o=>o.c===p.c);
@@ -17073,7 +17080,10 @@ function frDrawScene(cv,icon,seed){const g=cv.getContext('2d');cv.width=FR_TW;cv
     users:[[160,210,255],[96,170,90],[70,120,60]],globe:[[120,190,255],[230,230,240],[140,170,200]],cube:[[130,200,255],[100,180,80],[110,90,60]]}[icon]||[[130,200,255],[100,180,80],[110,90,60]];
   const rr=mulberry32((seed|0)+7);const sky=g.createLinearGradient(0,0,0,FR_TH);sky.addColorStop(0,`rgb(${P[0].map(v=>v*0.7|0)})`);sky.addColorStop(1,`rgb(${P[0]})`);g.fillStyle=sky;g.fillRect(0,0,FR_TW,FR_TH);
   let h=16+rr()*4;for(let x=0;x<FR_TW;x++){h+=(rr()-0.5)*2.2;h=Math.max(11,Math.min(21,h));g.fillStyle=`rgb(${P[1]})`;g.fillRect(x,h|0,1,2);g.fillStyle=`rgb(${P[2]})`;g.fillRect(x,(h|0)+2,1,FR_TH);}}
-function frDrawSkin(cv,k){const g=cv.getContext('2d');cv.width=16;cv.height=16;g.imageSmoothingEnabled=false;g.clearRect(0,0,16,16);
+function frDrawSkin(cv,k,cs){const g=cv.getContext('2d');cv.width=16;cv.height=16;g.imageSmoothingEnabled=false;g.clearRect(0,0,16,16);
+  // a painted skin: the top half of its front picture (head, shoulders, arms)
+  const c=cs&&typeof CSK!=='undefined'?(cs===CSK.ownHash&&CSK.own?{V:cskViews('c',CSK.own)}:CSK.cache.get(cs)):null;
+  if(c&&c.V){for(let y=0;y<16;y++)for(let x=0;x<16;x++){const p=cskGet(c.V,'F',x,y);if(!p)continue;g.fillStyle=`rgb(${p[0]},${p[1]},${p[2]})`;g.fillRect(x,y,1,1);}return;}
   try{const st=SKIN_TILES[clamp(k|0,0,5)],dr=(t,x,y,w,h)=>{const[sx,sy]=tileSrc(t);g.drawImage(atlasCanvas,sx,sy,16,16,x,y,w,h);};
     dr(st.bodyF,4,8,8,12);dr(st.armS,0,8,4,12);dr(st.armS,12,8,4,12);dr(st.headF,4,0,8,8);}catch(e){}}
 
@@ -17149,7 +17159,7 @@ function frRender(){if(!document.getElementById('friends'))return;const d=frD();
   // requests to me
   const R=$('fr-reqs');R.textContent='';const seen=new Set();
   for(const p of FRN.peers.values()){if(!p||seen.has(p.c)||!p.rq.includes(d.code)||frIsF(p.c)||d.ign.includes(p.c))continue;seen.add(p.c);
-    const row=document.createElement('div');row.className='fr-req';const cv=document.createElement('canvas');frDrawSkin(cv,p.k);
+    const row=document.createElement('div');row.className='fr-req';const cv=document.createElement('canvas');frDrawSkin(cv,p.k,p.cs);
     const t=document.createElement('div');t.className='fr-t';t.textContent=p.n;const sm=document.createElement('small');sm.textContent='フレンド申請が届いています（コード '+p.c+'）';t.appendChild(sm);
     const a=document.createElement('button');a.className='small';a.innerHTML=ico('check')+' 承認';a.onclick=()=>{FRN.ok.set(p.c,Date.now());frAddFriend(p.c,p.n,p.k);toast(p.n+' さんとフレンドになりました');try{sfx.join();}catch(e){}};
     const x=document.createElement('button');x.className='small';x.textContent='拒否';x.onclick=()=>{d.ign.push(p.c);frSave();};
@@ -17159,7 +17169,7 @@ function frRender(){if(!document.getElementById('friends'))return;const d=frD();
   if(!d.list.length){const e=document.createElement('div');e.className='fr-empty';e.textContent='まだフレンドがいません。フレンドコードを教え合うか、下の「このページを開いている人」から申請しましょう。';L.appendChild(e);}
   const rows=d.list.map(f=>({f,p:frPeer(f.c)})).sort((a,b)=>(!!b.p-!!a.p)||((b.p&&b.p.s==='p')-(a.p&&a.p.s==='p'))||(b.f.at-a.f.at));
   for(const{f,p}of rows){const on=!!p,row=document.createElement('div');row.className='fr-row'+(on?' on':'');
-    const l=document.createElement('div');l.className='fr-l';const cv=document.createElement('canvas');frDrawSkin(cv,p?p.k:f.k);
+    const l=document.createElement('div');l.className='fr-l';const cv=document.createElement('canvas');frDrawSkin(cv,p?p.k:f.k,p&&p.cs);
     const nm=document.createElement('div');nm.className='fr-nm';nm.textContent=(p?p.n:f.n)||'フレンド';
     const stt=document.createElement('div');stt.className='fr-st';stt.innerHTML='<i></i>';stt.appendChild(document.createTextNode(on?(p.s==='p'?'プレイ中':'オンライン'):'オフライン'));
     const x=document.createElement('button');x.className='fr-x small';x.title='フレンドから外す';x.textContent='×';
@@ -17177,7 +17187,7 @@ function frRender(){if(!document.getElementById('friends'))return;const d=frD();
   // everyone else with the page open
   const N=$('fr-near');N.textContent='';const ns=new Set();let n=0;
   for(const p of FRN.peers.values()){if(!p||ns.has(p.c)||p.c===d.code||frIsF(p.c)||(p.rq.includes(d.code)&&!d.ign.includes(p.c)))continue;ns.add(p.c);n++;
-    const row=document.createElement('div');row.className='fr-near';const cv=document.createElement('canvas');frDrawSkin(cv,p.k);
+    const row=document.createElement('div');row.className='fr-near';const cv=document.createElement('canvas');frDrawSkin(cv,p.k,p.cs);
     const t=document.createElement('div');t.className='fr-t';t.textContent=p.n;const sm=document.createElement('small');sm.textContent=(p.s==='p'&&p.w?p.w.n:'タイトル画面')+' ・ コード '+p.c;t.appendChild(sm);
     const a=document.createElement('button');a.className='small';const asked=d.out.some(o=>o.c===p.c);a.innerHTML=asked?'申請中':ico('userAdd')+' 申請';a.disabled=asked;a.onclick=()=>frRequest(p.c,p.n);
     row.append(cv,t,a);N.appendChild(row);}
@@ -17193,6 +17203,300 @@ function frBadge(){const b=document.getElementById('btn-friends');if(!b)return;c
 // keep the lobby up to date; start it a moment after the page opens (claude.use answers later, never at once)
 setTimeout(()=>{frD();frLobbyInit();frDbInit();},600);
 XMOD_TICK.push(()=>{if(FRN.ns)frPublish(false);});
+
+// ================================================================ スキン — paint your own
+// A painted skin is three pictures: the front (16×32), the back (16×32) and the right side (8×32), each part on the same
+// grid as the model (head 8×8, body 8×12, arms and legs 4×12). Every face of the model gets its own atlas tile from them
+// (the left side is the right side mirrored; tops, soles and the hidden sides of the body are filled in from the
+// pictures). Your skins are kept in this browser and, where the page may write its data store, in your own private
+// path there (data/users/<id>/skins), so the same link on another device has them too. In multiplayer a short hash
+// travels with every position update and the pixels now and then (cskWire), so others see the painted skin too.
+// The five templates are the original characters; any of them can be worn as it is or painted over.
+const CSK_KEY='aro_skins',CSK_REMOTE=8,CSK_MAX=12,CSK_TEMPLATES=[0,1,2,3,4];
+const CSK={d:null,slots:[],cache:new Map(),slotOf:new Map(),lru:[],dirty:false,own:'',ownHash:'',ownData:'',ref:null,dbOn:false,dbBusy:false,dbAgain:false,dbLast:''};
+const CSK_FACES=['headF','headB','headSR','headSL','headT','headU','bodyF','bodyB','bodySR','bodySL','bodyT','armRF','armLF','armRB','armLB','armOR','armOL','armT','armU','legRF','legLF','legRB','legLB','legOR','legOL','legU'];
+MODHOOK.tex.push(()=>{for(let s=0;s<1+CSK_REMOTE;s++){const t={cu:true};for(const f of CSK_FACES)t[f]=nt('CSK'+s+'_'+f);
+  Object.assign(t,{armS:t.armOR,legS:t.legOR,headS:t.headSR,bodyS:t.bodySR});CSK.slots.push(SKIN_TILES.push(t)-1);}});
+// where each part is painted (x, y, w, h) in the three pictures
+const CSK_W={F:16,B:16,S:8};
+const CSK_PARTS={F:[['頭',4,0,8,8],['体',4,8,8,12],['右うで',0,8,4,12],['左うで',12,8,4,12],['右足',4,20,4,12],['左足',8,20,4,12]],
+  B:[['頭',4,0,8,8],['体',4,8,8,12],['左うで',0,8,4,12],['右うで',12,8,4,12],['左足',4,20,4,12],['右足',8,20,4,12]],
+  S:[['頭',0,0,8,8],['うで',2,8,4,12],['足',2,20,4,12]]};
+function cskPartAt(k,x,y){for(const p of CSK_PARTS[k])if(x>=p[1]&&x<p[1]+p[3]&&y>=p[2]&&y<p[2]+p[4])return p;return null;}
+function cskBlank(){return{F:new Uint8ClampedArray(16*32*4),B:new Uint8ClampedArray(16*32*4),S:new Uint8ClampedArray(8*32*4)};}
+function cskClone(V){return{F:V.F.slice(),B:V.B.slice(),S:V.S.slice()};}
+function cskGet(V,k,x,y){const i=(y*CSK_W[k]+x)*4,a=V[k];return a[i+3]?[a[i],a[i+1],a[i+2]]:null;}
+function cskSet(V,k,x,y,c){if(x<0||y<0||x>=CSK_W[k]||y>=32)return;const i=(y*CSK_W[k]+x)*4,a=V[k];if(!c){a[i+3]=0;return;}a[i]=c[0];a[i+1]=c[1];a[i+2]=c[2];a[i+3]=255;}
+// a template as three pictures (from the faces the preset painter made)
+function cskFromPreset(si){const F=SKIN_FACES[si]||SKIN_FACES[0],V=cskBlank();
+  const blit=(k,x0,y0,face,mir)=>{const f=F[face];if(!f)return;for(let b=0;b<f.h;b++)for(let a=0;a<f.w;a++)cskSet(V,k,x0+a,y0+b,f.px[b*f.w+(mir?f.w-1-a:a)]);};
+  blit('F',4,0,'headF');blit('F',4,8,'bodyF');blit('F',0,8,'armS');blit('F',12,8,'armS');blit('F',4,20,'legS');blit('F',8,20,'legS');
+  blit('B',4,0,'headB');blit('B',4,8,'bodyB');blit('B',0,8,'armS');blit('B',12,8,'armS');blit('B',4,20,'legS');blit('B',8,20,'legS');
+  blit('S',0,0,'headS',true);blit('S',2,8,'armS');blit('S',2,20,'legS');return V;}
+// ---- a skin as a short string: palette + run lengths of the three pictures
+function cskEncode(V){const pal=[],map=new Map(),idx=[];
+  for(const k of['F','B','S']){const W=CSK_W[k],a=V[k];for(let i=0;i<W*32;i++){const x=i%W,y=(i/W)|0;if(!cskPartAt(k,x,y)||a[i*4+3]<128){idx.push(0);continue;}
+    const c=(a[i*4]<<16)|(a[i*4+1]<<8)|a[i*4+2];let j=map.get(c);
+    if(j===undefined){if(pal.length<250){pal.push(c);j=pal.length;map.set(c,j);}else{let bd=1e9;for(let q=0;q<pal.length;q++){const p=pal[q],d=Math.abs((p>>16)-(c>>16))+Math.abs((p>>8&255)-(c>>8&255))+Math.abs((p&255)-(c&255));if(d<bd){bd=d;j=q+1;}}}}
+    idx.push(j);}}
+  const out=[1,pal.length];for(const c of pal)out.push(c>>16&255,c>>8&255,c&255);
+  for(let i=0;i<idx.length;){let n=1;while(i+n<idx.length&&idx[i+n]===idx[i]&&n<256)n++;out.push(n-1,idx[i]);i+=n;}
+  let s='';for(const b of out)s+=String.fromCharCode(b);return btoa(s);}
+function cskDecode(str){try{if(typeof str!=='string'||str.length>6000)return null;const s=atob(str);if(s.length<2||s.charCodeAt(0)!==1)return null;
+  const np=s.charCodeAt(1);let p=2;const pal=[];for(let i=0;i<np;i++){if(p+2>=s.length)return null;pal.push([s.charCodeAt(p),s.charCodeAt(p+1),s.charCodeAt(p+2)]);p+=3;}
+  const total=16*32+16*32+8*32,idx=new Uint8Array(total);let i=0;
+  while(i<total&&p+1<s.length){const n=s.charCodeAt(p)+1,v=s.charCodeAt(p+1);p+=2;if(v>np)return null;for(let k=0;k<n&&i<total;k++)idx[i++]=v;}
+  if(i<total)return null;const V=cskBlank();let o=0;
+  for(const k of['F','B','S']){const W=CSK_W[k];for(let j=0;j<W*32;j++,o++){const v=idx[o];if(v)cskSet(V,k,j%W,(j/W)|0,pal[v-1]);}}
+  return V;}catch(e){return null;}}
+function cskHash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return's'+(h>>>0).toString(36);}
+// ---- painting the atlas tiles of a slot from the three pictures
+function cskMost(V,k,x0,y0,w,h,def){const n=new Map();let best=def,bn=0;for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++){const c=cskGet(V,k,x,y);if(!c)continue;const key=c.join(',');const m=(n.get(key)||0)+1;n.set(key,m);if(m>bn){bn=m;best=c;}}return best;}
+function cskPaintSlot(slot,V){const st=SKIN_TILES[slot];if(!st)return;
+  const put=(tile,src)=>{const tx=(tile%TPR)*16,ty=Math.floor(tile/TPR)*16;for(let y=0;y<16;y++)for(let x=0;x<16;x++){const c=src(x,y),i=((ty+y)*AT+tx+x)*4;ATLAS[i]=c[0];ATLAS[i+1]=c[1];ATLAS[i+2]=c[2];ATLAS[i+3]=255;}};
+  const gray=[150,150,150],px=(k,x,y)=>cskGet(V,k,x,y)||gray;
+  const reg=(k,x0,y0,w,h,mir)=>(x,y)=>{const a=Math.floor(x*w/16),b=Math.floor(y*h/16);return px(k,x0+(mir?w-1-a:a),y0+b);};
+  const flat=c=>()=>c;
+  put(st.headF,reg('F',4,0,8,8));put(st.headB,reg('B',4,0,8,8));put(st.headSR,reg('S',0,0,8,8));put(st.headSL,reg('S',0,0,8,8,true));
+  put(st.headT,flat(cskMost(V,'F',4,0,8,1,gray)));put(st.headU,flat(cskMost(V,'F',4,7,8,1,gray)));
+  put(st.bodyF,reg('F',4,8,8,12));put(st.bodyB,reg('B',4,8,8,12));
+  // the hidden sides of the body: the edge of the back (toward the back) and of the front (toward the front)
+  put(st.bodySR,(x,y)=>{const b=Math.floor(y*12/16);return x<8?px('B',11,8+b):px('F',4,8+b);});
+  put(st.bodySL,(x,y)=>{const b=Math.floor(y*12/16);return x<8?px('F',11,8+b):px('B',4,8+b);});
+  put(st.bodyT,(x,y)=>px('F',4+Math.floor(x/2),8));
+  put(st.armRF,reg('F',0,8,4,12));put(st.armLF,reg('F',12,8,4,12));put(st.armRB,reg('B',12,8,4,12));put(st.armLB,reg('B',0,8,4,12));
+  put(st.armOR,reg('S',2,8,4,12));put(st.armOL,reg('S',2,8,4,12,true));put(st.armT,flat(cskMost(V,'F',0,8,4,1,gray)));put(st.armU,flat(cskMost(V,'F',0,19,4,1,gray)));
+  put(st.legRF,reg('F',4,20,4,12));put(st.legLF,reg('F',8,20,4,12));put(st.legRB,reg('B',8,20,4,12));put(st.legLB,reg('B',4,20,4,12));
+  put(st.legOR,reg('S',2,20,4,12));put(st.legOL,reg('S',2,20,4,12,true));put(st.legU,flat(cskMost(V,'F',4,31,4,1,gray)));
+  try{const g=atlasCanvas.getContext('2d');for(const f of CSK_FACES){const t=st[f],tx=(t%TPR)*16,ty=Math.floor(t/TPR)*16,im=g.createImageData(16,16);
+    for(let y=0;y<16;y++)im.data.set(ATLAS.subarray(((ty+y)*AT+tx)*4,((ty+y)*AT+tx+16)*4),y*64);g.putImageData(im,tx,ty);}}catch(e){}
+  CSK.dirty=true;}
+XMOD_TICK.push(()=>{if(CSK.dirty){CSK.dirty=false;try{uploadAtlas();}catch(e){}}});
+// ---- my skins: the list, the one I wear
+function cskD(){if(CSK.d)return CSK.d;let d=null;try{d=JSON.parse(localStorage.getItem(CSK_KEY)||'null');}catch(e){}
+  if(!d||typeof d!=='object')d={};if(!Array.isArray(d.list))d.list=[];if(!Array.isArray(d.rm))d.rm=[];
+  d.list=d.list.filter(e=>e&&typeof e.id==='string'&&typeof e.d==='string'&&cskDecode(e.d));CSK.d=d;return d;}
+function cskSaveLocal(){try{localStorage.setItem(CSK_KEY,JSON.stringify(CSK.d));}catch(e){}}
+function cskSave(){cskSaveLocal();cskDbSave();}
+function cskEntry(id){return cskD().list.find(e=>e.id===id)||null;}
+// the skin I wear: a template (settings.skin) or one of mine (settings.cskin)
+function cskApplyOwn(){const e=settings.cskin?cskEntry(settings.cskin):null;
+  if(!e){CSK.own='';CSK.ownHash='';CSK.ownData='';return;}
+  if(CSK.own===e.id&&CSK.ownData===e.d)return;const V=cskDecode(e.d);if(!V){CSK.own='';return;}
+  cskPaintSlot(CSK.slots[0],V);CSK.own=e.id;CSK.ownData=e.d;CSK.ownHash=cskHash(e.d);}
+function skinIdx(){if(settings.cskin&&CSK.own&&CSK.slots.length)return CSK.slots[0];return clamp(settings.skin|0,0,SKIN_TILES.length-1);}
+function cskWear(kind,v){if(kind==='t'){settings.skin=clamp(v|0,0,5);settings.cskin='';}else{settings.cskin=v;}saveSettings();cskApplyOwn();cskUpdateIcon();if(typeof frPublish==='function')frPublish(true);}
+// what goes along with my position in multiplayer: always the hash, the pixels for a moment every 2.5 s
+function cskWire(){if(!CSK.ownHash)return{cs:'',sd:''};return{cs:CSK.ownHash,sd:performance.now()%2500<380?CSK.ownData:''};}
+// ---- other people's painted skins
+function cskRemember(h,data){if(CSK.cache.has(h)||cskHash(data)!==h)return;const V=cskDecode(data);if(!V)return;CSK.cache.set(h,{data,V});
+  if(CSK.cache.size>40){const k=CSK.cache.keys().next().value;CSK.cache.delete(k);}}
+function cskSlotFor(h){if(CSK.slotOf.has(h)){CSK.lru=CSK.lru.filter(x=>x!==h);CSK.lru.push(h);return CSK.slotOf.get(h);}
+  const c=CSK.cache.get(h);if(!c||CSK.slots.length<2)return-1;let slot;
+  if(CSK.slotOf.size<CSK_REMOTE)slot=CSK.slots[1+CSK.slotOf.size];else{const old=CSK.lru.shift();slot=CSK.slotOf.get(old);CSK.slotOf.delete(old);}
+  CSK.slotOf.set(h,slot);CSK.lru.push(h);cskPaintSlot(slot,c.V);return slot;}
+function cskRemoteIdx(r){if(r&&r.cs){if(r.cs===CSK.ownHash&&CSK.own)return CSK.slots[0];const s=cskSlotFor(r.cs);if(s>=0)return s;}return r&&Number.isFinite(r.skin)?clamp(r.skin|0,0,5):0;}
+
+// ---- drawing a skin flat (front or back) for menus: from its pictures, or from a template's faces
+function cskViews(kind,v){if(kind==='t')return cskFromPreset(v);const e=kind==='c'?cskEntry(v):null;if(e)return cskDecode(e.d);if(kind==='h'){const c=CSK.cache.get(v);return c?c.V:null;}return null;}
+function cskDrawFlat(cv,V,side,scale){scale=scale||1;const k=side==='B'?'B':'F';cv.width=16*scale;cv.height=32*scale;const g=cv.getContext('2d');g.clearRect(0,0,cv.width,cv.height);if(!V)return;
+  for(let y=0;y<32;y++)for(let x=0;x<16;x++){const c=cskGet(V,k,x,y);if(!c)continue;g.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;g.fillRect(x*scale,y*scale,scale,scale);}}
+// a small 3D look at the figure (four turns), boxes drawn face by face with the pictures on them
+function cskDraw3D(cv,V,turn){const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,H);if(!V)return;g.imageSmoothingEnabled=false;
+  const face=(k,x0,y0,w,h,mir)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const q=c.getContext('2d'),im=q.createImageData(w,h);
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){const p=cskGet(V,k,x0+(mir?w-1-x:x),y0+y)||[150,150,150],i=(y*w+x)*4;im.data[i]=p[0];im.data[i+1]=p[1];im.data[i+2]=p[2];im.data[i+3]=255;}q.putImageData(im,0,0);return c;};
+  const top=(c)=>{const q=document.createElement('canvas');q.width=q.height=1;const x=q.getContext('2d');x.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;x.fillRect(0,0,1,1);return q;};
+  // boxes in model pixels: [x0,y0,z0,x1,y1,z1, {front, back, right(+x), left(-x), top}]
+  const B=[[-4,0,-2,0,12,2,{f:face('F',8,20,4,12),b:face('B',4,20,4,12),r:face('S',2,20,4,12),l:face('S',2,20,4,12,true),t:top(cskMost(V,'F',8,20,4,1,[150,150,150]))}],
+    [0,0,-2,4,12,2,{f:face('F',4,20,4,12),b:face('B',8,20,4,12),r:face('S',2,20,4,12),l:face('S',2,20,4,12,true),t:top(cskMost(V,'F',4,20,4,1,[150,150,150]))}],
+    [-4,12,-2,4,24,2,{f:face('F',4,8,8,12),b:face('B',4,8,8,12),r:face('S',2,8,4,12),l:face('S',2,8,4,12,true),t:top(cskMost(V,'F',4,8,8,1,[150,150,150]))}],
+    [-8,12,-2,-4,24,2,{f:face('F',12,8,4,12),b:face('B',0,8,4,12),r:face('S',2,8,4,12),l:face('S',2,8,4,12,true),t:top(cskMost(V,'F',12,8,4,1,[150,150,150]))}],
+    [4,12,-2,8,24,2,{f:face('F',0,8,4,12),b:face('B',12,8,4,12),r:face('S',2,8,4,12),l:face('S',2,8,4,12,true),t:top(cskMost(V,'F',0,8,4,1,[150,150,150]))}],
+    [-4,24,-4,4,32,4,{f:face('F',4,0,8,8),b:face('B',4,0,8,8),r:face('S',0,0,8,8),l:face('S',0,0,8,8,true),t:top(cskMost(V,'F',4,0,8,1,[150,150,150]))}]];
+  const a=[0.62,-0.62,Math.PI-0.62,Math.PI+0.62][turn&3],ca=Math.cos(a),sa=Math.sin(a),s=Math.min(W/26,H/46),ox=W/2,oy=H-s*5;
+  // world (model) point → screen: turn round y, then a slightly tilted look from the front (-z)
+  const P=(x,y,z)=>{const rx=x*ca-z*sa,rz=x*sa+z*ca;return[ox-rx*s,oy-y*s+rz*s*0.28];};
+  const depth=(x,y,z)=>x*sa+z*ca;   // larger is further away (toward +z after turning)
+  const quads=[];
+  for(const[x0,y0,z0,x1,y1,z1,F]of B){
+    // each face: the corner where the picture's top-left goes, the edge along the picture's x, the edge along its y, the outward normal
+    const L=[[F.f,[x1,y1,z0],[x0,y1,z0],[x1,y0,z0],[0,0,-1]],[F.b,[x0,y1,z1],[x1,y1,z1],[x0,y0,z1],[0,0,1]],
+      [F.r,[x1,y1,z1],[x1,y1,z0],[x1,y0,z1],[1,0,0]],[F.l,[x0,y1,z0],[x0,y1,z1],[x0,y0,z0],[-1,0,0]],[F.t,[x0,y1,z0],[x1,y1,z0],[x0,y1,z1],[0,1,0]]];
+    for(const[img,o,u,v,n]of L){const nz=n[0]*sa+n[2]*ca;if(n[1]===0&&nz>-0.05)continue;   // facing away
+      quads.push({img,o,u,v,d:depth((x0+x1)/2+n[0]*(x1-x0)/2,(y0+y1)/2,(z0+z1)/2+n[2]*(z1-z0)/2)-(n[1]?0.01:0)});}}
+  quads.sort((p,q)=>q.d-p.d);
+  for(const q of quads){const O=P(...q.o),U=P(...q.u),V2=P(...q.v),w=q.img.width,h=q.img.height;
+    g.setTransform((U[0]-O[0])/w,(U[1]-O[1])/w,(V2[0]-O[0])/h,(V2[1]-O[1])/h,O[0],O[1]);g.drawImage(q.img,0,0);}
+  g.setTransform(1,0,0,1,0,0);}
+
+// ---- the data store copy (the same link on another device keeps my skins)
+async function cskDbInit(){try{if(!window.claude||typeof window.claude.use!=='function')return;const u=await window.claude.use('user'),db=await window.claude.use('db');if(!u||!db)return;
+  const id=await u.id();if(!id)return;CSK.ref=db.doc('data/users/'+id+'/skins');CSK.ref.onSnapshot(s=>cskDbMerge(s),()=>{CSK.dbOn=false;});}catch(e){CSK.ref=null;}}
+function cskDbMerge(snap){const d=cskD();CSK.dbOn=true;if(!snap.exists){cskDbSave();return;}const o=snap.data()||{};let ch=false;
+  for(const r of Array.isArray(o.rm)?o.rm:[]){if(!r||typeof r.id!=='string')continue;const m=d.rm.find(x=>x.id===r.id);if(!m){d.rm.push({id:r.id,at:+r.at||0});ch=true;}else if(+r.at>m.at){m.at=+r.at;ch=true;}}
+  for(const e of Array.isArray(o.list)?o.list:[]){if(!e||typeof e.id!=='string'||typeof e.d!=='string'||!cskDecode(e.d))continue;const gone=d.rm.find(r=>r.id===e.id);if(gone&&gone.at>=(+e.at||0))continue;
+    const m=d.list.find(x=>x.id===e.id);if(!m){d.list.push({id:e.id,n:cleanName(e.n)||'スキン',d:e.d,at:+e.at||Date.now()});ch=true;}else if((+e.at||0)>m.at){m.n=cleanName(e.n)||m.n;m.d=e.d;m.at=+e.at;ch=true;}}
+  const n0=d.list.length;d.list=d.list.filter(e=>{const g=d.rm.find(r=>r.id===e.id);return!(g&&g.at>=e.at);});if(d.list.length!==n0)ch=true;
+  if(ch){cskSaveLocal();cskApplyOwn();cskUpdateIcon();cskRenderSoon();}
+  if(cskDbBody()!==JSON.stringify({v:1,list:o.list||[],rm:o.rm||[]}))cskDbSave();}
+function cskDbBody(){const d=cskD();return JSON.stringify({v:1,list:d.list.slice(0,CSK_MAX).map(e=>({id:e.id,n:e.n,d:e.d,at:e.at})),rm:d.rm.slice(-60)});}
+async function cskDbSave(){if(!CSK.ref||!CSK.dbOn||CSK.dbRO)return;if(CSK.dbBusy){CSK.dbAgain=true;return;}const body=cskDbBody();if(body===CSK.dbLast)return;CSK.dbBusy=true;
+  try{await CSK.ref.set(Object.assign(JSON.parse(body),{t:Date.now()}));CSK.dbLast=body;}catch(e){if(e&&e.code==='invalid_argument')CSK.dbRO=true;}
+  CSK.dbBusy=false;if(CSK.dbAgain){CSK.dbAgain=false;cskDbSave();}}
+
+// ---- the full-body icon at the bottom left of the title
+function cskUpdateIcon(){const b=document.getElementById('skin-ico');if(!b)return;const cv=b.querySelector('canvas');
+  const V=settings.cskin&&cskEntry(settings.cskin)?cskViews('c',settings.cskin):cskViews('t',settings.skin|0);cskDrawFlat(cv,V,'F',1);}
+(function(){const t=document.getElementById('title');if(!t||document.getElementById('skin-ico'))return;
+  const st=document.createElement('style');st.textContent=`
+#skin-ico{position:absolute;left:14px;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 10px 6px;background:rgba(0,0,0,.38);border:2px solid rgba(255,255,255,.28);border-radius:8px;cursor:pointer;min-width:0;width:auto;z-index:2}
+#skin-ico canvas{width:38px;height:76px;image-rendering:pixelated;display:block}
+#skin-ico span{font-size:12px;color:#fff}
+#skin-ico:hover{border-color:#ffe6a8}
+.sk-dlg{max-width:760px}
+.sk-cur{display:flex;gap:14px;align-items:center;justify-content:center;margin:4px 0 8px}
+.sk-cur canvas{image-rendering:pixelated}
+.sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin:4px 0}
+.sk-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;background:rgba(0,0,0,.28);border:2px solid transparent;border-radius:8px;cursor:pointer;min-height:0}
+.sk-card.on{border-color:#ffe6a8;background:rgba(255,230,168,.12)}
+.sk-card canvas{width:32px;height:64px;image-rendering:pixelated}
+.sk-card b{font-size:12px;font-weight:normal;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sk-card .sk-acts{display:flex;gap:3px}
+.sk-card .sk-acts button{font-size:11px;padding:2px 6px;min-height:0}
+.sk-new{justify-content:center;font-size:13px;color:#cde;border:2px dashed rgba(255,255,255,.3)}
+.sk-h{font-size:12px;color:#9ab;text-align:left;margin:10px 0 2px}
+.ske-wrap{display:flex;gap:14px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.ske-left{display:flex;flex-direction:column;align-items:center;gap:6px}
+#ske-cv{touch-action:none;image-rendering:pixelated;background:#1b232b;border-radius:4px;cursor:crosshair}
+.ske-right{display:flex;flex-direction:column;gap:8px;min-width:220px;max-width:280px}
+.ske-pal{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.ske-pal button{width:100%;aspect-ratio:1;min-height:0;padding:0;border:2px solid rgba(0,0,0,.5);border-radius:4px}
+.ske-pal button.on{border-color:#fff;box-shadow:0 0 0 2px #ffe6a8}
+.ske-tools{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+#skined button,#skins .sk-cur button,#skins .sk-acts button{width:auto;min-width:0;flex:0 0 auto;white-space:nowrap;margin:0}
+.sk-card{min-width:0}
+#skined .actions button{min-width:120px}
+#skined .seg{display:flex;gap:4px}#skined .seg button{padding:5px 14px}
+.sk-dlg{max-height:92vh;overflow:auto}
+.ske-tools button{font-size:12px;padding:4px 8px;min-height:0}
+.ske-tools button.on{background:#5b8f3a;color:#fff}
+.ske-prev{display:flex;align-items:center;gap:6px;justify-content:center}
+.ske-prev canvas{background:rgba(0,0,0,.25);border-radius:6px}
+.ske-cur{display:flex;align-items:center;gap:6px;font-size:12px;color:#cde}
+.ske-cur i{display:inline-block;width:22px;height:22px;border-radius:4px;border:2px solid #fff}
+@media (max-width:620px){.ske-right{max-width:none;width:100%}#skin-ico canvas{width:30px;height:60px}}`;
+  document.head.appendChild(st);
+  const b=document.createElement('button');b.id='skin-ico';b.title='スキンを変える';b.innerHTML='<canvas width="16" height="32"></canvas><span>スキン</span>';
+  b.onclick=()=>{initAudio();openSkins('title');};t.appendChild(b);
+  const ch=document.getElementById('btn-char');if(ch)ch.onclick=()=>{initAudio();openSkins('title');};
+})();
+
+// ---- the skin screen: templates, my skins, paint a new one
+let CSKUI={from:'title',rT:0,turn:0};
+function cskScreen(){let el=document.getElementById('skins');if(el)return el;el=document.createElement('div');el.id='skins';el.className='screen dim hidden';
+  el.innerHTML=`<div class="dialog sk-dlg"><h2>スキン</h2>
+    <div class="sk-cur"><canvas id="sk-cur3" width="150" height="200"></canvas><div><canvas id="sk-curF" width="16" height="32" style="width:48px;height:96px"></canvas><canvas id="sk-curB" width="16" height="32" style="width:48px;height:96px;margin-left:6px"></canvas><div class="note" id="sk-curn" style="margin-top:4px"></div><button id="sk-turn" class="small">${ico('arrow')} 回す</button></div></div>
+    <div class="sk-h">テンプレート（そのまま着る・もとにして描く）</div><div class="sk-grid" id="sk-tpl"></div>
+    <div class="sk-h">マイスキン（自分で描いたスキン）</div><div class="sk-grid" id="sk-mine"></div>
+    <p class="note" id="sk-note" style="text-align:left"></p>
+    <div class="actions"><button id="sk-back">戻る</button></div></div>`;
+  document.body.appendChild(el);SCREENS.push('skins');
+  $('sk-back').onclick=()=>{if(CSKUI.from==='pause'&&state!=='title')showScreen('pause');else showScreen('title');};
+  $('sk-turn').onclick=()=>{CSKUI.turn=(CSKUI.turn+1)&3;cskRender();};
+  return el;}
+function openSkins(from){cskD();cskScreen();CSKUI.from=from||(state==='title'?'title':'pause');cskRender();showScreen('skins');}
+function cskRenderSoon(){clearTimeout(CSKUI.rT);CSKUI.rT=setTimeout(()=>{if(document.getElementById('skins')&&!$('skins').classList.contains('hidden'))cskRender();},150);}
+function cskCard(V,name,on,onPick,acts){const c=document.createElement('div');c.className='sk-card'+(on?' on':'');const cv=document.createElement('canvas');cskDrawFlat(cv,V,'F',1);
+  const b=document.createElement('b');b.textContent=name;c.append(cv,b);if(acts){const a=document.createElement('div');a.className='sk-acts';for(const[t,fn]of acts){const x=document.createElement('button');x.className='small';x.textContent=t;x.onclick=e=>{e.stopPropagation();fn(x);};a.appendChild(x);}c.appendChild(a);}
+  c.onclick=onPick;return c;}
+function cskRender(){if(!document.getElementById('skins'))return;const d=cskD(),cur=settings.cskin&&cskEntry(settings.cskin);
+  const V=cur?cskViews('c',settings.cskin):cskViews('t',settings.skin|0);cskDraw3D($('sk-cur3'),V,CSKUI.turn);cskDrawFlat($('sk-curF'),V,'F',1);cskDrawFlat($('sk-curB'),V,'B',1);
+  $('sk-curn').textContent='いま着ている：'+(cur?cur.n:(SKINS[settings.skin|0]||SKINS[0]).name);
+  const T=$('sk-tpl');T.textContent='';
+  for(const si of CSK_TEMPLATES){const on=!cur&&(settings.skin|0)===si;T.appendChild(cskCard(cskViews('t',si),SKINS[si].name,on,()=>{cskWear('t',si);cskRender();},[['描く',()=>openSkinEditor({base:si})]]));}
+  const M=$('sk-mine');M.textContent='';
+  for(const e of d.list){const on=cur&&cur.id===e.id;M.appendChild(cskCard(cskDecode(e.d),e.n,on,()=>{cskWear('c',e.id);cskRender();},
+    [['描く',()=>openSkinEditor({id:e.id})],['×',x=>{if(!x.dataset.sure){x.dataset.sure='1';x.textContent='消す';setTimeout(()=>{if(x.isConnected){delete x.dataset.sure;x.textContent='×';}},2500);return;}
+      d.list=d.list.filter(q=>q.id!==e.id);d.rm.push({id:e.id,at:Date.now()});if(settings.cskin===e.id){settings.cskin='';saveSettings();cskApplyOwn();cskUpdateIcon();}cskSave();cskRender();}]]));}
+  if(d.list.length<CSK_MAX){const n=document.createElement('div');n.className='sk-card sk-new';n.innerHTML=ico('plus')+'<b>新しく描く</b>';n.onclick=()=>openSkinEditor({base:cur?null:settings.skin|0,from:cur?settings.cskin:null});M.appendChild(n);}
+  $('sk-note').textContent=CSK.dbOn&&!CSK.dbRO?'描いたスキンは claude.ai のこのリンクに保存されます。同じリンクを開けば、ほかの端末でも使えます。マルチプレイでは、ほかの人にも自分のスキンが見えます。'
+    :'描いたスキンはこの端末のブラウザに保存されます。マルチプレイでは、ほかの人にも自分のスキンが見えます。';}
+
+// ---- the painter
+const CSK_PAL=[[0,0,0],[64,64,72],[128,128,136],[200,200,206],[255,255,255],[96,56,32],[150,96,56],[210,160,110],
+  [236,196,160],[250,226,206],[190,40,40],[236,84,64],[250,150,50],[250,214,64],[120,190,60],[50,130,60],
+  [60,190,190],[70,130,220],[40,60,140],[120,70,190],[210,110,200],[250,160,190],[40,32,30],[250,240,200]];
+let SKE=null;
+function openSkinEditor(o){o=o||{};let V,name;
+  if(o.id){const e=cskEntry(o.id);V=e?cskDecode(e.d):null;name=e?e.n:'';}
+  else if(o.from){const e=cskEntry(o.from);V=e?cskDecode(e.d):null;name=e?e.n+'（コピー）':'';}
+  if(!V){const si=Number.isFinite(o.base)?o.base:0;V=cskFromPreset(si);name=name||(SKINS[si]?SKINS[si].name+'をもとに':'マイスキン');}
+  SKE={id:o.id||null,V,view:'F',tool:'pen',col:[190,40,40],mirror:false,undo:[],redo:[],down:false,last:null,turn:0,name};
+  let el=document.getElementById('skined');
+  if(!el){el=document.createElement('div');el.id='skined';el.className='screen dim hidden';
+    el.innerHTML=`<div class="dialog sk-dlg"><h2>スキンを描く</h2>
+      <div class="ske-wrap"><div class="ske-left">
+        <div class="seg"><button class="small" data-v="F">前</button><button class="small" data-v="B">後ろ</button><button class="small" data-v="S">横</button></div>
+        <canvas id="ske-cv"></canvas>
+        <div class="note" id="ske-part" style="min-height:16px"></div></div>
+      <div class="ske-right">
+        <div class="ske-prev"><canvas id="ske-3d" width="130" height="180"></canvas><button id="ske-turn" class="small">${ico('arrow')} 回す</button></div>
+        <div class="ske-tools"><button data-t="pen">ペン</button><button data-t="fill">ぬりつぶし</button><button data-t="pick">スポイト</button><button id="ske-mir">左右おなじ</button><button id="ske-undo">${ico('back')} もどす</button><button id="ske-redo">やりなおす</button></div>
+        <div class="ske-cur"><i id="ske-col"></i><span>いまの色</span><input id="ske-pick" type="color" value="#be2828" style="width:44px;height:28px;padding:0;border:0;background:none"></div>
+        <div class="ske-pal" id="ske-pal"></div>
+        <div class="row"><input id="ske-name" type="text" maxlength="16" placeholder="スキンの名前" style="flex:1"></div>
+        <div class="row"><select id="ske-tpl" style="flex:1"></select><button id="ske-tplgo" class="small">テンプレートから描き直す</button></div>
+      </div></div>
+      <div class="actions"><button id="ske-cancel">やめる</button><button id="ske-save">保存して着る</button></div></div>`;
+    document.body.appendChild(el);SCREENS.push('skined');
+    for(const b of el.querySelectorAll('[data-v]'))b.onclick=()=>{SKE.view=b.dataset.v;skeDraw();};
+    for(const b of el.querySelectorAll('[data-t]'))b.onclick=()=>{SKE.tool=b.dataset.t;skeDraw();};
+    $('ske-mir').onclick=()=>{SKE.mirror=!SKE.mirror;skeDraw();};
+    $('ske-undo').onclick=()=>{if(!SKE.undo.length)return;SKE.redo.push(cskClone(SKE.V));SKE.V=SKE.undo.pop();skeDraw();};
+    $('ske-redo').onclick=()=>{if(!SKE.redo.length)return;SKE.undo.push(cskClone(SKE.V));SKE.V=SKE.redo.pop();skeDraw();};
+    $('ske-turn').onclick=()=>{SKE.turn=(SKE.turn+1)&3;skeDraw();};
+    $('ske-pick').oninput=e=>{const h=e.target.value;SKE.col=[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];if(SKE.tool==='pick')SKE.tool='pen';skeDraw();};
+    const P=$('ske-pal');for(const c of CSK_PAL){const b=document.createElement('button');b.style.background=`rgb(${c})`;b.onclick=()=>{SKE.col=c.slice();if(SKE.tool==='pick')SKE.tool='pen';skeDraw();};P.appendChild(b);}
+    const sel=$('ske-tpl');for(const si of CSK_TEMPLATES){const o2=document.createElement('option');o2.value=si;o2.textContent=SKINS[si].name;sel.appendChild(o2);}
+    $('ske-tplgo').onclick=()=>{SKE.undo.push(cskClone(SKE.V));SKE.redo=[];SKE.V=cskFromPreset(+sel.value);skeDraw();};
+    $('ske-cancel').onclick=()=>{openSkins(CSKUI.from);};
+    $('ske-save').onclick=()=>skeSave();
+    const cv=$('ske-cv');
+    const at=e=>{const r=cv.getBoundingClientRect(),W=CSK_W[SKE.view];return[Math.floor((e.clientX-r.left)/r.width*W),Math.floor((e.clientY-r.top)/r.height*32)];};
+    cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId);}catch(_){ }const[x,y]=at(e);SKE.down=true;SKE.last=null;
+      if(SKE.tool==='pick'){const c=cskGet(SKE.V,SKE.view,x,y);if(c){SKE.col=c;SKE.tool='pen';}skeDraw();return;}
+      SKE.undo.push(cskClone(SKE.V));if(SKE.undo.length>40)SKE.undo.shift();SKE.redo=[];
+      if(SKE.tool==='fill'){skeFill(x,y);SKE.down=false;skeDraw();return;}skeLine(x,y);skeDraw();});
+    cv.addEventListener('pointermove',e=>{const[x,y]=at(e);const p=cskPartAt(SKE.view,x,y);$('ske-part').textContent=p?p[0]:'';if(!SKE.down||SKE.tool!=='pen')return;skeLine(x,y);skeDraw();});
+    const up=()=>{SKE.down=false;SKE.last=null;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);cv.addEventListener('pointerleave',()=>{$('ske-part').textContent='';});}
+  $('ske-name').value=name||'';skeDraw();showScreen('skined');}
+function skeDot(x,y){const k=SKE.view;if(!cskPartAt(k,x,y))return;cskSet(SKE.V,k,x,y,SKE.col);
+  if(SKE.mirror&&k!=='S'){const mx=15-x;if(cskPartAt(k,mx,y))cskSet(SKE.V,k,mx,y,SKE.col);}}
+function skeLine(x,y){const L=SKE.last||[x,y];const n=Math.max(Math.abs(x-L[0]),Math.abs(y-L[1]),1);for(let i=0;i<=n;i++)skeDot(Math.round(L[0]+(x-L[0])*i/n),Math.round(L[1]+(y-L[1])*i/n));SKE.last=[x,y];}
+function skeFill(x,y){const k=SKE.view,p=cskPartAt(k,x,y);if(!p)return;const from=(cskGet(SKE.V,k,x,y)||[-1,-1,-1]).join(','),to=SKE.col.join(',');if(from===to)return;
+  const q=[[x,y]],seen=new Set();while(q.length){const[a,b]=q.pop(),key=a+','+b;if(seen.has(key))continue;seen.add(key);
+    if(a<p[1]||a>=p[1]+p[3]||b<p[2]||b>=p[2]+p[4])continue;if((cskGet(SKE.V,k,a,b)||[-1,-1,-1]).join(',')!==from)continue;skeDot(a,b);q.push([a+1,b],[a-1,b],[a,b+1],[a,b-1]);}}
+function skeDraw(){if(!SKE)return;const k=SKE.view,W=CSK_W[k],cv=$('ske-cv');
+  const narrow=window.innerWidth<620,cell=Math.max(7,Math.min(15,Math.floor(Math.min(window.innerHeight*(narrow?0.44:0.62),520)/32),Math.floor((window.innerWidth-60)/W)));cv.width=W*cell;cv.height=32*cell;cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
+  const g=cv.getContext('2d');g.fillStyle='#141b22';g.fillRect(0,0,cv.width,cv.height);
+  for(let y=0;y<32;y++)for(let x=0;x<W;x++){if(!cskPartAt(k,x,y))continue;const c=cskGet(SKE.V,k,x,y);g.fillStyle=c?`rgb(${c})`:((x+y)&1?'#3a4048':'#30363d');g.fillRect(x*cell,y*cell,cell,cell);}
+  g.strokeStyle='rgba(0,0,0,.22)';g.lineWidth=1;g.beginPath();for(let x=0;x<=W;x++){g.moveTo(x*cell+0.5,0);g.lineTo(x*cell+0.5,cv.height);}for(let y=0;y<=32;y++){g.moveTo(0,y*cell+0.5);g.lineTo(cv.width,y*cell+0.5);}g.stroke();
+  g.strokeStyle='rgba(255,230,168,.75)';g.lineWidth=2;for(const p of CSK_PARTS[k])g.strokeRect(p[1]*cell+1,p[2]*cell+1,p[3]*cell-2,p[4]*cell-2);
+  if(SKE.mirror&&k!=='S'){g.strokeStyle='rgba(120,200,255,.8)';g.setLineDash([4,4]);g.beginPath();g.moveTo(8*cell,0);g.lineTo(8*cell,cv.height);g.stroke();g.setLineDash([]);}
+  for(const b of document.querySelectorAll('#skined [data-v]'))b.classList.toggle('on',b.dataset.v===k);
+  for(const b of document.querySelectorAll('#skined [data-t]'))b.classList.toggle('on',b.dataset.t===SKE.tool);
+  $('ske-mir').classList.toggle('on',SKE.mirror);$('ske-col').style.background=`rgb(${SKE.col})`;
+  const hx='#'+SKE.col.map(v=>v.toString(16).padStart(2,'0')).join('');if($('ske-pick').value!==hx)$('ske-pick').value=hx;
+  for(const b of document.querySelectorAll('#ske-pal button'))b.classList.toggle('on',b.style.background.replace(/\s/g,'')===('rgb('+SKE.col.join(',')+')'));
+  cskDraw3D($('ske-3d'),SKE.V,SKE.turn);}
+function skeSave(){const d=cskD(),data=cskEncode(SKE.V),n=cleanName($('ske-name').value)||'マイスキン';
+  let e=SKE.id?cskEntry(SKE.id):null;
+  if(!e){if(d.list.length>=CSK_MAX){$('ske-part').textContent='マイスキンは'+CSK_MAX+'こまでです。いらないものを消してください';return;}
+    e={id:'k'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36),n,d:data,at:Date.now()};d.list.push(e);}
+  else{e.n=n;e.d=data;e.at=Date.now();}
+  cskSave();cskWear('c',e.id);openSkins(CSKUI.from);}
+// start: my skin on the model, the icon, the data store
+setTimeout(()=>{cskD();cskApplyOwn();cskUpdateIcon();cskDbInit();},400);
 
 // ---------------------------------------------------------------- chunk streaming
 const OFFSETS=[];for(let dz=-16;dz<=16;dz++)for(let dx=-16;dx<=16;dx++)OFFSETS.push([dx,dz,Math.hypot(dx,dz)]);OFFSETS.sort((a,b)=>a[2]-b[2]);
